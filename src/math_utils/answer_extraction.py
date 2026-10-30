@@ -18,9 +18,9 @@ HASH_PATTERN = re.compile(r"####\s*([^\n\r]+)")
 
 # Pattern 3: Common answer phrasing
 PHRASE_PATTERNS = [
-    re.compile(r"(?:the\s+)?(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r.]+)", re.IGNORECASE),
-    re.compile(r"final\s+answer:\s*([^\n\r.]+)", re.IGNORECASE),
-    re.compile(r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r.]+)", re.IGNORECASE),
+    re.compile(r"(?:the\s+)?(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"final\s+answer:\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r]+)", re.IGNORECASE),
 ]
 
 # Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives)
@@ -83,7 +83,7 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
     for pattern in PHRASE_PATTERNS:
         matches = pattern.findall(text)
         if matches:
-            candidate = matches[-1].strip()
+            candidate = matches[-1].strip().rstrip(".")
             # Verify the candidate contains at least one numeric character
             if re.search(r"\d", candidate):
                 cleaned = strip_formatting(candidate)
