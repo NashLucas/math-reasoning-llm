@@ -1,0 +1,38 @@
+# Dataset configuration and split definitions
+
+source:
+  dataset_name: "openai/gsm8k"
+  config_name: "main"
+  seed: 42
+
+raw_counts:
+  train: 7473
+  test: 1319
+  total: 8792
+
+splits:
+  # 500 validation carved out of train with fixed seed
+  train: 6973
+  val_total: 500
+  val_analysis: 250
+  val_gating: 250
+  # Frozen test set: strictly isolated until Phase 7 final evaluation
+  test: 1319
+
+samples:
+  smoke_test_count: 20
+
+synthetic:
+  # Phase 3 subset selected from training pool (excluding val/test)
+  subset_size: 3000
+  samples_per_problem: 4
+  target_curated_traces: 4000
+  target_problems_covered: 2500
+  max_traces_per_problem: 2
+
+grpo:
+  # Phase 6 difficulty filter window (solvable between 20% and 80%)
+  min_pass_rate: 0.20
+  max_pass_rate: 0.80
+  target_problems_min: 1000
+  target_problems_max: 1500
