@@ -89,15 +89,27 @@ def download_and_save_raw_gsm8k(
 
 
 def load_raw_gsm8k(
-    split: str = "train", data_dir: Optional[Union[str, Path]] = None
+    split: str = "train",
+    data_dir: Optional[Union[str, Path]] = None,
+    auto_download: bool = True,
 ) -> pd.DataFrame:
-    """Load a raw GSM8K Parquet dataset split ('train' or 'test')."""
+    """Load a raw GSM8K Parquet dataset split ('train' or 'test').
+
+    If the parquet file does not exist locally and auto_download is True,
+    it automatically downloads and caches it.
+    """
     base_dir = Path(data_dir) if data_dir else RAW_GSM8K_DIR
     target_file = base_dir / f"{split}.parquet"
+
     if not target_file.exists():
-        raise FileNotFoundError(
-            f"Raw dataset file not found at {target_file}. Run download_and_save_raw_gsm8k first."
-        )
+        if auto_download:
+            logger.info(f"File {target_file} not found on disk. Auto-downloading...")
+            download_and_save_raw_gsm8k(base_dir)
+        else:
+            raise FileNotFoundError(
+                f"Raw dataset file not found at {target_file}. Run download_and_save_raw_gsm8k first."
+            )
+
     return pd.read_parquet(target_file)
 
 
