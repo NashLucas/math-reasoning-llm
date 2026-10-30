@@ -1,0 +1,251 @@
+{
+  "dataset": "openai/gsm8k",
+  "tokenizer": "deepseek-ai/deepseek-math-7b-base",
+  "counts": {
+    "total": 8792,
+    "train": 6973,
+    "val_total": 500,
+    "val_analysis": 250,
+    "val_gating": 250,
+    "test": 1319
+  },
+  "reasoning_steps": {
+    "all": {
+      "count": 8792,
+      "min": 2.0,
+      "mean": 3.59,
+      "std": 1.43,
+      "p50": 3.0,
+      "p75": 4.0,
+      "p90": 6.0,
+      "p95": 6.0,
+      "p99": 8.0,
+      "max": 11.0
+    },
+    "train": {
+      "count": 6973,
+      "min": 2.0,
+      "mean": 3.58,
+      "std": 1.42,
+      "p50": 3.0,
+      "p75": 4.0,
+      "p90": 5.8,
+      "p95": 6.0,
+      "p99": 8.0,
+      "max": 9.0
+    },
+    "test": {
+      "count": 1319,
+      "min": 2.0,
+      "mean": 3.65,
+      "std": 1.46,
+      "p50": 3.0,
+      "p75": 4.0,
+      "p90": 6.0,
+      "p95": 6.0,
+      "p99": 8.0,
+      "max": 11.0
+    }
+  },
+  "answer_types": {
+    "all": {
+      "total_parsed": 8792,
+      "integer_count": 8792,
+      "integer_pct": 100.0,
+      "decimal_count": 0,
+      "decimal_pct": 0.0,
+      "negative_count": 5,
+      "negative_pct": 0.06,
+      "value_stats": {
+        "count": 8792,
+        "min": -47.0,
+        "mean": 46874.89,
+        "std": 2380514.9,
+        "p50": 44.0,
+        "p75": 180.0,
+        "p90": 1080.0,
+        "p95": 4000.0,
+        "p99": 118180.0,
+        "max": 192000000.0
+      }
+    },
+    "train": {
+      "total_parsed": 6973,
+      "integer_count": 6973,
+      "integer_pct": 100.0,
+      "decimal_count": 0,
+      "decimal_pct": 0.0,
+      "negative_count": 2,
+      "negative_pct": 0.03,
+      "value_stats": {
+        "count": 6973,
+        "min": -12.0,
+        "mean": 57684.79,
+        "std": 2672630.32,
+        "p50": 44.0,
+        "p75": 180.0,
+        "p90": 1104.0,
+        "p95": 4000.0,
+        "p99": 114240.0,
+        "max": 192000000.0
+      }
+    },
+    "test": {
+      "total_parsed": 1319,
+      "integer_count": 1319,
+      "integer_pct": 100.0,
+      "decimal_count": 0,
+      "decimal_pct": 0.0,
+      "negative_count": 2,
+      "negative_pct": 0.15,
+      "value_stats": {
+        "count": 1319,
+        "min": -10.0,
+        "mean": 6830.32,
+        "std": 91803.27,
+        "p50": 42.0,
+        "p75": 160.0,
+        "p90": 947.0,
+        "p95": 5600.0,
+        "p99": 129856.0,
+        "max": 2880000.0
+      }
+    }
+  },
+  "token_lengths": {
+    "all": {
+      "question_tokens": {
+        "count": 8792,
+        "min": 12.0,
+        "mean": 60.12,
+        "std": 21.87,
+        "p50": 56.0,
+        "p75": 71.0,
+        "p90": 90.0,
+        "p95": 101.0,
+        "p99": 128.0,
+        "max": 213.0
+      },
+      "solution_tokens": {
+        "count": 8792,
+        "min": 23.0,
+        "mean": 92.89,
+        "std": 42.11,
+        "p50": 84.0,
+        "p75": 115.0,
+        "p90": 150.0,
+        "p95": 175.0,
+        "p99": 221.0,
+        "max": 343.0
+      },
+      "combined_tokens": {
+        "count": 8792,
+        "min": 62.0,
+        "mean": 167.77,
+        "std": 56.54,
+        "p50": 157.0,
+        "p75": 199.0,
+        "p90": 244.9,
+        "p95": 276.0,
+        "p99": 337.09,
+        "max": 465.0
+      }
+    },
+    "train": {
+      "question_tokens": {
+        "count": 6973,
+        "min": 12.0,
+        "mean": 59.93,
+        "std": 21.78,
+        "p50": 56.0,
+        "p75": 71.0,
+        "p90": 90.0,
+        "p95": 101.0,
+        "p99": 128.0,
+        "max": 213.0
+      },
+      "solution_tokens": {
+        "count": 6973,
+        "min": 25.0,
+        "mean": 92.69,
+        "std": 42.07,
+        "p50": 84.0,
+        "p75": 115.0,
+        "p90": 150.0,
+        "p95": 176.4,
+        "p99": 220.0,
+        "max": 343.0
+      },
+      "combined_tokens": {
+        "count": 6973,
+        "min": 62.0,
+        "mean": 167.38,
+        "std": 56.48,
+        "p50": 156.0,
+        "p75": 199.0,
+        "p90": 245.0,
+        "p95": 276.0,
+        "p99": 334.28,
+        "max": 464.0
+      }
+    },
+    "test": {
+      "question_tokens": {
+        "count": 1319,
+        "min": 23.0,
+        "mean": 61.53,
+        "std": 22.49,
+        "p50": 58.0,
+        "p75": 73.0,
+        "p90": 92.0,
+        "p95": 104.1,
+        "p99": 128.0,
+        "max": 189.0
+      },
+      "solution_tokens": {
+        "count": 1319,
+        "min": 25.0,
+        "mean": 94.44,
+        "std": 42.08,
+        "p50": 88.0,
+        "p75": 117.0,
+        "p90": 149.2,
+        "p95": 171.0,
+        "p99": 224.46,
+        "max": 301.0
+      },
+      "combined_tokens": {
+        "count": 1319,
+        "min": 69.0,
+        "mean": 170.74,
+        "std": 56.72,
+        "p50": 162.0,
+        "p75": 203.0,
+        "p90": 244.2,
+        "p95": 278.0,
+        "p99": 340.46,
+        "max": 421.0
+      }
+    }
+  },
+  "few_shot_prompt_tokens": {
+    "count": 50,
+    "min": 1325.0,
+    "mean": 1353.48,
+    "std": 17.87,
+    "p50": 1351.5,
+    "p75": 1362.5,
+    "p90": 1382.0,
+    "p95": 1384.0,
+    "p99": 1397.71,
+    "max": 1408.0
+  },
+  "recommendations": {
+    "question_p99": 128.0,
+    "solution_p99": 221.0,
+    "combined_p99": 337.09,
+    "max_seq_length": 512,
+    "max_new_tokens": 512,
+    "reasoning": "99% of GSM8K solutions fit within 221 tokens. 99% of zero-shot prompt+solution pairs fit within 337 tokens. Setting max_seq_length=512 and max_new_tokens=512 provides safety margins while fitting comfortably within memory budgets on T4/A10/G4 runtimes."
+  }
+}
