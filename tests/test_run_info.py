@@ -1,7 +1,6 @@
 """Unit tests for run_info.py and set_seed."""
 
 import json
-from pathlib import Path
 import tempfile
 import unittest
 

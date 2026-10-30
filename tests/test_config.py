@@ -3,15 +3,12 @@
 Compatible with both pytest and python's standard unittest.
 """
 
-from pathlib import Path
 import unittest
 from src.config import (
     ConfigManager,
     PROJECT_ROOT,
     CONFIGS_DIR,
-    load_yaml,
     merge_configs,
-    get_default_profile,
 )
 
 
