@@ -1,0 +1,134 @@
+# Pipeline stage ordering and configuration mapping
+
+stages:
+  - name: baseline
+    phase: 2
+    description: "Evaluate base and reference models on validation splits"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - generation.yaml
+      - eval.yaml
+    inputs:
+      data: "data/processed/val"
+    outputs:
+      results: "outputs/baseline"
+      logs: "logs/baseline"
+
+  - name: reasoning_data
+    phase: 3
+    description: "Generate, judge, and curate multi-trace reasoning data"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - data.yaml
+      - generation.yaml
+    inputs:
+      data: "data/processed/train"
+    outputs:
+      generated: "data/synthetic/generated"
+      curated: "data/synthetic/curated"
+
+  - name: sft
+    phase: 4
+    description: "Supervised fine-tuning with LoRA on curated reasoning traces"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - data.yaml
+      - lora_config.yaml
+      - training_args.json
+    inputs:
+      train_data: "data/synthetic/curated"
+      val_data: "data/processed/val"
+    outputs:
+      adapter: "outputs/sft/adapter_model"
+      checkpoints: "checkpoints/sft"
+      logs: "logs/training/sft"
+
+  - name: error_analysis
+    phase: 5
+    description: "Classify validation errors and select targeted training examples"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - data.yaml
+    inputs:
+      eval_results: "outputs/sft/eval_results.json"
+      val_data: "data/processed/val"
+      train_pool: "data/processed/train"
+    outputs:
+      reports: "outputs/reports"
+      targeted_data: "data/targeted"
+
+  - name: sft_targeted
+    phase: 5
+    description: "Round 2 SFT with combined curated and error-targeted data"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - data.yaml
+      - lora_config.yaml
+      - training_args.json
+    inputs:
+      curated_data: "data/synthetic/curated"
+      targeted_data: "data/targeted"
+      val_data: "data/processed/val"
+    outputs:
+      adapter: "outputs/sft_targeted/adapter_model"
+      checkpoints: "checkpoints/sft_targeted"
+      logs: "logs/training/sft_targeted"
+
+  - name: grpo
+    phase: 6
+    description: "Reinforcement learning with GRPO from best SFT checkpoint"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - data.yaml
+      - grpo_args.json
+      - reward.yaml
+    inputs:
+      start_adapter: "outputs/sft/adapter_model" # or sft_targeted depending on Phase 5 gate
+      grpo_data: "data/processed/grpo"
+      val_data: "data/processed/val"
+    outputs:
+      adapter: "outputs/grpo/adapter_model"
+      checkpoints: "checkpoints/grpo"
+      logs: "logs/training/grpo"
+
+  - name: final_eval
+    phase: 7
+    description: "Final evaluation on GSM8K test set with bootstrap CI and safety"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - generation.yaml
+      - eval.yaml
+    inputs:
+      test_data: "data/processed/test"
+      models:
+        - "deepseek-ai/deepseek-math-7b-base"
+        - "deepseek-ai/deepseek-math-7b-instruct"
+        - "deepseek-ai/deepseek-math-7b-rl"
+        - "outputs/sft/adapter_model"
+        - "outputs/sft_targeted/adapter_model"
+        - "outputs/grpo/adapter_model"
+    outputs:
+      results: "outputs/reports"
+      logs: "logs/evaluation"
+
+  - name: serve
+    phase: 8
+    description: "Adapter merging, Gradio demo deployment, and traffic monitoring"
+    configs:
+      - base_config.yaml
+      - paths.yaml
+      - monitoring.yaml
+    inputs:
+      base_model: "deepseek-ai/deepseek-math-7b-base"
+      final_adapter: "outputs/grpo/adapter_model"
+    outputs:
+      merged_model: "outputs/final/merged_model"
+      production_logs: "logs/production"
+      reports: "outputs/reports"

@@ -1,0 +1,36 @@
+# Base project configuration
+
+project_name: math-reasoning-llm
+seed: 42
+torch_dtype: bfloat16
+
+models:
+  # Main model undergoing post-training
+  train_base: "deepseek-ai/deepseek-math-7b-base"
+
+  # Lightweight model for cheap dry runs and testing on CPU/T4
+  dev_model: "Qwen/Qwen2.5-1.5B-Instruct"
+
+  # Reference baselines and teacher models
+  teacher: "deepseek-ai/deepseek-math-7b-instruct"
+  reference_instruct: "deepseek-ai/deepseek-math-7b-instruct"
+  reference_rl: "deepseek-ai/deepseek-math-7b-rl"
+
+  # Embedding model for error clustering and targeted retrieval (Phase 5)
+  embedding: "sentence-transformers/all-MiniLM-L6-v2"
+
+  # Safety evaluation model (Phase 2 & 7)
+  safety: "meta-llama/Llama-Guard-3-8B"
+
+answer_contract:
+  # The exact answer contract enforced across data, rewards, and evaluation
+  prefix: "####"
+  delimiter: "#### "
+  regex: '####\s*(-?[\d,]+(?:\.\d+)?)'
+  tolerance: 1e-4
+
+system_prompt: |
+  You are an expert mathematical problem solver.
+  Solve the following math word problem step by step, showing all reasoning clearly.
+  At the end of your response, provide the final numeric answer on a new line prefixed with "#### ", for example:
+  #### 42
