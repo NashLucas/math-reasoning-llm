@@ -6,11 +6,10 @@ disconnects or preemptions, and manages storage quotas by pruning old checkpoint
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 import re
 import shutil
+from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)

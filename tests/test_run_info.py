@@ -5,12 +5,12 @@ import tempfile
 import unittest
 
 from src.run_info import (
-    set_seed,
+    collect_run_info,
     get_git_info,
     get_gpu_info,
     get_library_versions,
-    collect_run_info,
     save_run_info,
+    set_seed,
 )
 
 

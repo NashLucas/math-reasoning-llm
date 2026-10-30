@@ -4,10 +4,11 @@ Compatible with both pytest and python's standard unittest.
 """
 
 import unittest
+
 from src.config import (
-    ConfigManager,
-    PROJECT_ROOT,
     CONFIGS_DIR,
+    PROJECT_ROOT,
+    ConfigManager,
     merge_configs,
 )
 
@@ -101,7 +102,7 @@ class TestConfig(unittest.TestCase):
                 self.assertGreaterEqual(
                     len(paths), 2, f"Stage {stage_name} has insufficient paths in {profile}"
                 )
-                for key, p in paths.items():
+                for p in paths.values():
                     self.assertIsNotNone(p)
                     self.assertGreater(len(str(p)), 0)
 

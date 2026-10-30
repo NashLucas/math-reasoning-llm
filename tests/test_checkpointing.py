@@ -1,15 +1,15 @@
 """Unit tests for src/training/checkpointing.py."""
 
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from src.training.checkpointing import (
-    parse_checkpoint_step,
+    cleanup_old_checkpoints,
     get_checkpoints,
     get_latest_checkpoint,
+    parse_checkpoint_step,
     should_resume,
-    cleanup_old_checkpoints,
 )
 
 

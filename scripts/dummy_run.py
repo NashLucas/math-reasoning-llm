@@ -5,14 +5,14 @@ run_info.json record in the target stage's outputs directory.
 """
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import ConfigManager
-from src.run_info import set_seed, save_run_info
+from src.config import ConfigManager  # noqa: E402
+from src.run_info import save_run_info, set_seed  # noqa: E402
 
 
 def main() -> None:

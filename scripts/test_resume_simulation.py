@@ -11,14 +11,14 @@ Validates the Day 4 condition:
 """
 
 import json
-from pathlib import Path
 import sys
 import tempfile
+from pathlib import Path
 
 # Ensure project root is in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.training.checkpointing import (
+from src.training.checkpointing import (  # noqa: E402
     get_latest_checkpoint,
     parse_checkpoint_step,
     should_resume,

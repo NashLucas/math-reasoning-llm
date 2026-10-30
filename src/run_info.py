@@ -6,15 +6,15 @@ git commit hash and dirty status, and a full snapshot of stage configuration.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
 import os
-from pathlib import Path
 import platform
 import random
 import subprocess
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 logger = logging.getLogger(__name__)
