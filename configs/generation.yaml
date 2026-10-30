@@ -1,0 +1,50 @@
+# Generation and decoding presets for model inference and evaluation
+
+# Global defaults derived from EDA token budgeting (reports/eda_summary.json)
+default_max_new_tokens: 512
+stop_sequences:
+  - "Question:"
+  - "\n\n\n"
+
+presets:
+  greedy:
+    description: "Deterministic greedy decoding for exact evaluation and reproducibility"
+    temperature: 0.0
+    top_p: 1.0
+    top_k: -1
+    do_sample: false
+    max_new_tokens: 512
+    num_return_sequences: 1
+
+  sampled:
+    description: "Standard stochastic decoding for exploratory sampling"
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 50
+    do_sample: true
+    max_new_tokens: 512
+    num_return_sequences: 1
+
+  self_consistency:
+    description: "Self-consistency majority voting across diverse reasoning traces (Phase 2 & 7)"
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 50
+    do_sample: true
+    max_new_tokens: 512
+    num_samples: 8
+    aggregation: "majority_vote"
+
+  synthetic_generation:
+    description: "Diverse candidate generation for targeted data generation (Phase 3)"
+    temperature: 0.8
+    top_p: 0.95
+    top_k: 50
+    do_sample: true
+    max_new_tokens: 512
+    num_samples: 4
+
+batch_sizes:
+  vllm: 16
+  transformers_local: 4
+  colab_g4: 8

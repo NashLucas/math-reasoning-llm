@@ -1,0 +1,87 @@
+{
+  "sample_size": 20,
+  "seed": 42,
+  "splits": {
+    "train": {
+      "count": 20,
+      "parquet_file": "train_sample.parquet",
+      "jsonl_file": "train_sample.jsonl",
+      "problem_ids": [
+        "gsm8k_4b291b0c6a0ca2da",
+        "gsm8k_ab23e86ff4d6c371",
+        "gsm8k_eaca8dde46b8c304",
+        "gsm8k_841be25d6b1ab408",
+        "gsm8k_7fe5af8178673ef8",
+        "gsm8k_a2e5832ab80da161",
+        "gsm8k_1074983b6aaa6b79",
+        "gsm8k_2a99c2fb8cf85121",
+        "gsm8k_9894090bf7b6975b",
+        "gsm8k_36de4c62f6f3d705",
+        "gsm8k_37446a82ae0fe63f",
+        "gsm8k_3ff42d9fbf2d7871",
+        "gsm8k_a462bd167bdb3d51",
+        "gsm8k_f1aea8f68854cebd",
+        "gsm8k_77b9706f6a1b3a23",
+        "gsm8k_e7a964bfe03069f8",
+        "gsm8k_d1ef76c87e54a5fe",
+        "gsm8k_efaa67845f85fb34",
+        "gsm8k_ed3e0bff93831644",
+        "gsm8k_b25c768a305ae3b8"
+      ]
+    },
+    "val": {
+      "count": 20,
+      "parquet_file": "val_sample.parquet",
+      "jsonl_file": "val_sample.jsonl",
+      "problem_ids": [
+        "gsm8k_28c99c8116c84c51",
+        "gsm8k_96817dd03351f2e4",
+        "gsm8k_8eb7c4b919d99dd8",
+        "gsm8k_416fe2110fec97e6",
+        "gsm8k_32c690915f468a2d",
+        "gsm8k_1e0d6f09822b0ad0",
+        "gsm8k_3a7f04c1ed8f4433",
+        "gsm8k_31fa53dc9faade0c",
+        "gsm8k_da9a9eb03cb6bd99",
+        "gsm8k_f665558f0f151bd8",
+        "gsm8k_084f5611c1f0d5bd",
+        "gsm8k_a5ee8b806f1491b9",
+        "gsm8k_20be0d39049ef170",
+        "gsm8k_a9838167d3e5af20",
+        "gsm8k_b9553113e3a48387",
+        "gsm8k_4978876f7e6bca16",
+        "gsm8k_b884d7fe11942526",
+        "gsm8k_fc5eeee5493fc0d1",
+        "gsm8k_971520181aa18757",
+        "gsm8k_3287dd38ff3dece0"
+      ]
+    },
+    "test": {
+      "count": 20,
+      "parquet_file": "test_sample.parquet",
+      "jsonl_file": "test_sample.jsonl",
+      "problem_ids": [
+        "gsm8k_804b6b67ebebc7e3",
+        "gsm8k_c9da308003667fe1",
+        "gsm8k_74896e8453fc1a00",
+        "gsm8k_07cde4e475a98b4b",
+        "gsm8k_f90aea6da78743d1",
+        "gsm8k_5ee9f27035c723a4",
+        "gsm8k_67edeb0d4adcc8e0",
+        "gsm8k_b5f82fe7beb2c711",
+        "gsm8k_0f494281748adc02",
+        "gsm8k_6206bc51a78315ff",
+        "gsm8k_294f2782d6452e02",
+        "gsm8k_22d608d67e55ce6b",
+        "gsm8k_5ee6b042514f5d82",
+        "gsm8k_58585cbaa8c1c895",
+        "gsm8k_df0b27fa9460122f",
+        "gsm8k_ab4a06b6df0789c8",
+        "gsm8k_ac3b1a7c15cf9226",
+        "gsm8k_dceb7c73dd545bc7",
+        "gsm8k_f5cc8b9f8550f2d6",
+        "gsm8k_37660e5675d1771f"
+      ]
+    }
+  }
+}
