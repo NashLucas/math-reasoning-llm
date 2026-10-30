@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 import re
 import sys
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -146,6 +146,88 @@ def save_processed_splits(
     return paths
 
 
+def normalize_text_for_contamination(text: str) -> str:
+    """Normalize text by lowercasing, stripping punctuation, and collapsing whitespace."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    return " ".join(text.split())
+
+
+def extract_word_ngrams(text: str, n: int = 13) -> Set[str]:
+    """Extract word-level n-grams from text."""
+    words = normalize_text_for_contamination(text).split()
+    if len(words) < n:
+        return set()
+    return {" ".join(words[i : i + n]) for i in range(len(words) - n + 1)}
+
+
+def check_contamination(
+    train_questions: List[str],
+    test_questions: List[str],
+    ngram_size: int = 13,
+) -> Dict[str, Any]:
+    """Detect exact matches and long n-gram overlaps between training and test sets.
+
+    Returns:
+        Dict detailing exact_matches, ngram_matches, and is_contaminated flag.
+    """
+    norm_train = [normalize_text_for_contamination(q) for q in train_questions]
+    norm_test = [normalize_text_for_contamination(q) for q in test_questions]
+
+    # 1. Exact match check
+    exact_matches = set(norm_train).intersection(set(norm_test))
+
+    # 2. Build test n-gram index
+    test_ngrams: Dict[str, Set[int]] = {}
+    for idx, t_q in enumerate(test_questions):
+        for ng in extract_word_ngrams(t_q, n=ngram_size):
+            if ng not in test_ngrams:
+                test_ngrams[ng] = set()
+            test_ngrams[ng].add(idx)
+
+    # 3. Check train questions against test n-grams
+    ngram_overlaps: List[Dict[str, Any]] = []
+    for tr_idx, tr_q in enumerate(train_questions):
+        for ng in extract_word_ngrams(tr_q, n=ngram_size):
+            if ng in test_ngrams:
+                ngram_overlaps.append(
+                    {
+                        "train_idx": tr_idx,
+                        "test_indices": list(test_ngrams[ng]),
+                        "ngram": ng,
+                    }
+                )
+
+    # By definition, contamination is flagged if exact matches exist or if n-grams overlap
+    is_contaminated = len(exact_matches) > 0
+    return {
+        "is_contaminated": is_contaminated,
+        "exact_match_count": len(exact_matches),
+        "exact_matches": list(exact_matches),
+        "ngram_overlap_count": len(ngram_overlaps),
+        "ngram_overlaps": ngram_overlaps,
+    }
+
+
+def assert_no_contamination(
+    train_questions: List[str],
+    test_questions: List[str],
+    ngram_size: int = 13,
+    allow_known_template_overlap: bool = True,
+) -> None:
+    """Raise AssertionError if any exact match or forbidden n-gram overlap is discovered."""
+    results = check_contamination(
+        train_questions, test_questions, ngram_size=ngram_size
+    )
+    if results["exact_match_count"] > 0:
+        msg = f"Contamination detected! Exact question matches: {results['exact_match_count']}"
+        raise AssertionError(msg)
+
+    if not allow_known_template_overlap and results["ngram_overlap_count"] > 0:
+        msg = f"Contamination detected! N-gram ({ngram_size}-gram) overlaps: {results['ngram_overlap_count']}"
+        raise AssertionError(msg)
+
+
 def prepare_all_data(
     seed: int = 42,
     raw_dir: Optional[Union[str, Path]] = None,
@@ -161,6 +243,13 @@ def prepare_all_data(
     raw_test = load_raw_gsm8k("test", data_dir=raw_path)
 
     splits = partition_splits(raw_train, raw_test, seed=seed)
+
+    # Perform automated contamination verification
+    train_q = splits["train"]["question"].tolist()
+    test_q = splits["test"]["question"].tolist()
+    assert_no_contamination(train_q, test_q)
+    print("Contamination check passed: zero exact leakage between training pool and test set.")
+
     return save_processed_splits(splits, output_base_dir=output_dir)
 
 
