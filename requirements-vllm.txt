@@ -1,0 +1,5 @@
+# High-throughput vLLM inference engine (Optional)
+# Tested on Colab GPU runtimes (L4 / G4 / A100)
+# If version conflicts occur with preinstalled PyTorch, the pipeline falls back to Hugging Face native generation.
+
+vllm>=0.7.0
