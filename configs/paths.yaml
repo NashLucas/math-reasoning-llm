@@ -1,0 +1,54 @@
+# Path configuration profiles
+# Supports 'local' (local machine development) and 'colab' (Google Colab with Drive mount)
+
+default_profile: local
+
+profiles:
+  local:
+    description: "Local workstation development profile"
+    root: "."
+    data_dir: "data"
+    checkpoints_dir: "checkpoints"
+    outputs_dir: "outputs"
+    logs_dir: "logs"
+    hf_cache_dir: ".cache/huggingface"
+
+  colab:
+    description: "Google Colab production profile (artifacts persisted to Google Drive)"
+    # Base Drive folder mounted at /content/drive/MyDrive/math-reasoning-llm
+    root: "/content/drive/MyDrive/math-reasoning-llm"
+    data_dir: "/content/drive/MyDrive/math-reasoning-llm/data"
+    checkpoints_dir: "/content/drive/MyDrive/math-reasoning-llm/checkpoints"
+    outputs_dir: "/content/drive/MyDrive/math-reasoning-llm/outputs"
+    logs_dir: "/content/drive/MyDrive/math-reasoning-llm/logs"
+    # IMPORTANT: HF cache stays on local high-speed SSD disk, NEVER on Drive
+    hf_cache_dir: "/content/hf_cache"
+
+stages:
+  baseline:
+    checkpoints: "{checkpoints_dir}/baseline"
+    outputs: "{outputs_dir}/baseline"
+    logs: "{logs_dir}/baseline"
+
+  sft:
+    checkpoints: "{checkpoints_dir}/sft"
+    outputs: "{outputs_dir}/sft"
+    logs: "{logs_dir}/training/sft"
+
+  sft_targeted:
+    checkpoints: "{checkpoints_dir}/sft_targeted"
+    outputs: "{outputs_dir}/sft_targeted"
+    logs: "{logs_dir}/training/sft_targeted"
+
+  grpo:
+    checkpoints: "{checkpoints_dir}/grpo"
+    outputs: "{outputs_dir}/grpo"
+    logs: "{logs_dir}/training/grpo"
+
+  final_eval:
+    outputs: "{outputs_dir}/reports"
+    logs: "{logs_dir}/evaluation"
+
+  serve:
+    outputs: "{outputs_dir}/final"
+    logs: "{logs_dir}/production"
