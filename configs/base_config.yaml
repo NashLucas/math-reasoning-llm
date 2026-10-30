@@ -4,6 +4,13 @@ project_name: math-reasoning-llm
 seed: 42
 torch_dtype: bfloat16
 
+sequence_limits:
+  # Empirically determined via DeepSeek tokenizer EDA (reports/eda_summary.json):
+  # 99th percentile solution: 221 tokens (max 343)
+  # 99th percentile zero-shot prompt+solution: 337 tokens (max 465)
+  max_seq_length: 512
+  max_new_tokens: 512
+
 models:
   # Main model undergoing post-training
   train_base: "deepseek-ai/deepseek-math-7b-base"
