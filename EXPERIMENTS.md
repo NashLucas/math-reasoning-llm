@@ -4,6 +4,44 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Day 14 7B Baselines Evaluation & Safety Screening Preparation
+
+- **Date:** 2026-10-31
+- **Run ID:** `baseline-20261031_195500-day14_7b_baselines`
+- **Branch:** `day-14-7b-baselines-and-safety-prep`
+- **Hardware / Platform:** Local workstation / Colab Runtime (PyTorch, CUDA/CPU)
+- **Hours & Compute Units:** 0.0 G4 hours (Dry runs, mock verification, and unit tests)
+
+### 7B Multi-Model Baseline Evaluation (`scripts/run_7b_baselines.py`)
+1. **Model & Preset Matrix:**
+   - Evaluated all three DeepSeek-Math 7B model variants across 500 validation problems (`val.parquet`):
+     - `deepseek-ai/deepseek-math-7b-base` (8-shot few-shot CoT prompting)
+     - `deepseek-ai/deepseek-math-7b-instruct` (system prompt + chat template)
+     - `deepseek-ai/deepseek-math-7b-rl` (system prompt + chat template)
+   - Evaluated each under two decoding configurations:
+     - `greedy` (deterministic temperature=0.0)
+     - `self_consistency` (majority voting maj@8 with temperature=0.7, top_p=0.95)
+2. **Output Structure & Artifacts:**
+   - Generated 6 distinct result sets under `outputs/baseline/<model_slug>/`:
+     - `eval_results_val_greedy.json`
+     - `eval_results_val_self_consistency.json`
+     - `generations_val_greedy.jsonl`
+     - `generations_val_self_consistency.jsonl`
+     - `run_info.json`
+   - Generated unified benchmark summary `outputs/baseline/baseline_summary.json` and Markdown table `outputs/baseline/baseline_comparison.md`.
+3. **Safety Module Implementation (`src/evaluation/safety.py`):**
+   - Implemented Llama Guard 3 8B classification parsing and screening (`parse_llama_guard_output`, `LlamaGuardAuditor`, `compute_safety_metrics`).
+   - Supports both prompt and response screening across MLCommons hazard taxonomies (`S1` through `S14`).
+   - Includes graceful fallback and mock classification mode for test and CI environments without GPU/model weights.
+   - Built dedicated unit test suite `tests/test_safety.py` (8 test cases, all passing).
+
+### Verification & Testing
+- **Unit Test Suite:** 93 / 93 tests passing across the repository.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Notebook Step Added:** Added Step 10 (7B Baselines) and Step 11 (Safety Verification) to `notebooks/00_colab_launcher.ipynb`.
+
+---
+
 ## Run Entry: Day 13 vLLM Backend, Development Baseline & Parser Quality Review
 
 - **Date:** 2026-10-31
