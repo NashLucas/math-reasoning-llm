@@ -59,6 +59,7 @@ class MathEvaluator:
         limit: Optional[int] = None,
         final: bool = False,
         prompt_format: str = "auto",
+        backend: str = "auto",
         batch_size: int = 4,
         output_dir: Optional[Union[str, Path]] = None,
         config_path: Optional[str] = None,
@@ -87,6 +88,7 @@ class MathEvaluator:
         self.limit = limit
         self.final = final
         self.prompt_format = prompt_format
+        self.backend = backend
         self.batch_size = batch_size
         self.use_mock = use_mock
 
@@ -358,6 +360,7 @@ class MathEvaluator:
                 output_file=generations_path,
                 model_name_or_path=self.checkpoint,
                 adapter_path=self.adapter_path,
+                backend=self.backend,
                 batch_size=self.batch_size,
                 preset=self.preset,
                 generation_config=preset_cfg,

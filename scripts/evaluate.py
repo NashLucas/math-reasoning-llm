@@ -88,6 +88,13 @@ def parse_args() -> argparse.Namespace:
         help="Authorization flag required to unlock evaluation on the 'test' split.",
     )
     parser.add_argument(
+        "--backend",
+        type=str,
+        default="auto",
+        choices=["auto", "vllm", "hf"],
+        help="Inference engine backend ('auto', 'vllm', or 'hf').",
+    )
+    parser.add_argument(
         "--prompt_format",
         type=str,
         default="auto",
@@ -160,6 +167,7 @@ def main() -> int:
             limit=args.limit,
             final=args.final,
             prompt_format=args.prompt_format,
+            backend=args.backend,
             batch_size=args.batch_size,
             output_dir=args.output_dir,
             use_mock=args.use_mock,

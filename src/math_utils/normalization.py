@@ -54,6 +54,15 @@ def strip_formatting(text: str) -> str:
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
     text = text.replace(",", "")
 
+    # Strip markdown bold/italic formatting
+    text = text.replace("*", "").replace("_", "")
+
+    # Strip LaTeX \text{...} annotations
+    text = re.sub(r"\\text\{[^}]*\}", "", text)
+
+    # Strip trailing parenthetical commentary, e.g. '100 (one hundred)' -> '100'
+    text = re.sub(r"\s*\([^)]*\)$", "", text)
+
     # Strip percentage signs
     text = text.replace("%", "").strip()
 

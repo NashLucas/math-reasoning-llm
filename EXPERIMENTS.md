@@ -4,6 +4,45 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Day 13 vLLM Backend, Development Baseline & Parser Quality Review
+
+- **Date:** 2026-10-31
+- **Run ID:** `baseline-20261031_181000-day13_vllm_and_dev_run`
+- **Branch:** `day-13-vllm-backend-and-dev-run`
+- **Hardware / Platform:** Local workstation / Colab T4 Runtime (PyTorch, CUDA/CPU)
+- **Hours & Compute Units:** 0.0 G4 hours (Development model dry runs and unit tests)
+
+### vLLM Backend & Unified Inference Interface
+1. **vLLM Integration (`src/generation.py`):**
+   - Implemented `load_vllm_model`, `generate_batch_vllm`, `is_vllm_available`, and `resolve_generation_backend`.
+   - Unified interface: identical stop sequences (`"Question:"`, `"
+
+
+"`, and line after `#### <number>`), decoding parameters, and chunked JSONL output format with crash resumption.
+   - Graceful fallback: when `vllm` is not installed or when running on non-CUDA environments, the pipeline automatically routes inference through Hugging Face left-padded causal LM generation.
+   - Added `--backend` (`auto`, `vllm`, `hf`) to `MathEvaluator` and `scripts/evaluate.py`.
+
+2. **Parser Hardening & Edge Case Robustness:**
+   - Enhanced `strip_formatting()` in `src/math_utils/normalization.py`:
+     - Markdown emphasis stripping: cleans `**42**` and `_42_` to `42`.
+     - LaTeX text stripping: removes `\text{...}` annotations inside math tags (e.g. `60\text{ miles}` -> `60`).
+     - Commentary stripping: cleans trailing parenthetical text (e.g. `100 (one hundred)` -> `100`).
+   - Enhanced regex patterns in `src/math_utils/answer_extraction.py`:
+     - `NUMBER_PATTERN`: captures negative currency values (e.g. `-$50` -> `-50`).
+     - `PHRASE_PATTERNS`: added support for `total is`, `result is`, `profit is`, `amount is`, and `calculated answer:`.
+
+3. **Development Model Baseline & Output Audit:**
+   - Built `scripts/run_dev_baseline.py`: runs development model (`Qwen/Qwen2.5-1.5B-Instruct`) on validation split with greedy and self-consistency decoding.
+   - Built `scripts/review_outputs.py`: audited 20 model reasoning completions. Every extracted candidate was verified against ground truth, finding **0 parser discrepancies** (`reports/day13_output_review.md`).
+   - Added Step 8 and Step 9 to `notebooks/00_colab_launcher.ipynb`.
+
+### Verification & Testing
+- **Unit Test Suite:** 85 / 85 tests passing across the repository (expanded `tests/test_generation.py` and `tests/test_answer_extraction.py`).
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `outputs/baseline/eval_results_val_greedy.json`, `eval_results_val_self_consistency.json`, `eval_results.json`, and `reports/day13_output_review.md`.
+
+---
+
 ## Run Entry: Day 12 Metrics, Self-Consistency Voting & Evaluation Engine
 
 - **Date:** 2026-10-31

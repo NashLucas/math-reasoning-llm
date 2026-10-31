@@ -18,13 +18,22 @@ HASH_PATTERN = re.compile(r"####\s*([^\n\r]+)")
 
 # Pattern 3: Common answer phrasing
 PHRASE_PATTERNS = [
-    re.compile(r"(?:the\s+)?(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
-    re.compile(r"final\s+answer:\s*([^\n\r]+)", re.IGNORECASE),
-    re.compile(r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r]+)", re.IGNORECASE),
+    re.compile(
+        r"(?:the\s+)?(?:final\s+)?(?:answer|result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r]+)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:calculated\s+)?(?:final\s+)?answer:\s*([^\n\r]+)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r]+)",
+        re.IGNORECASE,
+    ),
 ]
 
-# Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives)
-NUMBER_PATTERN = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
+# Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives, currency)
+NUMBER_PATTERN = re.compile(r"[-−–]?\s*[\$€£¥₹₩¢]?\s*[-−–]?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
 
 
 def extract_boxed_content(text: str) -> Optional[str]:

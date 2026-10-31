@@ -29,6 +29,136 @@ except ImportError:
     torch = None
     HAS_TORCH = False
 
+# Optional vllm import
+try:
+    from vllm import LLM, SamplingParams
+    HAS_VLLM = True
+except ImportError:
+    LLM = None
+    SamplingParams = None
+    HAS_VLLM = False
+
+
+def is_vllm_available() -> bool:
+    """Check if vLLM package is installed and a CUDA GPU is present."""
+    return HAS_VLLM and HAS_TORCH and torch.cuda.is_available()
+
+
+def resolve_generation_backend(backend: str = "auto") -> str:
+    """Resolve generation backend: 'auto', 'vllm', or 'hf'.
+
+    - 'auto': chooses 'vllm' if available with CUDA GPU, otherwise falls back to 'hf'.
+    - 'vllm': requires vllm; falls back with warning to 'hf' if not installed or no CUDA.
+    - 'hf': always uses Hugging Face Transformers backend.
+    """
+    req = (backend or "auto").lower().strip()
+    if req == "auto":
+        if is_vllm_available():
+            logger.info("Auto-selected generation backend: 'vllm' (vLLM installed with CUDA GPU)")
+            return "vllm"
+        return "hf"
+
+    if req == "vllm":
+        if not HAS_VLLM:
+            logger.warning("vLLM requested but not installed. Falling back to Hugging Face backend ('hf').")
+            return "hf"
+        if not (HAS_TORCH and torch.cuda.is_available()):
+            logger.warning("vLLM requested but CUDA GPU is not available. Falling back to Hugging Face backend ('hf').")
+            return "hf"
+        return "vllm"
+
+    return "hf"
+
+
+def load_vllm_model(
+    model_name_or_path: str,
+    tensor_parallel_size: int = 1,
+    gpu_memory_utilization: float = 0.9,
+    max_model_len: int = 2048,
+    trust_remote_code: bool = True,
+    **kwargs: Any,
+) -> Any:
+    """Load an LLM instance from vLLM for high-throughput inference."""
+    if not HAS_VLLM:
+        raise ImportError(
+            "vllm is not installed. Run 'pip install -r requirements-vllm.txt' "
+            "or use backend='hf'."
+        )
+    return LLM(
+        model=model_name_or_path,
+        tensor_parallel_size=tensor_parallel_size,
+        gpu_memory_utilization=gpu_memory_utilization,
+        max_model_len=max_model_len,
+        trust_remote_code=trust_remote_code,
+        **kwargs,
+    )
+
+
+def generate_batch_vllm(
+    llm: Any,
+    prompts: List[str],
+    max_new_tokens: int = 512,
+    temperature: float = 0.0,
+    top_p: float = 1.0,
+    top_k: int = 50,
+    do_sample: bool = False,
+    stop_sequences: Optional[Sequence[str]] = None,
+    num_return_sequences: int = 1,
+) -> List[List[Dict[str, Any]]]:
+    """Execute batched generation using vLLM for high-throughput inference.
+
+    Args:
+        llm: Loaded vLLM LLM instance.
+        prompts: List of prompt strings.
+        max_new_tokens: Maximum new tokens to generate.
+        temperature: Sampling temperature.
+        top_p: Nucleus sampling probability.
+        top_k: Top-k filtering limit.
+        do_sample: Whether to sample or decode greedily.
+        stop_sequences: List of strings to truncate upon.
+        num_return_sequences: Number of completions per prompt.
+
+    Returns:
+        List of lists (one list of completion dicts per input prompt).
+    """
+    if not HAS_VLLM:
+        raise RuntimeError("vllm is required for vLLM generation backend.")
+
+    stops = list(stop_sequences) if stop_sequences else ["Question:", "\n\n\n"]
+
+    sampling_params = SamplingParams(
+        n=num_return_sequences,
+        temperature=temperature if do_sample else 0.0,
+        top_p=top_p if do_sample else 1.0,
+        top_k=top_k if (do_sample and top_k > 0) else -1,
+        max_tokens=max_new_tokens,
+        stop=stops,
+    )
+
+    outputs = llm.generate(prompts, sampling_params)
+
+    results: List[List[Dict[str, Any]]] = []
+    for req_output in outputs:
+        prompt_len = len(req_output.prompt_token_ids)
+        completions_list: List[Dict[str, Any]] = []
+
+        for comp in req_output.outputs:
+            raw_text = comp.text
+            clean_text = truncate_at_stop_sequences(raw_text, stop_sequences=stop_sequences)
+            extracted, method = extract_answer(clean_text)
+
+            completions_list.append({
+                "completion_raw": raw_text,
+                "completion": clean_text,
+                "extracted_answer": extracted,
+                "extraction_method": method,
+                "prompt_tokens": prompt_len,
+                "completion_tokens": len(comp.token_ids),
+            })
+        results.append(completions_list)
+
+    return results
+
 
 def truncate_at_stop_sequences(
     text: str,
@@ -215,6 +345,7 @@ def run_generation_pipeline(
     tokenizer: Optional[Any] = None,
     model_name_or_path: Optional[str] = None,
     adapter_path: Optional[str] = None,
+    backend: str = "auto",
     batch_size: int = 4,
     preset: str = "greedy",
     generation_config: Optional[Dict[str, Any]] = None,
@@ -257,15 +388,25 @@ def run_generation_pipeline(
         logger.info(f"All {len(problems)} problems already completed in {output_path}. Skipping generation.")
         return [existing_records[p["problem_id"]] for p in problems if p.get("problem_id") in existing_records]
 
-    # 2. Lazy load model and tokenizer if not passed
-    if model is None or tokenizer is None:
-        if not model_name_or_path:
-            raise ValueError("Must provide either (model, tokenizer) or model_name_or_path.")
-        from src.model import load_model_and_tokenizer
-        model, tokenizer = load_model_and_tokenizer(
-            model_name_or_path=model_name_or_path,
-            adapter_path=adapter_path,
-        )
+    # 2. Resolve backend and lazy load model
+    active_backend = resolve_generation_backend(backend)
+
+    if active_backend == "vllm":
+        if model is None:
+            if not model_name_or_path:
+                raise ValueError("Must provide either model or model_name_or_path for vLLM.")
+            logger.info(f"Loading vLLM model: {model_name_or_path}")
+            model = load_vllm_model(model_name_or_path)
+    else:
+        # Hugging Face backend
+        if model is None or tokenizer is None:
+            if not model_name_or_path:
+                raise ValueError("Must provide either (model, tokenizer) or model_name_or_path.")
+            from src.model import load_model_and_tokenizer
+            model, tokenizer = load_model_and_tokenizer(
+                model_name_or_path=model_name_or_path,
+                adapter_path=adapter_path,
+            )
 
     # 3. Resolve generation parameters
     cfg = generation_config or {}
@@ -313,18 +454,31 @@ def run_generation_pipeline(
         batch_probs = pending_problems[i : i + batch_size]
         batch_prompts = [prompt_formatter(p) for p in batch_probs]
 
-        batch_outputs = generate_batch_hf(
-            model=model,
-            tokenizer=tokenizer,
-            prompts=batch_prompts,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            do_sample=do_sample,
-            stop_sequences=stops,
-            num_return_sequences=num_return_sequences,
-        )
+        if active_backend == "vllm":
+            batch_outputs = generate_batch_vllm(
+                llm=model,
+                prompts=batch_prompts,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                do_sample=do_sample,
+                stop_sequences=stops,
+                num_return_sequences=num_return_sequences,
+            )
+        else:
+            batch_outputs = generate_batch_hf(
+                model=model,
+                tokenizer=tokenizer,
+                prompts=batch_prompts,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                do_sample=do_sample,
+                stop_sequences=stops,
+                num_return_sequences=num_return_sequences,
+            )
 
         batch_records: List[Dict[str, Any]] = []
         for prob, completions in zip(batch_probs, batch_outputs):

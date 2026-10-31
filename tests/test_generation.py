@@ -9,7 +9,9 @@ from unittest.mock import MagicMock, patch
 
 from src.generation import (
     append_generation_records,
+    generate_batch_vllm,
     load_existing_generations,
+    resolve_generation_backend,
     run_generation_pipeline,
     truncate_at_stop_sequences,
 )
@@ -167,6 +169,89 @@ class TestGenerationEngine(unittest.TestCase):
             self.assertEqual(mock_generate_batch.call_count, 0)
             self.assertEqual(len(results), 2)
 
+
+    def test_resolve_generation_backend(self) -> None:
+        """Verify backend resolution and graceful fallback to 'hf'."""
+        # Explicit HF backend always returns 'hf'
+        self.assertEqual(resolve_generation_backend("hf"), "hf")
+
+        # When vLLM is not installed/mocked as False, 'vllm' or 'auto' resolves to 'hf'
+        with patch("src.generation.is_vllm_available", return_value=False):
+            self.assertEqual(resolve_generation_backend("auto"), "hf")
+            self.assertEqual(resolve_generation_backend("vllm"), "hf")
+
+        # When vLLM is available, 'auto' and 'vllm' resolve to 'vllm'
+        with patch("src.generation.is_vllm_available", return_value=True):
+            self.assertEqual(resolve_generation_backend("auto"), "vllm")
+            mock_torch = MagicMock()
+            mock_torch.cuda.is_available.return_value = True
+            with patch("src.generation.HAS_VLLM", True), patch("src.generation.HAS_TORCH", True), patch("src.generation.torch", mock_torch):
+                self.assertEqual(resolve_generation_backend("vllm"), "vllm")
+
+    def test_generate_batch_vllm_mocked(self) -> None:
+        """Verify generate_batch_vllm correctly maps vLLM outputs to standardized completion dicts."""
+        mock_llm = MagicMock()
+        mock_output_item = MagicMock()
+        mock_output_item.prompt_token_ids = [101, 102, 103]  # length 3
+
+        mock_completion = MagicMock()
+        mock_completion.text = "Step 1: Calculate.\n#### 42\nExtra text after answer."
+        mock_completion.token_ids = [201, 202, 203, 204]  # length 4
+        mock_output_item.outputs = [mock_completion]
+
+        mock_llm.generate.return_value = [mock_output_item]
+
+        with patch("src.generation.HAS_VLLM", True), patch("src.generation.SamplingParams", MagicMock()):
+            results = generate_batch_vllm(
+                llm=mock_llm,
+                prompts=["Solve this:"],
+                max_new_tokens=256,
+            )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results[0]), 1)
+        comp = results[0][0]
+        self.assertEqual(comp["extracted_answer"], "42")
+        self.assertEqual(comp["extraction_method"], "hash")
+        # Truncation rule stopped at line after #### 42
+        self.assertEqual(comp["completion"], "Step 1: Calculate.\n#### 42")
+        self.assertEqual(comp["prompt_tokens"], 3)
+        self.assertEqual(comp["completion_tokens"], 4)
+
+    @patch("src.generation.generate_batch_vllm")
+    def test_run_generation_pipeline_vllm_backend(self, mock_generate_vllm: MagicMock) -> None:
+        """Verify run_generation_pipeline routes through vLLM backend when requested."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            jsonl_file = Path(tmp_dir) / "output_vllm.jsonl"
+            problems = [{"problem_id": "p1", "question": "What is 2+2?", "gold_answer": "4"}]
+
+            mock_generate_vllm.return_value = [
+                [
+                    {
+                        "completion_raw": "4\n#### 4",
+                        "completion": "4\n#### 4",
+                        "extracted_answer": "4",
+                        "extraction_method": "hash",
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                    }
+                ]
+            ]
+
+            mock_llm = MagicMock()
+            with patch("src.generation.resolve_generation_backend", return_value="vllm"):
+                results = run_generation_pipeline(
+                    problems=problems,
+                    output_file=jsonl_file,
+                    model=mock_llm,
+                    backend="vllm",
+                )
+
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["problem_id"], "p1")
+            self.assertEqual(results[0]["extracted_answer"], "4")
+            self.assertTrue(results[0]["is_correct"])
+            self.assertEqual(mock_generate_vllm.call_count, 1)
 
 if __name__ == "__main__":
     unittest.main()

@@ -108,5 +108,23 @@ class TestAnswerExtraction(unittest.TestCase):
         self.assertEqual(method, "hash")
 
 
+    def test_day13_parser_misses_and_edge_cases(self):
+        """Day 13 parser hardening on real-world model generation edge cases."""
+        cases = [
+            ("The total amount is 42.", 42.0),
+            ("Calculated answer: **125**", 125.0),
+            ("So we get \boxed{\\$500}.", 500.0),
+            ("#### 1,234,567", 1234567.0),
+            ("#### 42\nNote that 42 is verified.", 42.0),
+            ("The answer is 100 (one hundred).", 100.0),
+            ("The final profit is -$50.", -50.0),
+            ("Result: \boxed{60\\text{ miles}}.", 60.0),
+        ]
+        for text, expected in cases:
+            raw, val, method = extract_and_normalize(text)
+            self.assertIsNotNone(val, f"Failed to extract numeric value from: {text!r}")
+            self.assertEqual(val, expected, f"Value mismatch for: {text!r}")
+            self.assertIn(method, ["hash", "boxed", "answer_is", "last_number"])
+
 if __name__ == "__main__":
     unittest.main()
