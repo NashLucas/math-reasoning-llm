@@ -353,6 +353,8 @@ def run_generation_pipeline(
                 generated_texts = [c["completion"] for c in completions]
                 extracted_answers = [c["extracted_answer"] for c in completions]
                 extraction_methods = [c.get("extraction_method", "none") for c in completions]
+                prompt_tokens_list = [c.get("prompt_tokens", 0) for c in completions]
+                completion_tokens_list = [c.get("completion_tokens", 0) for c in completions]
                 rec = {
                     "problem_id": prob.get("problem_id"),
                     "question": prob.get("question"),
@@ -361,6 +363,8 @@ def run_generation_pipeline(
                     "generated_texts": generated_texts,
                     "extracted_answers": extracted_answers,
                     "extraction_methods": extraction_methods,
+                    "prompt_tokens": prompt_tokens_list,
+                    "completion_tokens": completion_tokens_list,
                     "num_samples": len(completions),
                     "preset": preset,
                 }

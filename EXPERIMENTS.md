@@ -4,6 +4,51 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Day 12 Metrics, Self-Consistency Voting & Evaluation Engine
+
+- **Date:** 2026-10-31
+- **Run ID:** `eval-20261031_174500-day12_metrics_and_evaluation`
+- **Branch:** `day-12-metrics-and-evaluation`
+- **Hardware / Platform:** Local workstation / Colab Runtime (PyTorch, CPU/CUDA)
+- **Hours & Compute Units:** 0.0 G4 hours (Unit tests, deterministic evaluation dry runs)
+
+### Evaluation & Voting Engine Architecture
+1. **Self-Consistency Majority Voting (`src/reasoning/self_consistency.py` & `src/evaluation/self_consistency.py`):**
+   - Clusters parsed candidate answers dynamically using numeric and symbolic equivalence (`is_equivalent()`), normalizing currency, commas, fractions, units, and floating-point tolerances ($10^{-4}$).
+   - Disregards unparseable, empty, or `None` candidates so they never distort the majority consensus.
+   - Enforces a deterministic, fixed tie-breaking rule: when two or more candidate clusters have the identical highest vote count, the winner is the cluster that appeared earliest in sampling order.
+   - Provides `majority_vote()`, `majority_vote_with_details()`, and `majority_vote_from_completions()`.
+
+2. **Mathematical Reasoning Metrics (`src/evaluation/math_metrics.py`):**
+   - `accuracy`: top-1 / greedy evaluation accuracy.
+   - `maj@k`: majority-vote accuracy over $k$ generated reasoning paths.
+   - `pass@k`: empirical fraction of problems where at least one candidate among $k$ solves the problem correctly.
+   - `format_compliance_rate`: fraction of completions strictly adhering to the canonical `#### <number>` contract (`extraction_method == 'hash'`).
+   - `fallback_rate`: fraction of completions requiring heuristic fallback (`boxed`, `answer_is`, `last_number`).
+   - `unparseable_rate`: fraction of completions where no answer could be parsed.
+   - `truncation_rate`: fraction of responses truncated by hitting `max_new_tokens`.
+   - `average_prompt_tokens`, `average_completion_tokens`, `average_total_tokens`.
+   - `compute_all_metrics()`: single unified entrypoint returning a structured dictionary of all metrics.
+
+3. **Evaluation Runner & CLI (`src/evaluation/evaluator.py` & `scripts/evaluate.py`):**
+   - Supports any combination of stage, checkpoint, preset (`greedy`, `sampled`, `self_consistency`), and split.
+   - **Test-Set Wall Enforcement:** Strictly refuses to evaluate the `test` split during training/development, raising `TestSetWallError`. The test split can only be unlocked with the explicit `--final` flag at final evaluation.
+   - Integrates resumable chunked generation, writing to `generations_<split>_<preset>.jsonl`.
+   - Automatically writes canonical `eval_results.json` and records provenance metadata in `run_info.json`.
+
+### Verification & Testing
+- **New Test Suite:** `tests/test_math_metrics.py` with 15 test cases covering:
+  - Unanimous voting, clear majority, deterministic tie-breaking, equivalence clustering, and unparseable candidate handling.
+  - Hand-crafted prediction sets with known ground-truth metrics (accuracy, format compliance, fallback rate, token averages, truncation rate).
+  - Multi-sample `maj@k` and `pass@k` verification.
+  - Test-set wall rejection without `--final` and authorization with `--final`.
+  - End-to-end evaluation dry runs producing `eval_results.json` and `run_info.json`.
+- **Full Test Suite:** 81 / 81 tests passing across the entire repository.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **CLI Verification:** Successfully evaluated 20 sample problems end-to-end via `python scripts/evaluate.py --stage baseline --preset greedy --split sample --limit 20`.
+
+---
+
 ## Run Entry: Phase 1 Data & Answer Contract Gate (v0.2)
 
 - **Date:** 2026-10-30

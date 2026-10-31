@@ -79,6 +79,14 @@ class ConfigManager:
     def paths_config(self) -> Dict[str, Any]:
         return self._paths_cfg
 
+    @property
+    def project_root(self) -> Path:
+        return PROJECT_ROOT
+
+    def load_config(self, filename: str) -> Dict[str, Any]:
+        """Load and return any config YAML file from the configs directory."""
+        return self._load(filename)
+
     def get_profile(self, profile_name: Optional[str] = None) -> Dict[str, Any]:
         """Return raw profile variables for a given profile."""
         name = profile_name or get_default_profile()
