@@ -98,6 +98,12 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
     return None, "none"
 
 
+def extract_model_answer(text: str) -> Optional[str]:
+    """Convenience wrapper returning only the extracted answer string (or None)."""
+    ans, _ = extract_answer(text)
+    return ans
+
+
 def extract_and_normalize(text: str) -> Tuple[Optional[str], Optional[float], str]:
     """Extract raw answer, parse into numeric float, and return with extraction method.
 
