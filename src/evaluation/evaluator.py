@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 class TestSetWallError(PermissionError):
     """Raised when an evaluation attempts to access the test split without --final authorization."""
 
-    pass
+    __test__ = False
 
 
 class MathEvaluator:
@@ -141,12 +141,20 @@ class MathEvaluator:
             path = root / "data" / "processed" / "val" / f"{self.split}.parquet"
             if path.exists():
                 return path
+            fallback_val = root / "data" / "sample" / "val_sample.parquet"
+            if fallback_val.exists():
+                logger.info(f"Split {path} not found; falling back to sample set {fallback_val}")
+                return fallback_val
             raise FileNotFoundError(f"Processed validation split not found: {path}")
 
         if self.split == "train":
             path = root / "data" / "processed" / "train" / "train.parquet"
             if path.exists():
                 return path
+            fallback_train = root / "data" / "sample" / "train_sample.parquet"
+            if fallback_train.exists():
+                logger.info(f"Split {path} not found; falling back to sample set {fallback_train}")
+                return fallback_train
             raise FileNotFoundError(f"Processed train split not found: {path}")
 
         if self.split == "test":
@@ -154,6 +162,10 @@ class MathEvaluator:
             path = root / "data" / "processed" / "test" / "test.parquet"
             if path.exists():
                 return path
+            fallback_test = root / "data" / "sample" / "test_sample.parquet"
+            if fallback_test.exists():
+                logger.info(f"Split {path} not found; falling back to sample set {fallback_test}")
+                return fallback_test
             raise FileNotFoundError(f"Processed test split not found: {path}")
 
         # Check if direct file path was provided as split
