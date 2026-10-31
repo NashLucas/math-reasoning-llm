@@ -18,7 +18,9 @@ Usage:
   # A 7B reference model or trained adapter (Phase 7):
   python scripts/run_safety_eval.py --model deepseek-ai/deepseek-math-7b-base --prompt_format zero_shot
   python scripts/run_safety_eval.py --model deepseek-ai/deepseek-math-7b-base \
-      --adapter_path outputs/grpo/adapter_model --stage final_eval
+      --adapter_path <outputs_dir>/grpo/adapter_model --stage final_eval
+
+Outputs go to the stage's outputs folder (Google Drive under the colab profile).
 
   # CPU / CI (no weights):
   python scripts/run_safety_eval.py --use_mock
@@ -75,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--safety_data",
         type=str,
-        default=str(PROJECT_ROOT / "data" / "safety" / "safety_prompts.jsonl"),
+        default=str(ConfigManager().data_path("safety", "safety_prompts.jsonl")),
         help="Safety prompt set from scripts/prepare_safety_data.py.",
     )
     parser.add_argument("--stage", type=str, default="baseline", help="Stage folder under outputs/.")
@@ -195,7 +197,11 @@ def main() -> int:
         records = harmful + benign
 
     slug = get_model_slug(model_name, args.adapter_path)
-    out_dir = Path(args.output_dir) if args.output_dir else PROJECT_ROOT / "outputs" / args.stage / "safety" / slug
+    out_dir = (
+        Path(args.output_dir)
+        if args.output_dir
+        else cfg.get_stage_paths(args.stage)["outputs"] / "safety" / slug
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("=" * 72)

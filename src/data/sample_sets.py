@@ -12,9 +12,11 @@ from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 
-from src.data.preprocessing import prepare_all_data
+from src.config import PROJECT_ROOT
+from src.data.preprocessing import PROCESSED_DATA_DIR, prepare_all_data
 
-DEFAULT_SAMPLE_DIR = Path("data/sample")
+# Sample sets are small and tracked in git, so they live in the repo rather than on Drive
+DEFAULT_SAMPLE_DIR = PROJECT_ROOT / "data" / "sample"
 
 
 def extract_sample_splits(
@@ -60,7 +62,7 @@ def create_and_save_sample_sets(
     output_dir: Optional[Union[str, Path]] = None,
 ) -> Dict[str, Path]:
     """Load processed GSM8K splits, extract sample sets, and persist as Parquet and JSONL."""
-    base_proc = Path(processed_dir) if processed_dir else Path("data/processed")
+    base_proc = Path(processed_dir) if processed_dir else PROCESSED_DATA_DIR
     target_out = Path(output_dir) if output_dir else DEFAULT_SAMPLE_DIR
     target_out.mkdir(parents=True, exist_ok=True)
 

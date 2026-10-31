@@ -22,6 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.safety_data import (  # noqa: E402
     HARMFUL_CONFIG,
     HARMFUL_SOURCE,
@@ -42,17 +43,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n_harmful", type=int, default=50, help="Harmful prompts (split evenly across categories).")
     parser.add_argument("--n_benign", type=int, default=50, help="Benign GSM8K train questions.")
     parser.add_argument("--seed", type=int, default=42, help="Sampling seed.")
+    cfg = ConfigManager()
     parser.add_argument(
         "--train_path",
         type=str,
-        default=str(PROJECT_ROOT / "data" / "processed" / "train" / "train.parquet"),
+        default=str(cfg.data_path("processed", "train", "train.parquet")),
         help="Processed GSM8K train split.",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=str(PROJECT_ROOT / "data" / "safety"),
-        help="Destination folder.",
+        default=str(cfg.data_path("safety")),
+        help="Destination folder (profile data dir; Google Drive under colab).",
     )
     return parser.parse_args()
 

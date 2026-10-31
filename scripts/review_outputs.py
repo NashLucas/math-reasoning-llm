@@ -22,6 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.math_utils.answer_extraction import extract_answer  # noqa: E402
 from src.math_utils.normalization import is_equivalent, parse_numeric_value  # noqa: E402
 
@@ -75,8 +76,9 @@ def main() -> int:
         input_path = Path(args.input_file)
     else:
         # Check standard locations
-        val_greedy = PROJECT_ROOT / "outputs" / "baseline" / "generations_val_greedy.jsonl"
-        sample_greedy = PROJECT_ROOT / "outputs" / "baseline" / "generations_sample_greedy.jsonl"
+        baseline_dir = ConfigManager().get_stage_paths("baseline")["outputs"]
+        val_greedy = baseline_dir / "generations_val_greedy.jsonl"
+        sample_greedy = baseline_dir / "generations_sample_greedy.jsonl"
         if val_greedy.exists():
             input_path = val_greedy
         elif sample_greedy.exists():

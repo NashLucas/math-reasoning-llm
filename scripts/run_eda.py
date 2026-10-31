@@ -29,7 +29,11 @@ import pandas as pd  # noqa: E402
 from transformers import AutoTokenizer  # noqa: E402
 
 from src.data.formatting import format_few_shot_prompt, format_zero_shot_prompt  # noqa: E402
-from src.data.preprocessing import extract_gold_answer, prepare_all_data  # noqa: E402
+from src.data.preprocessing import (  # noqa: E402
+    PROCESSED_DATA_DIR,
+    extract_gold_answer,
+    prepare_all_data,
+)
 from src.math_utils.normalization import parse_numeric_value  # noqa: E402
 
 
@@ -187,7 +191,7 @@ def run_eda(
     print("=" * 70)
 
     # 1. Load splits
-    processed_dir = Path("data/processed")
+    processed_dir = PROCESSED_DATA_DIR
     train_file = processed_dir / "train" / "train.parquet"
     if not train_file.exists():
         print("Processed splits not found on disk. Preparing splits...")
