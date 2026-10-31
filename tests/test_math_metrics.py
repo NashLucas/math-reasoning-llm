@@ -312,6 +312,20 @@ class TestEvaluator(unittest.TestCase):
         self.assertIn("git", run_info)
         self.assertIn("system", run_info)
 
+    def test_missing_split_falls_back_to_sample_only_in_mock_mode(self) -> None:
+        """A real run must fail loudly rather than silently evaluate the 20-problem sample."""
+        missing = Path(self.temp_dir) / "processed" / "val" / "val.parquet"
+        sample = Path(self.temp_dir) / "val_sample.parquet"
+        sample.write_text("placeholder")
+
+        mock_eval = MathEvaluator(split="val", output_dir=self.temp_dir, use_mock=True)
+        self.assertEqual(mock_eval._processed_or_sample(missing, sample), sample)
+
+        real_eval = MathEvaluator(split="val", output_dir=self.temp_dir, use_mock=False)
+        with self.assertRaises(FileNotFoundError) as ctx:
+            real_eval._processed_or_sample(missing, sample)
+        self.assertIn("prepare_data.py", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

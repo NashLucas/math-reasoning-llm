@@ -97,6 +97,26 @@ class ConfigManager:
             )
         return profiles[name]
 
+    def get_profile_dir(self, key: str, profile_name: Optional[str] = None) -> Path:
+        """Resolve a profile directory ('data_dir', 'outputs_dir', 'checkpoints_dir', 'logs_dir', 'hf_cache_dir').
+
+        Under the 'colab' profile these point at Google Drive, so anything written there
+        survives a runtime disconnect. Relative paths resolve against the project root.
+        """
+        profile = self.get_profile(profile_name)
+        if key not in profile:
+            raise KeyError(f"Profile has no '{key}'. Available: {list(profile.keys())}")
+        p = Path(profile[key])
+        return p if p.is_absolute() else (PROJECT_ROOT / p).resolve()
+
+    def data_path(self, *parts: str, profile_name: Optional[str] = None) -> Path:
+        """Path under the profile's data directory, e.g. data_path('processed', 'val')."""
+        return self.get_profile_dir("data_dir", profile_name).joinpath(*parts)
+
+    def outputs_path(self, *parts: str, profile_name: Optional[str] = None) -> Path:
+        """Path under the profile's outputs directory, e.g. outputs_path('baseline')."""
+        return self.get_profile_dir("outputs_dir", profile_name).joinpath(*parts)
+
     def resolve_path(self, raw_path: str, profile_name: Optional[str] = None) -> Path:
         """Resolve a path template with profile variables."""
         profile = self.get_profile(profile_name)

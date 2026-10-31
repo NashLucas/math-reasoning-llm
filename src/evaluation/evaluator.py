@@ -110,7 +110,7 @@ class MathEvaluator:
             self.output_dir = Path(output_dir)
         else:
             stage_paths = self.cfg_mgr.get_stage_paths(self.stage)
-            self.output_dir = stage_paths.get("outputs", Path(f"outputs/{self.stage}"))
+            self.output_dir = stage_paths.get("outputs", self.cfg_mgr.outputs_path(self.stage))
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def enforce_test_set_wall(self) -> None:
@@ -125,50 +125,54 @@ class MathEvaluator:
             logger.error(msg)
             raise TestSetWallError(msg)
 
+    def _processed_or_sample(self, processed: Path, sample: Path) -> Path:
+        """Return the processed split; fall back to the 20-problem sample only in mock mode.
+
+        A real run must never silently evaluate the sample set in place of a full split.
+        """
+        if processed.exists():
+            return processed
+        if self.use_mock and sample.exists():
+            logger.warning(f"Split {processed} not found; mock run falling back to sample set {sample}")
+            return sample
+        raise FileNotFoundError(
+            f"Processed split not found: {processed}. Run scripts/prepare_data.py first."
+        )
+
     def resolve_dataset_path(self) -> Path:
-        """Resolve the file path for the requested split."""
-        root = self.cfg_mgr.project_root
+        """Resolve the file path for the requested split.
+
+        Processed splits live in the profile data directory (Google Drive under 'colab');
+        sample sets are tracked in the repo under data/sample.
+        """
+        sample_dir = self.cfg_mgr.project_root / "data" / "sample"
+        processed_dir = self.cfg_mgr.data_path("processed")
 
         if self.split == "sample":
             # Prefer sample val set
-            sample_p = root / "data" / "sample" / "val_sample.parquet"
+            sample_p = sample_dir / "val_sample.parquet"
             if sample_p.exists():
                 return sample_p
-            sample_jsonl = root / "data" / "sample" / "val_sample.jsonl"
+            sample_jsonl = sample_dir / "val_sample.jsonl"
             if sample_jsonl.exists():
                 return sample_jsonl
-            raise FileNotFoundError(f"Sample data not found in {root / 'data' / 'sample'}")
+            raise FileNotFoundError(f"Sample data not found in {sample_dir}")
 
         if self.split in ("val", "val_analysis", "val_gating"):
-            path = root / "data" / "processed" / "val" / f"{self.split}.parquet"
-            if path.exists():
-                return path
-            fallback_val = root / "data" / "sample" / "val_sample.parquet"
-            if fallback_val.exists():
-                logger.info(f"Split {path} not found; falling back to sample set {fallback_val}")
-                return fallback_val
-            raise FileNotFoundError(f"Processed validation split not found: {path}")
+            return self._processed_or_sample(
+                processed_dir / "val" / f"{self.split}.parquet", sample_dir / "val_sample.parquet"
+            )
 
         if self.split == "train":
-            path = root / "data" / "processed" / "train" / "train.parquet"
-            if path.exists():
-                return path
-            fallback_train = root / "data" / "sample" / "train_sample.parquet"
-            if fallback_train.exists():
-                logger.info(f"Split {path} not found; falling back to sample set {fallback_train}")
-                return fallback_train
-            raise FileNotFoundError(f"Processed train split not found: {path}")
+            return self._processed_or_sample(
+                processed_dir / "train" / "train.parquet", sample_dir / "train_sample.parquet"
+            )
 
         if self.split == "test":
             self.enforce_test_set_wall()
-            path = root / "data" / "processed" / "test" / "test.parquet"
-            if path.exists():
-                return path
-            fallback_test = root / "data" / "sample" / "test_sample.parquet"
-            if fallback_test.exists():
-                logger.info(f"Split {path} not found; falling back to sample set {fallback_test}")
-                return fallback_test
-            raise FileNotFoundError(f"Processed test split not found: {path}")
+            return self._processed_or_sample(
+                processed_dir / "test" / "test.parquet", sample_dir / "test_sample.parquet"
+            )
 
         # Check if direct file path was provided as split
         direct_path = Path(self.split)

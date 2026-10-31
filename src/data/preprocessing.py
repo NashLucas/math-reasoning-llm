@@ -17,9 +17,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.loader import RAW_GSM8K_DIR, download_and_save_raw_gsm8k, load_raw_gsm8k  # noqa: E402
 
-PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
+# Profile data directory: the repo's data/ locally, Google Drive under the colab profile
+PROCESSED_DATA_DIR = ConfigManager().data_path("processed")
 
 logger = logging.getLogger(__name__)
 

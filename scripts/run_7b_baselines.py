@@ -37,6 +37,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.evaluate import print_results_summary  # noqa: E402
+from src.config import ConfigManager  # noqa: E402
 from src.evaluation.evaluator import MathEvaluator  # noqa: E402
 
 logging.basicConfig(
@@ -173,7 +174,8 @@ def main() -> int:
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     presets = [p.strip() for p in args.presets.split(",") if p.strip()]
 
-    stage_base_dir = PROJECT_ROOT / "outputs" / "baseline"
+    # Profile outputs directory: Google Drive under the colab profile, so results survive a disconnect
+    stage_base_dir = ConfigManager().get_stage_paths("baseline")["outputs"]
     stage_base_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("=" * 72)

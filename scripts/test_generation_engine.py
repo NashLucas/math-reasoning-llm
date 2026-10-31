@@ -29,6 +29,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import pandas as pd  # noqa: E402
 
+from src.config import ConfigManager  # noqa: E402
 from src.generation import (  # noqa: E402
     load_existing_generations,
     run_generation_pipeline,
@@ -306,8 +307,8 @@ def main() -> None:
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="outputs/dry_run_generation",
-        help="Output directory (default: outputs/dry_run_generation)",
+        default=str(ConfigManager().outputs_path("dry_run_generation")),
+        help="Output directory (default: <profile outputs_dir>/dry_run_generation)",
     )
     parser.add_argument(
         "--use_real_model",
