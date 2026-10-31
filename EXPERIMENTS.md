@@ -4,6 +4,54 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 0 Gate Re-verification & Corrections
+
+- **Date:** 2026-10-31
+- **Run ID:** `setup-20261031_phase0_gate_reverification`
+- **Branch:** `fix-phase0-open-items` (follows `fix-phase0-paths-and-checkpoints`)
+- **Hardware / Platform:** Local workstation, CPU (isolated venv: torch 2.15.0+cpu, transformers 5.22.1, trl 1.17.1, Python 3.13.3)
+- **Hours & Compute Units:** 0.0 G4 hours
+
+### Why
+A review of Phase 0 found that the gate had not actually been demonstrated and that the Phase 0 entry below overstated it:
+- The original resume test (`scripts/test_resume_simulation.py`) only creates empty `checkpoint-N` folders and checks which one is found. No model was trained, no optimizer/scheduler/RNG state was restored, and no runtime was restarted.
+- The Day 5 vLLM install check was never run; the entry below describes what would happen on failure, not a result.
+- Tag `v0.1` points to `09b242c`, where CI on `main` **failed** (79 ruff errors). CI first passed on `main` at `2e433e3`. The Phase 0 entry records `d5054a8`, which is neither.
+
+### Fixes (branch `fix-phase0-paths-and-checkpoints`, merged into phase-2)
+- **Drive persistence:** data (`raw/`, `processed/`, `safety/`) and all script outputs now resolve through the active profile (Google Drive under `colab`). Previously most scripts wrote next to the code in `/content/...`, which is lost on disconnect.
+- **Silent sample fallback removed:** a real evaluation with a missing processed split now fails instead of silently evaluating the 20-problem sample set.
+- **Resume:** `get_latest_checkpoint` skips incomplete checkpoints (no `trainer_state.json`), e.g. from a disconnect during save.
+- **Cleanup:** only `checkpoint-<step>` folders are ever pruned; adapters or best-model folders are never deleted.
+
+### Real Resume Test (`scripts/test_resume_training.py --mode auto`)
+Tiny GPT-2 trained with the Hugging Face Trainer, 50 steps, checkpoint every 10. Run 1 was hard-killed (process kill, no cleanup) once `checkpoint-20` was complete; run 2 started in a new process.
+
+| Check | Result |
+| --- | --- |
+| Run 1 started at step 0 | Yes |
+| Latest complete checkpoint at forced stop | `checkpoint-20` |
+| Run 2 resumed from | `checkpoint-20` |
+| First step completed by run 2 | 21 (not 1) |
+| Run 2 finished at | step 50, `checkpoint-50` |
+| **Verdict** | **PASSED (local, process kill)** |
+
+### Dependency Pins
+- `requirements.txt`: exact pins for transformers 5.22.1, tokenizers 0.23.3, trl 1.17.1, peft 0.21.2, accelerate 1.15.0, datasets 5.1.0, sentence-transformers 6.2.0, safetensors 0.8.0. Major-version ranges for the Colab-managed scientific stack (numpy, pandas, scikit-learn, ...). All pins need torch>=2.6, which Colab's build satisfies, so Colab's CUDA torch is not replaced.
+- `requirements-dev.txt`: pytest 9.2.0, pytest-cov 7.1.0, ruff 0.17.3, pyarrow 26.0.0. CI now installs these, constrained to `requirements.txt`, on Python 3.12 (matching Colab).
+- Verified: 111/111 tests pass on the pinned set (torch 2.15.0, Python 3.13).
+- `requirements-vllm.txt` stays unpinned until the vLLM check runs on G4.
+
+### Still Pending (needs Colab)
+- [ ] **Phase 0 gate on Colab:** launcher Step 5d, with a real **Runtime → Restart session** mid-run and checkpoints on Drive. Record the `--mode verify` output here.
+- [ ] **Day 5 vLLM check:** launcher Step 5c (`scripts/check_vllm.py`) on G4. Record the verdict (`vllm_ok` / `use_hf_fallback`) and pin `vllm` to the version it reports.
+- [x] **Tag `v0.1`:** moved from `09b242c` (CI failed) to `2e433e3`, the first commit where CI passed on `main`.
+
+### Status
+- **Phase 0 gate:** PASSED locally with a real Trainer and a forced process kill; **Colab runtime-restart verification pending.**
+
+---
+
 ## Run Entry: Day 14 7B Baselines Evaluation & Safety Screening Preparation
 
 - **Date:** 2026-10-31
@@ -190,6 +238,8 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 ---
 
 ## Run Entry: Phase 0 Setup & Infrastructure Gate (v0.1)
+
+> **Correction (2026-10-31):** see "Phase 0 Gate Re-verification & Corrections" above. The commit, the resume-gate claim and the vLLM note in this entry were inaccurate: the resume test below trained no model, the vLLM check was not run, and `v0.1` pointed to `09b242c`, where CI failed (now moved to `2e433e3`).
 
 - **Date:** 2026-10-30
 - **Run ID:** `setup-20261030_213500-phase0_infrastructure_gate`

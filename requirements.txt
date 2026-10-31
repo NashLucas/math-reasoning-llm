@@ -1,19 +1,34 @@
 # Math Reasoning LLM - Core Dependencies
 # Designed to be installed on top of Colab's pre-installed PyTorch & CUDA.
 # NOTE: Do NOT add torch here to prevent overriding Colab's hardware-optimized PyTorch build.
+#       The pins below need torch>=2.6 (trl), which Colab's build satisfies.
+#
+# Pinning policy (resolved together and tested: 111 tests + real Trainer resume test,
+# torch 2.15.0, Python 3.13 locally; CI runs Python 3.12 to match Colab; 2026-10-31):
+# - Exact pins for the libraries that determine model outputs (tokenization, generation,
+#   training, adapters). Change them deliberately and log the change in EXPERIMENTS.md.
+# - Major-version ranges for the scientific stack Colab manages itself (numpy, pandas, ...);
+#   forcing exact versions there can break Colab's preinstalled packages.
+#   run_info.json records the exact versions used by every run.
 
-transformers>=4.48.0
-trl>=0.14.0
-peft>=0.14.0
-accelerate>=1.3.0
-datasets>=3.2.0
-sentence-transformers>=3.3.0
-scikit-learn>=1.5.0
-pandas>=2.2.0
-numpy>=1.26.0
-matplotlib>=3.9.0
-tensorboard>=2.18.0
-gradio>=5.0.0
-pyyaml>=6.0.0
-tqdm>=4.66.0
-pydantic>=2.7.0
+# Model, tokenization, training and adapters (exact)
+transformers==5.22.1
+tokenizers==0.23.3
+trl==1.17.1
+peft==0.21.2
+accelerate==1.15.0
+datasets==5.1.0
+sentence-transformers==6.2.0
+safetensors==0.8.0
+
+# Scientific stack and tooling (ranges cover the versions the test suite passed on:
+# pandas 2.3.3 and 3.1.0, numpy 2.4.0 and 2.5.4, scikit-learn 1.8.0 and 1.9.1)
+scikit-learn>=1.8.0,<2
+pandas>=2.3.3,<4
+numpy>=2.4.0,<3
+matplotlib>=3.11.2,<4
+tensorboard>=2.21.0,<3
+gradio>=6.31.0,<7
+pyyaml>=6.0.3,<7
+tqdm>=4.70.1,<5
+pydantic>=2.14.2,<3
