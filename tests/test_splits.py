@@ -8,11 +8,15 @@ import pandas as pd
 
 from src.data.loader import load_raw_gsm8k
 from src.data.preprocessing import (
+    SPLIT_NAMES,
     clean_solution,
     extract_gold_answer,
+    frozen_splits_dir,
     partition_splits,
     prepare_all_data,
+    split_fingerprint,
     strip_calculator_annotations,
+    verify_frozen_splits,
 )
 
 
@@ -82,6 +86,28 @@ class TestSplits(unittest.TestCase):
             ids1 = run1[split_name]["problem_id"].tolist()
             ids2 = run2[split_name]["problem_id"].tolist()
             self.assertEqual(ids1, ids2, f"Split {split_name} problem IDs differed on rerun!")
+
+    def test_regenerated_splits_match_frozen_splits(self):
+        """The splits rebuilt from raw GSM8K must equal the committed lists in data/splits/
+        (IDs, order and problem text), not just a second run in the same process."""
+        splits = partition_splits(load_raw_gsm8k("train"), load_raw_gsm8k("test"), seed=42)
+        self.assertEqual(verify_frozen_splits(splits, frozen_splits_dir()), [])
+
+    def test_frozen_manifest_matches_committed_id_lists(self):
+        frozen = frozen_splits_dir()
+        manifest = json.loads((frozen / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["dataset_revision"], "740312add88f781978c0658806c59bc2815b9866")
+        for name in SPLIT_NAMES:
+            ids = json.loads((frozen / f"{name}_ids.json").read_text(encoding="utf-8"))
+            df = pd.DataFrame({"problem_id": ids, "question": "", "answer": ""})
+            self.assertEqual(manifest["splits"][name]["ids_sha256"], split_fingerprint(df)["ids_sha256"], name)
+            self.assertEqual(manifest["splits"][name]["count"], len(ids), name)
+
+    def test_changed_split_is_detected(self):
+        splits = partition_splits(load_raw_gsm8k("train"), load_raw_gsm8k("test"), seed=7)
+        problems = verify_frozen_splits(splits, frozen_splits_dir())
+        self.assertTrue(any(p.startswith("train") for p in problems))
+        self.assertTrue(any(p.startswith("val") for p in problems))
 
     def test_prepare_all_data_execution(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

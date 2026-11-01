@@ -16,21 +16,20 @@ logger = logging.getLogger(__name__)
 # Pattern 1: Canonical final line after '####'
 HASH_PATTERN = re.compile(r"####\s*([^\n\r]+)")
 
-# Pattern 3: Common answer phrasing
-PHRASE_PATTERNS = [
-    re.compile(
-        r"(?:the\s+)?(?:final\s+)?(?:answer|result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r]+)",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"(?:calculated\s+)?(?:final\s+)?answer:\s*([^\n\r]+)",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r]+)",
-        re.IGNORECASE,
-    ),
+# Pattern 3: Answer phrasing.
+# "Answer" phrases state the final answer wherever they appear, so the last one in the text wins.
+ANSWER_PHRASE_PATTERNS = [
+    re.compile(r"(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"(?:final\s+)?answer\s*:\s*([^\n\r]+)", re.IGNORECASE),
 ]
+# Generic phrases ("the total is", "therefore") also describe intermediate steps, so they only
+# count on the last non-empty line; otherwise "the total cost is 3" in the middle of the working
+# would beat the real result on the final line.
+FINAL_LINE_PHRASE_PATTERNS = [
+    re.compile(r"(?:result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"therefore,?\s*([^\n\r]+)", re.IGNORECASE),
+]
+PHRASE_PATTERNS = ANSWER_PHRASE_PATTERNS + FINAL_LINE_PHRASE_PATTERNS
 
 # Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives, currency)
 NUMBER_PATTERN = re.compile(r"[-−–]?\s*[\$€£¥₹₩¢]?\s*[-−–]?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
@@ -89,8 +88,11 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
             return boxed, "boxed"
 
     # Tier 3: Natural language phrasing
-    for pattern in PHRASE_PATTERNS:
-        matches = pattern.findall(text)
+    lines = [line for line in text.splitlines() if line.strip()]
+    last_line = lines[-1] if lines else ""
+    searches = [(p, text) for p in ANSWER_PHRASE_PATTERNS] + [(p, last_line) for p in FINAL_LINE_PHRASE_PATTERNS]
+    for pattern, region in searches:
+        matches = pattern.findall(region)
         if matches:
             candidate = matches[-1].strip().rstrip(".")
             # Verify the candidate contains at least one numeric character

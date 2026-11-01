@@ -24,19 +24,24 @@ def main() -> None:
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
-        help="Random seed for deterministic validation split carving (default: 42)",
+        default=None,
+        help="Random seed for validation split carving (default: source.seed in configs/data.yaml)",
+    )
+    parser.add_argument(
+        "--freeze",
+        action="store_true",
+        help="Deliberately (re)write the committed split lists in data/splits/ instead of verifying against them",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
         default=None,
-        help="Custom output directory (default: data/processed)",
+        help="Custom output directory (default: <profile data dir>/processed)",
     )
     args = parser.parse_args()
 
-    print(f"Starting GSM8K data preparation (seed={args.seed})...")
-    saved_paths = prepare_all_data(seed=args.seed, output_dir=args.output_dir)
+    print("Starting GSM8K data preparation...")
+    saved_paths = prepare_all_data(seed=args.seed, output_dir=args.output_dir, freeze=args.freeze)
 
     print("\nData preparation completed successfully!")
     print(f"Total files generated: {len(saved_paths)}")

@@ -143,10 +143,18 @@ def format_few_shot_prompt(question: str, num_shots: int = 8) -> str:
     return "\n\n".join(blocks)
 
 
+# The answer contract, stated in every template without worked examples
+ANSWER_FORMAT_INSTRUCTION = (
+    "Solve the problem step by step. On the last line, write the final numeric answer "
+    "as '#### <number>'."
+)
+
+
 def format_zero_shot_prompt(question: str) -> str:
-    """Format a standard zero-shot prompt with chain-of-thought elicitation."""
+    """Format a zero-shot chain-of-thought prompt that states the '#### <number>' answer contract."""
     return (
         f"Question: {question.strip()}\n"
+        f"{ANSWER_FORMAT_INSTRUCTION}\n"
         "Answer: Let's think step by step.\n"
     )
 

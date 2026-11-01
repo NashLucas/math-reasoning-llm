@@ -4,6 +4,60 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 1 Review Fixes (Parser, Frozen Splits, Contamination)
+
+- **Date:** 2026-11-01
+- **Run ID:** `data-20261101_phase1_review_fixes`
+- **Branch:** `fix-phase1-parser-and-splits`
+- **Hardware / Platform:** Local workstation, CPU (isolated venv: Python 3.13, transformers 5.19.0, pandas 2.2.3)
+- **Hours & Compute Units:** 0.0 G4 hours
+
+### Why
+A review of Phase 1 found that the data side was sound but the parser was not trustworthy, and that the gate checks could not have caught it:
+- **Parser took the first number of the answer line.** `#### 60 + 25 = 85` parsed as 60, `The answer is 3 x 4 = 12` as 3, `\boxed{\frac{3}{4}}` as 3, `1 1/2` as 1. On the gold solutions with the `####` line removed, the `answer_is` tier was wrong **982 / 1,025** times.
+- **Gold check was circular.** `verify_gold_parser.py` compared the parsed `####` line with that same line, so 8,792 / 8,792 was guaranteed; an unparseable gold answer would have passed through the string fallback.
+- **Frozen splits were not frozen anywhere:** `data/processed/` is gitignored, the dataset revision was not pinned, and the rerun test compared two runs in one process.
+- **13-gram overlaps were computed and ignored** (`allow_known_template_overlap=True`), while the Phase 1 entry said they were "verified and asserted".
+- **Zero-shot template did not ask for `#### <number>`** (plan, Day 9: every template must).
+
+### Fixes
+- **Parser** (`src/math_utils/normalization.py`, `answer_extraction.py`): the result after the last `=` is used; LaTeX `\frac`/`\dfrac` and mixed numbers parse; "answer" phrases count anywhere, generic phrases ("the total is", "therefore") only on the last line. Numeric comparison is now `math.isclose(rel 1e-6, abs 1e-4)`: the old relative 1e-4 accepted 99999.5 for 100000.
+- **Parser gate** (`src/math_utils/gold_check.py`, `scripts/verify_gold_parser.py`, `tests/test_gold_parser.py`): (1) every gold answer is a plain number and parses to it; (2) the parser returns it from the `####` line, compared numerically; (3) the no-`####` benchmark with a 97% regression floor. Writes `reports/parser_gold_check.json`. Tests show it now fails on bad gold data.
+- **Frozen splits** (`data/splits/`, committed): ID lists for all five splits plus `manifest.json` with dataset revision, seed, counts and SHA-256 of IDs and problem text. `prepare_data.py` verifies against them and refuses to write different splits unless run with `--freeze`. Seed and split sizes now come from `configs/data.yaml`.
+- **Dataset revision pinned:** `openai/gsm8k` @ `740312add88f781978c0658806c59bc2815b9866`. A download at this revision is identical (IDs, questions, answers) to the raw files the splits were built from; the data files last changed in Jan 2024.
+- **Contamination:** the whole training pool (train + val) is checked against test. Exact matches fail; n-gram overlaps fail unless reviewed in `configs/data.yaml`.
+- **Zero-shot template** states the `#### <number>` contract.
+
+### Results
+| Check | Before | After |
+| --- | --- | --- |
+| Gold answers that are plain numbers | not checked | 8,792 / 8,792 |
+| Parser on full gold solutions (numeric) | 8,792 / 8,792 (circular) | 8,792 / 8,792 |
+| No-`####` benchmark (fallback tiers) | 7,616 / 8,792 (86.6%) | **8,584 / 8,792 (97.6%)** |
+| `answer_is` tier when it fires | 43 / 1,025 | 861 / 867 |
+| Regenerated splits = v0.2 splits | IDs only, same process | IDs and content vs committed `data/splits/` |
+| Exact train/val-test matches | 0 | 0 |
+| Test problems with 13-gram overlap | 3, ignored | 3, reviewed: same template, different numbers and answers (stamps, two movies, travel rate) |
+| Tests | 117 | 135, all pass; ruff clean |
+
+The 208 remaining benchmark misses are solutions ending on a sentence whose last number is not the answer ("... 5 hours to read 120 pages."); without `####` or an answer phrase nothing can recover them.
+
+The splits are unchanged: the frozen lists are identical to the ID lists used since `v0.2`.
+
+### Impact on earlier runs
+- Every number computed through the parser before this fix may be wrong for outputs without a clean `####` line. The Day 13/14 baseline outputs are mock runs and must be re-run for real anyway (Phase 2 pending); no real result needs correcting.
+- The zero-shot prompt text changed, so zero-shot results before and after this entry are not comparable.
+
+### Not changed (noted in the review, low impact)
+- The EDA computes statistics on the test split as well, and samples the 8-shot prompt length from test questions. Token budgets should come from train/val only; the numbers are nearly identical, so the configs stand.
+- The longest 8-shot prompt (1,408 tokens) + 512 new tokens leaves ~100 tokens of the 2,048 `max_model_len`; adding a system prompt to 8-shot would overflow.
+- 7 of the 8 few-shot exemplars were hand-edited (punctuation, spacing); all 8 are in train.
+
+### Status
+- **Phase 1 gate:** PASSED with real checks: parser gate 8,792 / 8,792, splits verified against committed frozen lists, all tests pass.
+
+---
+
 ## Run Entry: Phase 0 Gate Re-verification & Corrections
 
 - **Date:** 2026-10-31
@@ -213,6 +267,8 @@ Earlier Colab attempts failed the gate for test-procedure reasons, not checkpoin
 ---
 
 ## Run Entry: Phase 1 Data & Answer Contract Gate (v0.2)
+
+> **Correction (2026-11-01):** see "Phase 1 Review Fixes" above. The parser gate below was circular (the `####` line compared with itself), the parser took the first number of an answer line (`#### 60 + 25 = 85` -> 60), 13-gram overlaps were not asserted (3 test problems overlapped and were ignored), the parser has no `yields` phrase, and "bit-identical" holds only within one library environment (the content is identical across environments). The splits themselves were correct.
 
 - **Date:** 2026-10-30
 - **Run ID:** `data-20261030_233000-phase1_contract_gate`
