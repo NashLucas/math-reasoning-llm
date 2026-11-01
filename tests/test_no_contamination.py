@@ -2,14 +2,18 @@
 
 import unittest
 
+import pandas as pd
+
 from src.data.formatting import FEW_SHOT_EXEMPLARS
 from src.data.loader import load_raw_gsm8k
 from src.data.preprocessing import (
     assert_no_contamination,
     check_contamination,
     extract_word_ngrams,
+    load_data_config,
     normalize_text_for_contamination,
     partition_splits,
+    verify_no_contamination,
 )
 
 
@@ -52,21 +56,31 @@ class TestNoContamination(unittest.TestCase):
             assert_no_contamination(train_q, test_q_ngram, ngram_size=13, allow_known_template_overlap=False)
 
     def test_real_splits_have_no_contamination(self):
-        """Verify zero exact matches between train and test splits."""
+        """Whole training pool (train + val) vs test: no exact matches, and the only n-gram
+        overlaps are exactly the reviewed template overlaps listed in configs/data.yaml."""
         raw_train = load_raw_gsm8k("train")
         raw_test = load_raw_gsm8k("test")
         splits = partition_splits(raw_train, raw_test, seed=42)
+        pool = pd.concat([splits["train"], splits["val"]], ignore_index=True)
 
-        train_questions = splits["train"]["question"].tolist()
-        test_questions = splits["test"]["question"].tolist()
+        cfg = load_data_config()["contamination"]
+        reviewed = set(cfg["reviewed_template_overlaps"])
+        report = verify_no_contamination(pool, splits["test"], cfg["ngram_size"], reviewed)
+        self.assertEqual(report["exact_match_count"], 0)
+        self.assertEqual(set(report["ngram_overlap_test_ids"]), reviewed)
+        self.assertEqual(report["stale_reviewed_ids"], [])
 
-        # Run full contamination check
-        result = check_contamination(train_questions, test_questions, ngram_size=13)
-        self.assertFalse(
-            result["is_contaminated"],
-            f"Contamination discovered! Exact matches: {result['exact_matches']}"
-        )
-        self.assertEqual(result["exact_match_count"], 0)
+    def test_unreviewed_ngram_overlap_fails(self):
+        pool = pd.DataFrame({"problem_id": ["tr1"], "question": [
+            "A train travels 270 miles in 3 hours. At the same rate, how many additional hours would it take to travel an additional 180 miles?"
+        ]})
+        test = pd.DataFrame({"problem_id": ["te1"], "question": [
+            "A plane travels 1200 miles in 3 hours. At the same rate, how many additional hours would it take to travel an additional 2000 miles?"
+        ]})
+        with self.assertRaises(AssertionError):
+            verify_no_contamination(pool, test, ngram_size=13, reviewed_test_ids=set())
+        report = verify_no_contamination(pool, test, ngram_size=13, reviewed_test_ids={"te1"})
+        self.assertEqual(report["ngram_overlap_test_ids"], ["te1"])
 
     def test_few_shot_exemplars_not_in_test(self):
         """Verify that the 8 fixed few-shot exemplars do not overlap with the test set."""

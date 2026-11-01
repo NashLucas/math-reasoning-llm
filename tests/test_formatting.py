@@ -37,6 +37,15 @@ class TestFormatting(unittest.TestCase):
         prompt = format_zero_shot_prompt(q)
         self.assertIn(q, prompt)
         self.assertIn("Let's think step by step", prompt)
+        self.assertTrue(prompt.endswith("Answer: Let's think step by step.\n"))
+
+    def test_every_template_asks_for_hash_answer_line(self):
+        """Plan, Day 9: every template asks for the final line '#### <number>'."""
+        q = "How many days in 3 weeks?"
+        self.assertIn("#### <number>", format_zero_shot_prompt(q))
+        self.assertIn("#### ", format_chat_messages(q)[0]["content"])
+        few_shot = format_few_shot_prompt(q)
+        self.assertEqual(few_shot.count("\n#### "), len(FEW_SHOT_EXEMPLARS))
 
     def test_format_chat_messages_zero_shot(self):
         q = "How many days in 3 weeks?"

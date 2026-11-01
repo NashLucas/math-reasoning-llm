@@ -1,0 +1,31 @@
+{
+  "dataset_revision": "740312add88f781978c0658806c59bc2815b9866",
+  "seed": 42,
+  "splits": {
+    "train": {
+      "count": 6973,
+      "ids_sha256": "42f49cf5d270172e554f35f30e133f74663b9dabc3b293eb70b879ed77818540",
+      "content_sha256": "a0f5815596907b003a5d21d091ebfe077d3e9afc4ee62c83d2dcaf09cc7ea699"
+    },
+    "val": {
+      "count": 500,
+      "ids_sha256": "08b9a92467d96b9cdf732f80854565ef65581bde80a582d15d864b214e5b3d6a",
+      "content_sha256": "5eaacb6efa12921d1d567e9a5fe9d752f3e77846d8ecd4b7537aa465376db3b9"
+    },
+    "val_analysis": {
+      "count": 250,
+      "ids_sha256": "5338693b3a90b175a4789be4b0f0dfac328d5bf16a620a8c1795b53193758624",
+      "content_sha256": "051fbfdc5b807302ec10dc1a9296bc5ee0b908ccc91777fb6bd5c083be322b02"
+    },
+    "val_gating": {
+      "count": 250,
+      "ids_sha256": "c96405142751a55e9d5d96413680fbd842a31468179e69c741a77314bd440eac",
+      "content_sha256": "b24acf33ed5e604eb1e81d405127bd9e9346c9349e077d411c7e40baedd1a5ed"
+    },
+    "test": {
+      "count": 1319,
+      "ids_sha256": "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe",
+      "content_sha256": "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488"
+    }
+  }
+}

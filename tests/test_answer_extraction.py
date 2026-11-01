@@ -126,5 +126,37 @@ class TestAnswerExtraction(unittest.TestCase):
             self.assertEqual(val, expected, f"Value mismatch for: {text!r}")
             self.assertIn(method, ["hash", "boxed", "answer_is", "last_number"])
 
+    def test_phase1_review_regressions(self):
+        """Answer lines that show the working, LaTeX fractions and mixed numbers."""
+        cases = [
+            ("#### 60 + 25 = 85", 85.0, "hash"),
+            ("#### 85 (= 60 + 25)", 85.0, "hash"),
+            ("#### 1 1/2", 1.5, "hash"),
+            ("The answer is 3 x 4 = 12.", 12.0, "answer_is"),
+            ("So the total is 20 - 5 = 15 dollars.", 15.0, "answer_is"),
+            ("Therefore, Randy has 60 + 25 = 85 trees on his farm.", 85.0, "answer_is"),
+            (r"$\boxed{3 \times 4 = 12}$", 12.0, "boxed"),
+            (r"$\boxed{\frac{3}{4}}$", 0.75, "boxed"),
+        ]
+        for text, expected, expected_method in cases:
+            raw, val, method = extract_and_normalize(text)
+            self.assertEqual(method, expected_method, text)
+            self.assertEqual(val, expected, f"{text!r} -> {raw!r}")
+
+    def test_generic_phrase_mid_text_does_not_beat_final_line(self):
+        """'the total cost is ...' in the working must not override the result on the last line."""
+        text = (
+            "Each shirt costs $2500/5 = $500 so the total cost is $2500/5 = $500.\n"
+            "After buying the shirt he will have $1000-$200 = $800 left"
+        )
+        raw, val, _ = extract_and_normalize(text)
+        self.assertEqual(val, 800.0, raw)
+
+    def test_answer_phrase_counts_anywhere(self):
+        text = "The answer is 42.\nI hope this helps with 3 more questions."
+        raw, val, method = extract_and_normalize(text)
+        self.assertEqual((val, method), (42.0, "answer_is"))
+
+
 if __name__ == "__main__":
     unittest.main()
