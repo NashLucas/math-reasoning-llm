@@ -9,9 +9,11 @@ Modes:
                 (the same abrupt stop as a runtime disconnect), then run 2 in a fresh
                 process and verify it continues from that checkpoint, not step 0.
   --mode run    One training run that resumes if a complete checkpoint exists. Use it for
-                the manual Colab test: start it, restart the runtime mid-run
-                (Runtime -> Restart session), then run it again.
-  --mode verify Check the finished run: it reached the final step and resumed exactly once.
+                the manual Colab test: start it, delete the runtime mid-run
+                (Runtime -> Disconnect and delete runtime), reconnect, then run it again.
+                Once training has reached the last step, further runs do nothing.
+  --mode verify Check the gate from the run log: a run was cut off, a run on a different
+                machine resumed from its checkpoint (not step 0) and finished the last step.
 
 Checkpoints go to <profile checkpoints_dir>/resume_test (Google Drive under colab).
 
@@ -25,10 +27,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -67,8 +72,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def append_run_record(checkpoint_dir: Path, record: Dict[str, Any]) -> None:
+    """Append a record and fsync it, so a 'start' survives an abrupt disconnect where possible."""
     with open(checkpoint_dir / RUN_LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
 
 
 def load_run_records(checkpoint_dir: Path) -> List[Dict[str, Any]]:
@@ -108,14 +116,29 @@ def train_once(checkpoint_dir: Path, step_delay: float) -> int:
 
     resume, latest = should_resume(checkpoint_dir)
     resume_path: Optional[str] = str(latest) if resume and latest else None
+
+    # Resuming from the final checkpoint would make the Trainer take extra steps past MAX_STEPS
+    if latest is not None and parse_checkpoint_step(latest) >= MAX_STEPS:
+        print(f"--> Training already finished ({latest.name}); nothing to do. "
+              "Run --mode verify, or --fresh to start a new test.", flush=True)
+        return parse_checkpoint_step(latest)
+
     first_step: Dict[str, int] = {}
+    run_id = uuid.uuid4().hex[:8]
+    host = socket.gethostname()
 
     class StepRecorder(TrainerCallback):
         def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
             if "global_step" not in first_step:
                 first_step["global_step"] = state.global_step
                 print(f"--> First step of this run finished at global_step={state.global_step}", flush=True)
+            if state.global_step % 5 == 0:
+                print(f"    step {state.global_step}/{MAX_STEPS}", flush=True)
             time.sleep(step_delay)
+            return control
+
+        def on_save(self, args, state, control, **kwargs):  # noqa: ANN001
+            print(f"    saved checkpoint-{state.global_step}", flush=True)
             return control
 
     args = TrainingArguments(
@@ -134,13 +157,22 @@ def train_once(checkpoint_dir: Path, step_delay: float) -> int:
     trainer = Trainer(model=model, args=args, train_dataset=TinyDataset(), callbacks=[StepRecorder()])
 
     resumed_from_step = parse_checkpoint_step(resume_path) if resume_path else 0
-    print(f"--> {'Resuming from ' + Path(resume_path).name if resume_path else 'Starting fresh from step 0'}", flush=True)
-    append_run_record(checkpoint_dir, {"event": "start", "resumed_from_step": resumed_from_step, "time": time.time()})
+    print(f"--> {'Resuming from ' + Path(resume_path).name if resume_path else 'Starting fresh from step 0'} "
+          f"(run {run_id} on host {host})", flush=True)
+    append_run_record(checkpoint_dir, {
+        "event": "start",
+        "run_id": run_id,
+        "host": host,
+        "resumed_from_step": resumed_from_step,
+        "time": time.time(),
+    })
 
     trainer.train(resume_from_checkpoint=resume_path)
 
     append_run_record(checkpoint_dir, {
         "event": "finish",
+        "run_id": run_id,
+        "host": host,
         "resumed_from_step": resumed_from_step,
         "first_global_step": first_step.get("global_step"),
         "final_global_step": trainer.state.global_step,
@@ -150,35 +182,88 @@ def train_once(checkpoint_dir: Path, step_delay: float) -> int:
     return trainer.state.global_step
 
 
-def verify(checkpoint_dir: Path) -> bool:
-    """The finished run must have resumed from a checkpoint > 0 and continued from it to MAX_STEPS."""
-    records = load_run_records(checkpoint_dir)
+NEW_MACHINE_CHECK = "Resumed on a different machine (real disconnect)"
+
+
+def evaluate_run_log(
+    records: List[Dict[str, Any]], latest_step: int, require_new_machine: bool = True
+) -> Dict[str, Any]:
+    """Check the gate from the run log: a run was cut off, and a later run resumed it to the end.
+
+    Args:
+        records: Run log records.
+        latest_step: Step of the latest complete checkpoint (-1 if none).
+        require_new_machine: Require the resuming run to be on another host, as after a Colab
+            runtime is deleted. Auto mode restarts the process on the same machine, so it passes False.
+
+    Returns {'passed': bool, 'checks': [(description, ok, detail)]}.
+    """
+    checks: List[tuple] = []
+    if not records:
+        return {"passed": False, "checks": [("Run log exists", False, "no runs recorded")]}
+    if any("run_id" not in r for r in records):
+        return {
+            "passed": False,
+            "checks": [("Run log written by the current script", False,
+                        "older log format; rerun the test with --fresh")],
+        }
+
     starts = [r for r in records if r["event"] == "start"]
-    finishes = [r for r in records if r["event"] == "finish"]
+    finished_ids = {r["run_id"] for r in records if r["event"] == "finish"}
+    finishes = {r["run_id"]: r for r in records if r["event"] == "finish"}
+    interrupted = [s for s in starts if s["run_id"] not in finished_ids]
+
+    checks.append(("First run started from step 0", bool(starts) and starts[0]["resumed_from_step"] == 0,
+                   f"{len(starts)} run(s) started"))
+    checks.append(("A run was cut off before finishing", bool(interrupted),
+                   f"{len(interrupted)} interrupted, {len(finished_ids)} finished"
+                   + ("" if interrupted else " - the disconnect came after training had already finished")))
+
+    # The resuming run: the first finished run that started after the last interrupted one
+    resumer: Optional[Dict[str, Any]] = None
+    if interrupted:
+        cut = interrupted[-1]
+        later = [s for s in starts if s["time"] > cut["time"] and s["run_id"] in finished_ids]
+        if later:
+            resumer = finishes[later[0]["run_id"]]
+            checks.append(("Next run resumed from a saved checkpoint (not step 0)",
+                           0 < resumer["resumed_from_step"] < MAX_STEPS,
+                           f"resumed from step {resumer['resumed_from_step']}"))
+            checks.append(("It continued from that step",
+                           resumer["first_global_step"] == resumer["resumed_from_step"] + 1,
+                           f"first step completed was {resumer['first_global_step']}"))
+            checks.append(("It finished the run", resumer["final_global_step"] == MAX_STEPS,
+                           f"finished at step {resumer['final_global_step']} of {MAX_STEPS}"))
+            same_host = resumer.get("host") == cut.get("host")
+            checks.append((NEW_MACHINE_CHECK, not same_host,
+                           f"{cut.get('host')} -> {resumer.get('host')}"
+                           + (" (same machine: a process restart, not a runtime disconnect)" if same_host else "")))
+        else:
+            checks.append(("A later run finished after the interruption", False, "no finished run after it"))
+
+    checks.append(("Final checkpoint is the last step", latest_step == MAX_STEPS,
+                   f"latest complete checkpoint is step {latest_step}"))
+
+    required = [c for c in checks if require_new_machine or c[0] != NEW_MACHINE_CHECK]
+    passed = all(ok for _, ok, _ in required)
+    return {"passed": passed, "checks": checks}
+
+
+def verify(checkpoint_dir: Path, require_new_machine: bool = True) -> bool:
+    """A run was cut off, and a later run resumed from its checkpoint and finished at MAX_STEPS."""
+    records = load_run_records(checkpoint_dir)
     latest = get_latest_checkpoint(checkpoint_dir)
+    latest_step = parse_checkpoint_step(latest) if latest else -1
 
+    result = evaluate_run_log(records, latest_step, require_new_machine=require_new_machine)
     print("=" * 65)
-    print(f"Runs started: {len(starts)} | runs finished: {len(finishes)} | latest checkpoint: {latest.name if latest else None}")
-    if not finishes:
-        print("FAILED: no run finished.")
-        return False
-
-    final = finishes[-1]
-    ok = (
-        len(starts) >= 2
-        and starts[0]["resumed_from_step"] == 0
-        and final["resumed_from_step"] > 0
-        and final["first_global_step"] == final["resumed_from_step"] + 1
-        and final["final_global_step"] == MAX_STEPS
-        and latest is not None
-        and parse_checkpoint_step(latest) == MAX_STEPS
-    )
-    print(f"First run started at step 0: {starts[0]['resumed_from_step'] == 0}")
-    print(f"Final run resumed from step {final['resumed_from_step']}, "
-          f"first step completed was {final['first_global_step']}, finished at {final['final_global_step']}")
-    print("PHASE 0 RESUME GATE: " + ("PASSED" if ok else "FAILED"))
+    for desc, ok, detail in result["checks"]:
+        optional = desc == NEW_MACHINE_CHECK and not require_new_machine
+        label = "info" if optional else ("ok" if ok else "FAIL")
+        print(f"[{label}] {desc}: {detail}")
+    print("PHASE 0 RESUME GATE: " + ("PASSED" if result["passed"] else "FAILED"))
     print("=" * 65)
-    return ok
+    return result["passed"]
 
 
 def run_auto(checkpoint_dir: Path, step_delay: float) -> bool:
@@ -211,7 +296,8 @@ def run_auto(checkpoint_dir: Path, step_delay: float) -> bool:
     if result.returncode != 0:
         print(f"FAILED: run 2 exited with code {result.returncode}.")
         return False
-    return verify(checkpoint_dir)
+    # Same machine by design: auto mode restarts the process, not the runtime
+    return verify(checkpoint_dir, require_new_machine=False)
 
 
 def main() -> int:
