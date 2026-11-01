@@ -14,8 +14,9 @@ Calculates key post-training evaluation metrics:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from src.math_utils.answer_extraction import extract_answer
 from src.math_utils.normalization import is_equivalent
 from src.reasoning.self_consistency import majority_vote
 
@@ -31,6 +32,48 @@ def get_gold_answer(record: Dict[str, Any]) -> Optional[str]:
         or record.get("answer")
     )
     return str(gold).strip() if gold is not None else None
+
+
+def rescore_records(records: Sequence[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+    """Re-extract answers from the stored generated text with the current parser.
+
+    Generations are stored with the answer the parser found at generation time. Scoring from
+    the text instead means a parser fix changes the metrics of existing generations, as the
+    Day 13 loop (find a parser miss, add a test, fix it) needs. Returns the rescored copies and
+    how many completions changed answer or extraction method.
+    """
+    rescored: List[Dict[str, Any]] = []
+    changed = 0
+    for rec in records:
+        new = dict(rec)
+        gold = get_gold_answer(rec)
+        if "generated_texts" in rec:
+            answers, methods = [], []
+            for i, text in enumerate(rec["generated_texts"]):
+                ans, method = extract_answer(text or "")
+                old_answers = rec.get("extracted_answers") or []
+                old_methods = rec.get("extraction_methods") or []
+                if (old_answers[i] if i < len(old_answers) else None) != ans or (
+                    old_methods[i] if i < len(old_methods) else None
+                ) != method:
+                    changed += 1
+                answers.append(ans)
+                methods.append(method)
+            new["extracted_answers"], new["extraction_methods"] = answers, methods
+        elif "generated_text" in rec:
+            ans, method = extract_answer(rec["generated_text"] or "")
+            if ans != rec.get("extracted_answer") or method != rec.get("extraction_method"):
+                changed += 1
+            new["extracted_answer"], new["extraction_method"] = ans, method
+            new["is_correct"] = is_equivalent(ans, gold) if gold is not None else False
+        rescored.append(new)
+    return rescored, changed
+
+
+def _is_truncated(finish_reason: Any, legacy_flag: Any) -> Optional[bool]:
+    if finish_reason in ("length", "stop"):
+        return finish_reason == "length"
+    return legacy_flag
 
 
 def get_record_completions(record: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -56,6 +99,7 @@ def get_record_completions(record: Dict[str, Any]) -> List[Dict[str, Any]]:
         p_tokens = record.get("prompt_tokens", [])
         c_tokens = record.get("completion_tokens", [])
 
+        reasons = record.get("finish_reasons") or []
         num_samples = len(answers)
         for i in range(num_samples):
             ans = answers[i] if i < len(answers) else None
@@ -73,7 +117,7 @@ def get_record_completions(record: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "extraction_method": method,
                 "prompt_tokens": int(pt),
                 "completion_tokens": int(ct),
-                "is_truncated": None,
+                "is_truncated": _is_truncated(reasons[i] if i < len(reasons) else None, None),
             })
         return completions
 
@@ -88,7 +132,7 @@ def get_record_completions(record: Dict[str, Any]) -> List[Dict[str, Any]]:
         "extraction_method": method,
         "prompt_tokens": int(pt) if pt is not None else 0,
         "completion_tokens": int(ct) if ct is not None else 0,
-        "is_truncated": record.get("is_truncated"),
+        "is_truncated": _is_truncated(record.get("finish_reason"), record.get("is_truncated")),
     })
     return completions
 
@@ -264,11 +308,12 @@ def compute_token_statistics(
         total_prompt += pt
         total_completion += ct
 
-        # Check truncation
+        # Truncation: the backend's finish reason when recorded ('length' = hit max_new_tokens);
+        # only records without one fall back to comparing the token count with the budget
         is_trunc = comp.get("is_truncated")
         if is_trunc is True:
             truncated_count += 1
-        elif max_new_tokens is not None and ct >= max_new_tokens:
+        elif is_trunc is None and max_new_tokens is not None and ct >= max_new_tokens:
             truncated_count += 1
 
     avg_pt = total_prompt / total

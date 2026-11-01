@@ -63,15 +63,62 @@ class TestFormatting(unittest.TestCase):
         self.assertEqual(messages[-1]["role"], "user")
         self.assertEqual(messages[-1]["content"], q)
 
-    def test_apply_chat_template_fallback(self):
-        messages = [
-            {"role": "system", "content": "You are a math tutor."},
-            {"role": "user", "content": "What is 2+2?"},
-        ]
-        rendered = apply_chat_template(messages, tokenizer=None)
-        self.assertIn("<|System|>", rendered)
-        self.assertIn("<|User|>", rendered)
-        self.assertIn("<|Assistant|>", rendered)
+    def test_apply_chat_template_has_no_generic_fallback(self):
+        """Phase 2 review: without a tokenizer the instruct models got a made-up template."""
+        messages = [{"role": "user", "content": "What is 2+2?"}]
+        with self.assertRaises(ValueError):
+            apply_chat_template(messages, tokenizer=None)
+        with self.assertRaises(ValueError):
+            apply_chat_template(messages, tokenizer=FakeTokenizer(chat_template=None))
+
+    def test_apply_chat_template_uses_model_template_with_single_bos(self):
+        """DeepSeek's template starts with BOS and the tokenizer adds BOS too: keep only one."""
+        tok = FakeTokenizer(chat_template=DEEPSEEK_CHAT_TEMPLATE, adds_bos=True)
+        rendered = apply_chat_template(format_chat_messages("What is 2+2?"), tokenizer=tok)
+        self.assertFalse(rendered.startswith("<s>"))
+        self.assertTrue(rendered.startswith("You are an expert mathematical problem solver."))
+        self.assertIn("User: What is 2+2?\n\n", rendered)
+        self.assertTrue(rendered.endswith("Assistant:"))
+
+        # A tokenizer that does not add BOS itself keeps the template's BOS
+        tok_no_bos = FakeTokenizer(chat_template=DEEPSEEK_CHAT_TEMPLATE, adds_bos=False)
+        self.assertTrue(apply_chat_template([{"role": "user", "content": "hi"}], tokenizer=tok_no_bos).startswith("<s>"))
+
+
+# Chat template of deepseek-math-7b-instruct / -rl (tokenizer_config.json), with BOS shown as <s>
+DEEPSEEK_CHAT_TEMPLATE = (
+    "{% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}"
+    "{{ bos_token }}{% for message in messages %}{% if message['role'] == 'user' %}"
+    "{{ 'User: ' + message['content'] + '\\n\\n' }}{% elif message['role'] == 'assistant' %}"
+    "{{ 'Assistant: ' + message['content'] + eos_token }}{% elif message['role'] == 'system' %}"
+    "{{ message['content'] + '\\n\\n' }}{% endif %}{% endfor %}"
+    "{% if add_generation_prompt %}{{ 'Assistant:' }}{% endif %}"
+)
+
+
+class FakeTokenizer:
+    """Minimal tokenizer: renders a Jinja chat template and optionally prepends BOS on encode."""
+
+    bos_token, bos_token_id, eos_token, name_or_path = "<s>", 1, "</s>", "fake"
+
+    def __init__(self, chat_template, adds_bos=True):
+        self.chat_template = chat_template
+        self.adds_bos = adds_bos
+
+    def __call__(self, text, add_special_tokens=True):
+        return {"input_ids": ([1] if (self.adds_bos and add_special_tokens) else []) + [5]}
+
+    def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=True):
+        """Same output as DEEPSEEK_CHAT_TEMPLATE, rendered without jinja2 (not installed in CI)."""
+        out = self.bos_token
+        for m in messages:
+            if m["role"] == "user":
+                out += "User: " + m["content"] + "\n\n"
+            elif m["role"] == "assistant":
+                out += "Assistant: " + m["content"] + self.eos_token
+            elif m["role"] == "system":
+                out += m["content"] + "\n\n"
+        return out + ("Assistant:" if add_generation_prompt else "")
 
 
 if __name__ == "__main__":

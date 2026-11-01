@@ -113,34 +113,34 @@ def get_model_slug(model_name: str) -> str:
     return model_name.split("/")[-1].strip()
 
 
-def get_prompt_format_for_model(model_name: str) -> str:
-    """Instruct and RL models use chat formatting; base models strictly require few-shot prompting."""
-    lower = model_name.lower()
-    if "instruct" in lower or "rl" in lower or "chat" in lower:
-        return "chat"
-    return "few_shot"
-
-
 def generate_comparison_markdown(summary: Dict[str, Any], output_path: Path) -> str:
     """Format evaluation summary into an aligned Markdown comparison table."""
+    any_mock = any(
+        res.get("mock") for presets_data in summary.get("results", {}).values() for res in presets_data.values()
+    )
     lines = [
         "# GSM8K Validation Baselines Comparison (Day 14)",
         "",
+    ]
+    if any_mock:
+        lines += ["> **MOCK RUN: these numbers come from the deterministic mock generator, not from a model.**", ""]
+    lines += [
         f"- **Validation Split:** `{summary.get('split', 'val')}` (Problems: {summary.get('num_problems', 500)})",
         "- **Models Evaluated:** `deepseek-math-7b-base`, `deepseek-math-7b-instruct`, `deepseek-math-7b-rl`",
         "- **Presets:** `greedy` (deterministic), `self_consistency` (maj@8 / sampled)",
         "",
         "## Summary Results Table",
         "",
-        "| Model | Prompting | Greedy Acc (%) | maj@k Acc (%) | pass@k (%) | Format Compliance (%) | Avg Resp Tokens |",
-        "|---|---|---|---|---|---|---|",
+        "| Model | Prompting | Greedy Acc (%) | maj@k Acc (%) | pass@k (%) | Format Compliance (%) | Truncated (%) | Avg Resp Tokens |",
+        "|---|---|---|---|---|---|---|---|",
     ]
 
     models_data = summary.get("results", {})
     for model_id, presets_data in models_data.items():
         slug = get_model_slug(model_id)
-        fmt = get_prompt_format_for_model(model_id)
-        prompt_label = "8-Shot CoT" if fmt == "few_shot" else "Chat Template"
+        any_res = next(iter(presets_data.values()), {})
+        fmt = any_res.get("prompt_format", "?")
+        prompt_label = {"few_shot": "8-Shot CoT", "chat": "Chat Template", "zero_shot": "Zero-Shot"}.get(fmt, fmt)
 
         greedy_res = presets_data.get("greedy", {}).get("metrics", {})
         sc_res = presets_data.get("self_consistency", {}).get("metrics", {})
@@ -150,9 +150,10 @@ def generate_comparison_markdown(summary: Dict[str, Any], output_path: Path) -> 
         pass_k = f"{sc_res.get('pass_at_k_percent', 0.0):.1f}%" if sc_res else "N/A"
         compliance = f"{greedy_res.get('format_compliance_percent', 0.0):.1f}%" if greedy_res else "N/A"
         avg_tokens = f"{greedy_res.get('average_completion_tokens', 0.0):.1f}" if greedy_res else "N/A"
+        truncated = f"{greedy_res.get('truncation_percent', 0.0):.1f}%" if greedy_res else "N/A"
 
         lines.append(
-            f"| `{slug}` | {prompt_label} | {greedy_acc} | {maj_k_acc} | {pass_k} | {compliance} | {avg_tokens} |"
+            f"| `{slug}` | {prompt_label} | {greedy_acc} | {maj_k_acc} | {pass_k} | {compliance} | {truncated} | {avg_tokens} |"
         )
 
     lines.extend([
@@ -194,7 +195,7 @@ def main() -> int:
         model_slug = get_model_slug(model_id)
         model_out_dir = stage_base_dir / model_slug
         model_out_dir.mkdir(parents=True, exist_ok=True)
-        prompt_fmt = get_prompt_format_for_model(model_id)
+        prompt_fmt = "auto"  # per-model format from configs/base_config.yaml (prompt_formats)
 
         all_results[model_id] = {}
 

@@ -75,8 +75,12 @@ def main() -> int:
     if args.input_file:
         input_path = Path(args.input_file)
     else:
-        # Check standard locations
-        baseline_dir = ConfigManager().get_stage_paths("baseline")["outputs"]
+        # Default: the development model's folder (evaluations write one folder per model)
+        from src.evaluation.evaluator import run_slug
+
+        cfg = ConfigManager()
+        dev_model = cfg.base_config.get("models", {}).get("dev_model", "Qwen/Qwen2.5-1.5B-Instruct")
+        baseline_dir = cfg.get_stage_paths("baseline")["outputs"] / run_slug(dev_model)
         val_greedy = baseline_dir / "generations_val_greedy.jsonl"
         sample_greedy = baseline_dir / "generations_sample_greedy.jsonl"
         if val_greedy.exists():
@@ -84,7 +88,7 @@ def main() -> int:
         elif sample_greedy.exists():
             input_path = sample_greedy
         else:
-            logger.error("No generations JSONL file found in outputs/baseline/. Run evaluation first.")
+            logger.error(f"No generations JSONL file found in {baseline_dir}. Run evaluation first.")
             return 1
 
     records = load_records(input_path)
