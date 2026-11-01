@@ -25,7 +25,7 @@ from src.data.formatting import (
     format_few_shot_prompt,
     format_zero_shot_prompt,
 )
-from src.evaluation.math_metrics import compute_all_metrics
+from src.evaluation.math_metrics import compute_all_metrics, rescore_records
 from src.generation import (
     append_generation_records,
     load_existing_generations,
@@ -35,6 +35,25 @@ from src.math_utils.normalization import is_equivalent
 from src.run_info import save_run_info
 
 logger = logging.getLogger(__name__)
+
+PROMPT_FORMATS = ("few_shot", "zero_shot", "chat")
+
+
+def frozen_test_ids() -> set:
+    """Problem IDs of the frozen test split (committed in data/splits/test_ids.json)."""
+    from src.data.preprocessing import frozen_splits_dir
+
+    path = frozen_splits_dir() / "test_ids.json"
+    return set(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else set()
+
+
+def run_slug(checkpoint: str, adapter_path: Optional[str] = None) -> str:
+    """Folder name for one model (+ adapter): 'deepseek-math-7b-base', 'deepseek-math-7b-base__checkpoint-200'."""
+    slug = Path(str(checkpoint).rstrip("/\\")).name or "model"
+    if adapter_path:
+        adapter = Path(str(adapter_path).rstrip("/\\"))
+        slug += f"__{adapter.parent.name}-{adapter.name}" if adapter.name.startswith("checkpoint-") else f"__{adapter.name}"
+    return slug
 
 
 class TestSetWallError(PermissionError):
@@ -105,12 +124,16 @@ class MathEvaluator:
             models = self.base_cfg.get("models", {})
             self.checkpoint = models.get("dev_model", "deepseek-ai/deepseek-math-7b-base")
 
-        # Resolve output directory
+        self.seed = int(self.base_cfg.get("seed", 42))
+
+        # Resolve output directory: one folder per model (+ adapter) under the stage outputs, so
+        # two models never share a generations file
         if output_dir:
             self.output_dir = Path(output_dir)
         else:
             stage_paths = self.cfg_mgr.get_stage_paths(self.stage)
-            self.output_dir = stage_paths.get("outputs", self.cfg_mgr.outputs_path(self.stage))
+            stage_dir = Path(stage_paths.get("outputs", self.cfg_mgr.outputs_path(self.stage)))
+            self.output_dir = stage_dir / run_slug(self.checkpoint, self.adapter_path)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def enforce_test_set_wall(self) -> None:
@@ -193,6 +216,18 @@ class MathEvaluator:
         else:
             raise ValueError(f"Unsupported dataset format: {data_path.suffix}")
 
+        # Test-set wall by content, not by split name: a file path to the test split, a copy of
+        # it, or the 20-problem test sample all contain frozen test IDs
+        if not self.final and "problem_id" in df.columns:
+            leaked = set(df["problem_id"].astype(str)) & frozen_test_ids()
+            if leaked:
+                msg = (
+                    f"TEST-SET WALL VIOLATION: {data_path} contains {len(leaked)} test-split problems. "
+                    "Test problems may only be evaluated with --final."
+                )
+                logger.error(msg)
+                raise TestSetWallError(msg)
+
         if self.limit and self.limit > 0:
             df = df.head(self.limit)
 
@@ -210,14 +245,45 @@ class MathEvaluator:
         logger.info(f"Loaded {len(problems)} problems for split '{self.split}'.")
         return problems
 
-    def get_prompt_formatter(self, tokenizer: Optional[Any] = None) -> Callable[[Dict[str, Any]], str]:
-        """Determine prompt formatting function for the target model."""
+    def resolve_prompt_format(self, tokenizer: Optional[Any] = None) -> str:
+        """Prompt format for this run.
+
+        An explicit --prompt_format wins. 'auto' uses the per-model entry in base_config.yaml
+        (prompt_formats); a model not listed uses its chat template if its tokenizer has one,
+        else the 8-shot prompt.
+        """
         fmt = self.prompt_format.lower()
-        model_name = str(self.checkpoint).lower()
+        if fmt in PROMPT_FORMATS:
+            return fmt
+        if fmt != "auto":
+            raise ValueError(f"Unknown prompt_format '{self.prompt_format}'. Valid: auto, {', '.join(PROMPT_FORMATS)}")
+        configured = (self.base_cfg.get("prompt_formats") or {}).get(str(self.checkpoint))
+        if configured:
+            return configured
+        if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+            return "chat"
+        return "few_shot"
 
-        is_chat_model = ("instruct" in model_name) or ("rl" in model_name) or ("chat" in model_name)
+    def needs_tokenizer(self) -> bool:
+        """The chat format, and 'auto' for an unlisted model, need the model's tokenizer."""
+        fmt = self.prompt_format.lower()
+        if fmt == "auto":
+            configured = (self.base_cfg.get("prompt_formats") or {}).get(str(self.checkpoint))
+            return configured in (None, "chat")
+        return fmt == "chat"
 
-        if fmt == "chat" or (fmt == "auto" and is_chat_model):
+    def get_prompt_formatter(self, tokenizer: Optional[Any] = None) -> Callable[[Dict[str, Any]], str]:
+        """Prompt formatting function for the target model.
+
+        The chat format renders with the model's own chat template, so it needs the model's
+        tokenizer; without one it raises instead of using a generic template.
+        """
+        fmt = self.resolve_prompt_format(tokenizer)
+
+        if fmt == "chat":
+            if tokenizer is None:
+                raise ValueError(f"Chat prompt format for {self.checkpoint} needs the model's tokenizer.")
+
             def chat_formatter(prob: Dict[str, Any]) -> str:
                 msgs = format_chat_messages(prob["question"])
                 return apply_chat_template(msgs, tokenizer=tokenizer)
@@ -352,10 +418,17 @@ class MathEvaluator:
         if self.use_mock:
             logger.info("Executing evaluation with deterministic mock generation.")
             records = self._run_mock_generation(problems, generations_path)
+            resolved_format = self.resolve_prompt_format()
         else:
+            tokenizer = None
+            if self.needs_tokenizer():
+                from src.model import load_tokenizer
+
+                tokenizer = load_tokenizer(self.checkpoint)
+            resolved_format = self.resolve_prompt_format(tokenizer)
             logger.info(
-                f"Running model inference: checkpoint={self.checkpoint}, "
-                f"preset={self.preset}, batch_size={self.batch_size}"
+                f"Running model inference: checkpoint={self.checkpoint}, adapter={self.adapter_path}, "
+                f"preset={self.preset}, prompt_format={resolved_format}, seed={self.seed}"
             )
             preset_cfg = self.gen_cfg.get("presets", {}).get(self.preset, {})
 
@@ -368,10 +441,21 @@ class MathEvaluator:
                 batch_size=self.batch_size,
                 preset=self.preset,
                 generation_config=preset_cfg,
-                prompt_formatter=self.get_prompt_formatter(),
+                prompt_formatter=self.get_prompt_formatter(tokenizer),
+                seed=self.seed,
+                vllm_chunk_size=int(self.gen_cfg.get("batch_sizes", {}).get("vllm", 128)),
+                run_config={
+                    "checkpoint": str(self.checkpoint),
+                    "adapter_path": str(self.adapter_path) if self.adapter_path else None,
+                    "prompt_format": resolved_format,
+                    "split": self.split,
+                },
             )
 
-        # 5. Compute full metric suite
+        # 5. Re-score with the current parser, then compute the full metric suite
+        records, rescored_changes = rescore_records(records)
+        if rescored_changes:
+            logger.info(f"Current parser changed {rescored_changes} stored answers in {generations_path.name}.")
         max_tokens_budget = self.gen_cfg.get("presets", {}).get(self.preset, {}).get("max_new_tokens", 512)
         metrics = compute_all_metrics(records, max_new_tokens=max_tokens_budget)
 
@@ -385,6 +469,10 @@ class MathEvaluator:
             "split": self.split,
             "final": self.final,
             "num_problems": len(problems),
+            "prompt_format": resolved_format,
+            "seed": self.seed,
+            "mock": self.use_mock,
+            "rescored_answers_changed": rescored_changes,
             "generations_file": str(generations_path.resolve()),
             "timestamp_utc": now_utc,
             "metrics": metrics,
@@ -411,6 +499,9 @@ class MathEvaluator:
                 "split": self.split,
                 "limit": self.limit,
                 "final": self.final,
+                "prompt_format": resolved_format,
+                "seed": self.seed,
+                "mock": self.use_mock,
                 "metrics_summary": {
                     "accuracy": metrics.get("accuracy"),
                     "maj_at_k": metrics.get("maj_at_k"),

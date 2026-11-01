@@ -20,7 +20,7 @@ presets:
     description: "Standard stochastic decoding for exploratory sampling"
     temperature: 0.7
     top_p: 0.95
-    top_k: 50
+    top_k: -1  # plan: temperature 0.7, top-p 0.95, no top-k
     do_sample: true
     max_new_tokens: 512
     num_return_sequences: 1
@@ -29,7 +29,7 @@ presets:
     description: "Self-consistency majority voting across diverse reasoning traces (Phase 2 & 7)"
     temperature: 0.7
     top_p: 0.95
-    top_k: 50
+    top_k: -1  # plan: temperature 0.7, top-p 0.95, no top-k
     do_sample: true
     max_new_tokens: 512
     num_samples: 8
@@ -45,6 +45,8 @@ presets:
     num_samples: 4
 
 batch_sizes:
-  vllm: 16
+  # Prompts per vLLM call. vLLM schedules its own batches, so give it many prompts at once;
+  # each chunk is saved before the next starts (resume granularity).
+  vllm: 128
   transformers_local: 4
   colab_g4: 8

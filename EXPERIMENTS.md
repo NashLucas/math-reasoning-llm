@@ -4,6 +4,53 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 2 Review Fixes (Evaluation Engine)
+
+- **Date:** 2026-11-01
+- **Run ID:** `eval-20261101_phase2_review_fixes`
+- **Branch:** `fix-phase2-eval-engine`
+- **Hardware / Platform:** Local workstation, CPU (isolated venv: Python 3.13, torch 2.15.0+cpu, transformers 5.19.0)
+- **Hours & Compute Units:** 0.0 G4 hours
+
+### Why
+A review of Phase 2 found that the engine would have produced wrong numbers without any error, in the Day 14 G4 runs and in every later phase that reuses it. Confirmed by running the code (*):
+1. **Instruct/rl models got a made-up chat template (*).** The evaluator built chat prompts without the tokenizer, so `apply_chat_template` fell back to a generic `<|System|> ... <|Assistant|>` format.
+2. **vLLM ignored LoRA adapters.** SFT/GRPO adapters evaluated on vLLM (what `--backend auto` picks on G4) would have been scored as the base model.
+3. **Generations were reused across runs.** The file was keyed by split and preset only; `evaluate.py` wrote every model of a stage to the same folder; and metrics trusted stored answers, so a parser fix never changed results.
+4. **HF backend counted batch padding as generated tokens (*)** (a 1-token completion counted as the batch maximum) and had no real stop strings, so the 8-shot base model generated to 512 tokens every time and truncation read ~100%.
+5. **vLLM got 4 prompts per call** (the configured `vllm: 16` was unused) and each run created a new engine without releasing the previous one (out-of-memory risk on the second run).
+6. **No sampling seed** anywhere.
+7. **Test-set wall bypass (*):** `--split <path to test.parquet>` loaded all 1,319 test problems without `--final`.
+8. Chat models were detected by substring (`"rl"` in the path; `early` contains `rl`).
+9. All generation tests used mocks; nothing ran a real model through batched generation.
+
+### Fixes
+- **Chat prompts** use the model's own template; no generic fallback (raises instead). DeepSeek's template starts with BOS and the tokenizer adds BOS again, so the rendered BOS is stripped: one BOS per prompt. Checked against the real `deepseek-math-7b-instruct`/`-rl` templates (they accept the system message; the base model has no template).
+- **Prompt format per model** is explicit in `configs/base_config.yaml` (`prompt_formats`): base `few_shot`, instruct/rl `chat`. Unlisted models use their chat template if they have one, else 8-shot.
+- **vLLM + LoRA:** `enable_lora`, `max_lora_rank` from the adapter's `adapter_config.json`, and a `LoRARequest` on every generate call.
+- **Run identity:** one output folder per model (+ adapter) by default; each generations file has a `.meta.json` (checkpoint, adapter, prompt format, decoding, seed, backend). Resuming with different settings, a file without meta, or a different stored prompt raises `GenerationRunMismatchError`.
+- **Re-scoring:** metrics re-extract answers from the stored text with the current parser (`rescore_records`); `eval_results.json` records how many changed.
+- **HF backend:** stop strings end generation (`stop_strings`); token counts stop at each sequence's own EOS; every completion records `finish_reason` (`stop`/`length`), and truncation is measured from it (also on vLLM).
+- **vLLM throughput and memory:** 128 prompts per call (`batch_sizes.vllm`); an engine loaded by a run is shut down and its GPU memory freed before the next run, which logs the free memory.
+- **Seeds:** base seed 42 (`base_config.yaml`): vLLM per-request seed, HF `set_seed` per chunk; recorded in the run meta and `eval_results.json`.
+- **Test-set wall by content:** any input containing a frozen test ID (`data/splits/test_ids.json`) needs `--final`, including file paths, copies and the committed 20-problem test sample.
+- **Sampling presets** match the plan (temperature 0.7, top-p 0.95, no top-k); HF disables its default top-k explicitly.
+- **Tests:** `tests/test_generation_hf.py` runs a real tiny GPT-2 (random and scripted weights) through batched HF generation: per-sequence token counts and finish reasons, EOS, stop strings, left padding, seeded sampling. `tests/test_evaluator_engine.py` covers the vLLM LoRA path, the test wall, prompt formats, per-model folders and re-scoring. CI now installs CPU torch 2.13.0 so these run there.
+- **Mock outputs moved:** all local `outputs/baseline/` files were mock runs (CPU, no model loaded), including a `--final` mock run on 2 test problems. Moved to `outputs/_mock_runs/baseline_until_20261101/`. `baseline_comparison.md` now carries a MOCK banner when produced by the mock generator.
+- **Launcher Step 10:** a checklist for the first G4 run (backend, prompt formats, GPU memory after each run, truncation, one-model-per-process fallback).
+
+### Not verifiable without a GPU
+vLLM memory release between runs (engine shutdown API differs between vLLM versions; the release is best effort and logged). The Step 10 checklist covers it on the first G4 run.
+
+### Verification
+- 154 / 154 tests pass (was 135); ruff clean.
+- Smoke runs (mock): `run_7b_baselines.py`, `evaluate.py --split sample`, `scripts/test_generation_engine.py`.
+
+### Status
+- **Phase 2 gate:** NOT MET. No real baseline exists yet; the Day 14 runs on G4 and the 30-output review per 7B model are still to do.
+
+---
+
 ## Run Entry: Phase 1 Review Fixes (Parser, Frozen Splits, Contamination)
 
 - **Date:** 2026-11-01
@@ -146,6 +193,8 @@ Earlier Colab attempts failed the gate for test-procedure reasons, not checkpoin
 
 ## Run Entry: Day 14 7B Baselines Evaluation & Safety Screening Preparation
 
+> **Correction (2026-11-01):** see "Phase 2 Review Fixes" above. No 7B model was run: with 0 G4 hours, the result sets described below came from the mock generator (now in `outputs/_mock_runs/`). The instruct and rl prompts would also have used a generic chat template instead of the models' own.
+
 - **Date:** 2026-10-31
 - **Run ID:** `baseline-20261031_195500-day14_7b_baselines`
 - **Branch:** `day-14-7b-baselines-and-safety-prep`
@@ -183,6 +232,8 @@ Earlier Colab attempts failed the gate for test-procedure reasons, not checkpoin
 ---
 
 ## Run Entry: Day 13 vLLM Backend, Development Baseline & Parser Quality Review
+
+> **Correction (2026-11-01):** see "Phase 2 Review Fixes" above. The development-model results listed as deliverables were mock runs, and the reviewed outputs were mock text, so the 0 parser discrepancies say nothing about real model outputs. The vLLM backend also ignored LoRA adapters and used 4 prompts per call.
 
 - **Date:** 2026-10-31
 - **Run ID:** `baseline-20261031_181000-day13_vllm_and_dev_run`

@@ -1,5 +1,7 @@
 # Day 13 Model Output & Parser Audit Report
 
+> **MOCK DATA (noted 2026-11-01):** this audit was run on mock-generator output (`Step 1: Calculate. ...`), not on real model completions. It does not show parser quality on real outputs; redo it on the real Day 13 run.
+
 - **Source File:** `outputs\baseline\generations_val_greedy.jsonl`
 - **Total Records in File:** 20
 - **Audited Samples:** 20
