@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # matches the Colab runtime
+          python-version: '3.13'  # matches the Colab runtime (verified 2026-11-01)
           cache: 'pip'
 
       - name: Install dependencies

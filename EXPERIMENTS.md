@@ -42,13 +42,51 @@ Tiny GPT-2 trained with the Hugging Face Trainer, 50 steps, checkpoint every 10.
 - Verified: 111/111 tests pass on the pinned set (torch 2.15.0, Python 3.13).
 - `requirements-vllm.txt` stays unpinned until the vLLM check runs on G4.
 
+### Day 5 vLLM Check on G4 (`scripts/check_vllm.py`, launcher Step 5c) - 2026-11-01
+| Item | Result |
+| --- | --- |
+| GPU | NVIDIA RTX PRO 6000 Blackwell Server Edition (Colab G4) |
+| Python | 3.13 (Colab runtime) |
+| vLLM | 0.32.0, import OK |
+| Generation (Qwen2.5-1.5B-Instruct, greedy, 32 tokens) | OK, `' 12 + 30 = 42 ...'` |
+| Time | 183.2 s, including model download and first-use flashinfer JIT build |
+| **Verdict** | **`vllm_ok`**: Hugging Face fallback rules in the plan are not needed |
+
+Saved to `outputs/env_checks/vllm_check.json` on Drive.
+
+### Pin Changes After the G4 Check (2026-11-01)
+The G4 install exposed conflicts with the 2026-10-31 pins:
+- **vLLM 0.32.0 requires `transformers<5.20.0` and `torch==2.13.0`.** Installing it silently downgraded transformers from the pinned 5.22.1 and replaced Colab's torch, so later steps in that session ran on untested versions. `transformers` is now pinned to **5.19.0** (latest below 5.20; compatible with tokenizers 0.23.3, trl 1.17.1, peft 0.21.2, sentence-transformers 6.2.0), so training and vLLM share one runtime, as trl's GRPO with vLLM rollouts needs. vLLM's torch 2.13.0 is accepted (trl needs >=2.6); `run_info.json` records it.
+- **pandas floor >=2.3.3 upgraded Colab's pandas 2.2.3 to 3.1.0**, breaking `google-colab` (requires ==2.2.3). Floor lowered to 2.2.3.
+- **pillow 13 broke gradio 6.31 (<13).** Added `pillow>=12.3.0,<13` (vLLM needs >=12.3.0).
+- `requirements-vllm.txt`: `vllm==0.32.0`; launcher Step 5c now installs it with `-c requirements.txt`, so pip cannot change the core pins.
+- **CI moved to Python 3.13.** The G4 runtime is Python 3.13, not 3.12 as assumed on 2026-10-31.
+- Verified: 117/117 tests pass with transformers 5.19.0, pandas 2.2.3, pillow 12.3.0 (torch 2.15.0+cpu, Python 3.13); `pip check` clean.
+- Remaining conflicts on Colab are in packages the project does not use: RAPIDS (cudf/cuml: numba, pyarrow), google-adk (opentelemetry), google-colab (requests: vLLM needs >=2.33).
+
+### Colab Resume Gate (`scripts/test_resume_training.py`, launcher Step 5d) - 2026-11-01
+Checkpoints and run log on Google Drive (`checkpoints/resume_test`). Cell 1 (`--mode run --fresh --step_delay 3.0`) was stopped mid-run with **Runtime -> Disconnect and delete runtime**; cell 2 (`--mode run`) ran on a newly assigned runtime; cell 3 ran `--mode verify`.
+
+| Check | Result |
+| --- | --- |
+| First run started from step 0 | Yes (2 runs started) |
+| A run was cut off before finishing | 1 interrupted, 1 finished |
+| Next run resumed from a saved checkpoint | `checkpoint-40` |
+| First step completed after resuming | 41 |
+| Finished | step 50 of 50 |
+| Resumed on a different machine | `b8f09302dfb8` -> `3fb1e34ffefe` |
+| Final complete checkpoint | `checkpoint-50` |
+| **Verdict** | **PHASE 0 RESUME GATE: PASSED** |
+
+Earlier Colab attempts failed the gate for test-procedure reasons, not checkpoint loss: the first had no interrupted run and crept to step 53 on re-runs (fixed in `0f27c03`); the second disconnected only after run 1 had already finished all 50 steps.
+
 ### Still Pending (needs Colab)
-- [ ] **Phase 0 gate on Colab:** launcher Step 5d, with a real **Runtime → Restart session** mid-run and checkpoints on Drive. Record the `--mode verify` output here.
-- [ ] **Day 5 vLLM check:** launcher Step 5c (`scripts/check_vllm.py`) on G4. Record the verdict (`vllm_ok` / `use_hf_fallback`) and pin `vllm` to the version it reports.
+- [x] **Phase 0 gate on Colab:** PASSED on 2026-11-01 (see above).
+- [x] **Day 5 vLLM check:** `vllm_ok` with vLLM 0.32.0 on G4 (2026-11-01); pinned `vllm==0.32.0`.
 - [x] **Tag `v0.1`:** moved from `09b242c` (CI failed) to `2e433e3`, the first commit where CI passed on `main`.
 
 ### Status
-- **Phase 0 gate:** PASSED locally with a real Trainer and a forced process kill; **Colab runtime-restart verification pending.**
+- **Phase 0 gate:** PASSED locally (process kill) and **on Colab with a real runtime deletion** (2026-11-01). Day 5 vLLM check: `vllm_ok` on G4. **All Phase 0 items are closed.**
 
 ---
 

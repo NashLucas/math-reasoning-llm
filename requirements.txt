@@ -3,8 +3,8 @@
 # NOTE: Do NOT add torch here to prevent overriding Colab's hardware-optimized PyTorch build.
 #       The pins below need torch>=2.6 (trl), which Colab's build satisfies.
 #
-# Pinning policy (resolved together and tested: 111 tests + real Trainer resume test,
-# torch 2.15.0, Python 3.13 locally; CI runs Python 3.12 to match Colab; 2026-10-31):
+# Pinning policy (resolved together and tested: 117 tests + real Trainer resume test,
+# torch 2.15.0, Python 3.13 locally; CI runs Python 3.13 to match Colab; 2026-11-01):
 # - Exact pins for the libraries that determine model outputs (tokenization, generation,
 #   training, adapters). Change them deliberately and log the change in EXPERIMENTS.md.
 # - Major-version ranges for the scientific stack Colab manages itself (numpy, pandas, ...);
@@ -12,7 +12,9 @@
 #   run_info.json records the exact versions used by every run.
 
 # Model, tokenization, training and adapters (exact)
-transformers==5.22.1
+# transformers is capped by vLLM 0.32.0 (transformers>=5.16.1,<5.20.0), so the training
+# and generation stack can share one runtime (trl's GRPO uses vLLM for rollouts).
+transformers==5.19.0
 tokenizers==0.23.3
 trl==1.17.1
 peft==0.21.2
@@ -22,13 +24,16 @@ sentence-transformers==6.2.0
 safetensors==0.8.0
 
 # Scientific stack and tooling (ranges cover the versions the test suite passed on:
-# pandas 2.3.3 and 3.1.0, numpy 2.4.0 and 2.5.4, scikit-learn 1.8.0 and 1.9.1)
+# pandas 2.2.3, 2.3.3 and 3.1.0, numpy 2.4.0 and 2.5.4, scikit-learn 1.8.0 and 1.9.1).
+# Floors must not exceed Colab's preinstalled versions, or pip upgrades them under Colab
+# (pandas: google-colab requires ==2.2.3).
 scikit-learn>=1.8.0,<2
-pandas>=2.3.3,<4
+pandas>=2.2.3,<4
 numpy>=2.4.0,<3
 matplotlib>=3.11.2,<4
 tensorboard>=2.21.0,<3
 gradio>=6.31.0,<7
+pillow>=12.3.0,<13  # gradio 6.31 needs <13; vLLM 0.32.0 needs >=12.3.0
 pyyaml>=6.0.3,<7
 tqdm>=4.70.1,<5
 pydantic>=2.14.2,<3
