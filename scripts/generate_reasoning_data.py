@@ -24,6 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.data.curation import CorrectnessFilter, CurationFilterStats  # noqa: E402
 from src.data.synthetic import (  # noqa: E402
     TraceSampler,
     compute_trace_yield,
@@ -43,13 +44,16 @@ def generate_markdown_report(
     output_jsonl: Path,
     report_path: Path,
     use_real_model: bool,
+    filter_stats: Optional[CurationFilterStats] = None,
+    report_title: Optional[str] = None,
 ) -> None:
     """Generate Markdown summary of the reasoning data generation run."""
     mode_label = "Real Model" if use_real_model else "MOCK / Simulation"
     verdict = "PASSED" if use_real_model else "MOCK (Plumbing Verified; Real Model Run Pending)"
+    title = report_title or "Reasoning Data Generation Report"
 
     lines = [
-        "# Day 17 Reasoning Data Generation Report",
+        f"# {title}",
         "",
         f"- **Date:** {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
         f"- **Teacher Model:** `{model_name}` ({mode_label})",
@@ -80,6 +84,28 @@ def generate_markdown_report(
         f"| Trace Accuracy | {yield_metrics['trace_accuracy_percent']:.1f}% ({yield_metrics['trace_accuracy']:.4f}) |",
         f"| Problems with $\\ge 1$ Correct Trace | {yield_metrics['problems_with_at_least_one_correct']:,} / {yield_metrics['total_problems']:,} ({yield_metrics['problem_coverage_rate'] * 100:.1f}%) |",
         "",
+    ])
+
+    if filter_stats is not None:
+        lines.extend([
+            "## Curation Filter Results",
+            "",
+            "| Curation Metric | Value |",
+            "|---|---|",
+            f"| Evaluated Traces | {filter_stats.total_evaluated:,} |",
+            f"| Kept (Correct & Clean) | {filter_stats.kept_count:,} ({filter_stats.retention_percent:.1f}%) |",
+            f"| Rejected Count | {filter_stats.rejected_count:,} |",
+            "",
+            "### Rejection Breakdown",
+            "",
+            "| Reason | Count |",
+            "|---|---|",
+        ])
+        for reason, rcount in filter_stats.rejection_breakdown.items():
+            lines.append(f"| `{reason}` | {rcount:,} |")
+        lines.append("")
+
+    lines.extend([
         "## Pass-Rate Distribution (Correct Samples per Problem)",
         "",
         "| Bucket | Problem Count | Share (%) |",
@@ -156,6 +182,12 @@ def main() -> None:
         type=str,
         default=None,
         help="Directory to save generated traces (default: profile's data/synthetic/generated on Drive or local)",
+    )
+    parser.add_argument(
+        "--report_name",
+        type=str,
+        default=None,
+        help="Base name for output report files (default: auto)",
     )
     parser.add_argument(
         "--chunk_size",
@@ -242,11 +274,20 @@ def main() -> None:
             f"({yield_metrics['problem_coverage_rate'] * 100:.1f}%)"
         )
 
-        # 5. Save reports
+        # 5. Run Correctness Filter
+        filter_engine = CorrectnessFilter()
+        kept_traces, filter_stats = filter_engine.filter_traces(all_traces)
+        logger.info(
+            f"Curation Correctness Filter: Kept {filter_stats.kept_count}/{filter_stats.total_evaluated} "
+            f"({filter_stats.retention_percent:.1f}%), Rejected {filter_stats.rejected_count}"
+        )
+
+        # 6. Save reports
         reports_dir = PROJECT_ROOT / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
 
-        json_report = reports_dir / "day17_synthetic_generation_report.json"
+        base_name = args.report_name or ("day18_cot_sampling" if "chain_of_thought" in prompt_types_list and len(prompt_types_list) == 1 else "day17_synthetic_generation")
+        json_report = reports_dir / f"{base_name}_report.json"
         with open(json_report, "w", encoding="utf-8") as f:
             json.dump({
                 "model_name": args.model_name,
@@ -256,9 +297,10 @@ def main() -> None:
                 "samples_per_problem": args.samples_per_problem,
                 "output_file": str(out_path),
                 "yield_metrics": yield_metrics,
+                "curation_filter": filter_stats.to_dict(),
             }, f, indent=2)
 
-        md_report = reports_dir / "day17_synthetic_generation.md"
+        md_report = reports_dir / f"{base_name}.md"
         generate_markdown_report(
             yield_metrics=yield_metrics,
             model_name=args.model_name,
@@ -267,6 +309,8 @@ def main() -> None:
             output_jsonl=out_path,
             report_path=md_report,
             use_real_model=real_flag,
+            filter_stats=filter_stats,
+            report_title=f"{base_name.replace('_', ' ').title()}",
         )
 
         if not real_flag:

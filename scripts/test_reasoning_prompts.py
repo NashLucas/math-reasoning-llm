@@ -114,7 +114,7 @@ def _resolve_dtype(dtype: str) -> str:
         return "float32"
 
 
-def test_prompts_on_samples(
+def evaluate_prompts_on_samples(
     sample_problems: List[Dict[str, Any]],
     use_real_model: bool = False,
     model_name: str = "Qwen/Qwen2.5-1.5B-Instruct",
@@ -429,7 +429,7 @@ def main() -> None:
 
         device_label = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
 
-    results = test_prompts_on_samples(
+    results = evaluate_prompts_on_samples(
         sample_problems=problems,
         use_real_model=args.use_real_model,
         model_name=args.model_name,
@@ -475,3 +475,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+evaluate_prompts_on_samples.__test__ = False
