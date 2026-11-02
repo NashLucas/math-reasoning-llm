@@ -4,30 +4,61 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 17 — Trace Sampler & 100-Problem Development Run (Code + Plumbing; GPU Run Pending)
+
+- **Date:** 2026-11-02
+- **Run ID:** `synthetic-20261102_day17_trace_sampler`
+- **Branch:** `day-17-trace-sampler`
+- **Hardware / Platform:** Local workstation, CPU (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Mock plumbing verification & unit test suite; real GPU run pending)
+
+### Trace Sampler Architecture (`src/data/synthetic.py`)
+1. **Subset Selection & Contamination Isolation:**
+   - Implemented `select_synthetic_subset_ids(train_ids, subset_size=3000, seed=42)` using `random.Random(seed).sample(sorted(train_ids), subset_size)`, reproducing `data/splits/synthetic_subset_ids.json` bit-for-bit.
+   - Verified 0 overlap with validation (`val_ids.json`) and test (`test_ids.json`) sets; recorded subset in `configs/data.yaml`.
+   - Hardened `load_synthetic_problems`: refuses to silently fall back to the 20-problem sample set in real-model mode (`allow_sample_fallback=False`).
+2. **Batched, Chunked & Resumable Trace Sampling:**
+   - Implemented `ReasoningTrace`, `TraceSampler`, `load_synthetic_problems`, and `load_existing_traces_by_id`.
+   - Fixed real-model generation path:
+     - Calls `resolve_generation_backend(self.backend)`, `generate_batch_vllm(llm=...)`, and `shutdown_model(self.model, backend)` with their exact signatures.
+     - Uses engine default stop sequences (`["Question:", "\n\n\n"]`) with post-`#### <number>` line truncation instead of stopping before `####`.
+     - Enables stochastic sampling (`do_sample = temperature > 0.0`, `top_k = -1`, `num_return_sequences = len(missing_idxs)`) with per-batch seeds (`self.seed + batch_call_idx`) across batched prompts.
+   - Resolves `--output_dir` via `ConfigManager().data_path("synthetic", "generated")` by default so Colab runs persist directly to Google Drive.
+   - Flushes completed chunks to disk every `chunk_size` problems with immediate synchronization; rerunning skips existing `trace_id` records.
+3. **100-Problem Development Check (`scripts/generate_reasoning_data.py`):**
+   - Local run executed in **mock mode** (`--use_mock`, 4 traces × 100 problems = 400 traces) to verify chunked JSONL persistence and yield aggregation (`reports/day17_synthetic_generation.md`, `reports/day17_synthetic_generation_report.json`, marked `verdict: "MOCK"`).
+   - **Still pending (requires Colab GPU):** Run `python scripts/generate_reasoning_data.py --use_real_model --limit 100` with `Qwen/Qwen2.5-1.5B-Instruct` (launcher Step 14) to measure real development-model yield.
+
+### Verification & Testing
+- **Unit Test Suite:** `tests/test_synthetic.py` (9 unit tests, including `autospec=True` regression tests for the real vLLM and HF code paths and an end-to-end tiny-GPT-2 sampling test).
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/data/synthetic.py`, `data/splits/synthetic_subset_ids.json`, `configs/data.yaml`, `configs/generation.yaml`, `scripts/generate_reasoning_data.py`, `tests/test_synthetic.py`, `reports/day17_synthetic_generation.md`, `reports/day17_synthetic_generation_report.json`.
+
+---
+
 ## Run Entry: Phase 3 Day 16 — Reasoning Prompts (CoT, Solve-then-Verify, Alternative-Method)
 
 - **Date:** 2026-11-02
 - **Run ID:** `reasoning-20261102_day16_reasoning_prompts`
-- **Branch:** `day-16-reasoning-prompts`
-- **Hardware / Platform:** Local workstation / Colab Runtime (Python 3.13)
-- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & test suite)
+- **Branch:** `day-16-reasoning-prompts` (updated on `day-17-trace-sampler`)
+- **Hardware / Platform:** Local workstation, CPU (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Mock plumbing verification & unit test suite; real GPU run pending)
 
 ### Reasoning Prompts Architecture (`src/reasoning/prompting.py`)
 1. **Three Prompt Strategies:**
    - **Chain-of-Thought (`chain_of_thought` / `cot`):** Standard step-by-step mathematical reasoning breaking down arithmetic and logical transitions.
-   - **Solve-then-Verify (`solve_then_verify` / `verify`):** Explicit two-stage reasoning protocol: Stage 1 finds initial solution; Stage 2 performs verification via inverse arithmetic, constraint substitution, or boundary sanity checks.
-   - **Alternative-Method (`alternative_method` / `alt`):** Directs the model to employ an alternative or complementary mathematical formulation (e.g. algebraic equations, proportions, or working backwards instead of standard sequential arithmetic).
+   - **Solve-then-Verify (`solve_then_verify` / `verify`):** Explicit two-stage reasoning protocol (Stage 1 initial solution, Stage 2 verification via inverse arithmetic or constraint substitution), instructing the model to emit `#### <number>` only once after Stage 2 verification completes.
+   - **Alternative-Method (`alternative_method` / `alt`):** Directs the model to employ an alternative mathematical formulation (algebraic equations, proportions, or working backwards).
 2. **Canonical Contract Enforcement:**
-   - Every prompt configuration explicitly states the canonical answer contract: `"On the last line, write the final numeric answer as '#### <number>'."`
+   - Every prompt configuration explicitly states `"On the last line, write the final numeric answer as '#### <number>'."` and instructs the model to write only the plain number with no units or trailing text.
    - Supports both chat template rendering (`build_reasoning_prompt_messages`, `render_reasoning_prompt`) for instruct teacher models and plain text formatting (`format_reasoning_prompt_text`) for base models.
-3. **Verification on Sample Problems (`scripts/test_reasoning_prompts.py`):**
-   - Evaluated on 10 training sample problems from `data/sample/train_sample.parquet`.
-   - Verified 100% format compliance (`#### <number>`) across all three prompt strategies (`reports/day16_reasoning_prompts.md`, `reports/day16_prompt_verification.json`).
-4. **Colab Launcher Integration:**
-   - Added Step 13 to `notebooks/00_colab_launcher.ipynb` to run prompt verification with either the real development model on GPU or local simulation.
+3. **Verification Script (`scripts/test_reasoning_prompts.py`):**
+   - Fixed real-model path: removed `"####"` from `stop_sequences` (which previously stopped generation before the answer line), batched prompt evaluation, and added `text_after_hash_line()` and `day16_verdict()`.
+   - Local run executed in **mock mode** on 10 sample problems (`reports/day16_reasoning_prompts.md`, `reports/day16_prompt_verification.json`, marked `verdict: "MOCK"`).
+   - **Still pending (requires Colab GPU):** Run `python scripts/test_reasoning_prompts.py --use_real_model --num_problems 10` with `Qwen/Qwen2.5-1.5B-Instruct` (launcher Step 13) and inspect real outputs.
 
 ### Verification & Testing
-- **Unit Test Suite:** `tests/test_prompting.py` (8 new test cases covering enums, aliases, canonical contract presence, chat messages, plain text formatting, and tokenizer chat template rendering).
+- **Unit Test Suite:** `tests/test_prompting.py` (10 test cases covering enums, aliases, canonical contract presence, chat messages, plain text formatting, chat template rendering, trailing-text detection, mock vs real verdicts, and batched real-model execution with `autospec=True`).
 - **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
 - **Deliverables:** `src/reasoning/prompting.py`, `src/reasoning/__init__.py`, `scripts/test_reasoning_prompts.py`, `tests/test_prompting.py`, `reports/day16_prompt_verification.json`, `reports/day16_reasoning_prompts.md`.
 

@@ -36,10 +36,10 @@ presets:
     aggregation: "majority_vote"
 
   synthetic_generation:
-    description: "Diverse candidate generation for targeted data generation (Phase 3)"
-    temperature: 0.8
+    description: "Diverse candidate generation for Phase 3 reasoning traces (matches sampled preset)"
+    temperature: 0.7
     top_p: 0.95
-    top_k: 50
+    top_k: -1
     do_sample: true
     max_new_tokens: 512
     num_samples: 4
