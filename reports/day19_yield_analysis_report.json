@@ -1,0 +1,40 @@
+{
+  "report": {
+    "total_problems": 100,
+    "total_traces": 400,
+    "correct_traces": 400,
+    "trace_yield_rate": 1.0,
+    "trace_yield_percent": 100.0,
+    "solved_problems": 100,
+    "problem_solve_rate": 1.0,
+    "problem_solve_percent": 100.0,
+    "unsolved_problems": 0,
+    "unsolved_rate": 0.0,
+    "unsolved_percent": 0.0,
+    "distribution_by_correct_count": {
+      "4_of_4": 100
+    },
+    "distribution_by_difficulty": {
+      "zero": 0,
+      "hard": 0,
+      "medium": 0,
+      "easy": 100
+    },
+    "format_failures": 0,
+    "format_failure_rate": 0.0,
+    "filter_stats": {
+      "total_evaluated": 400,
+      "kept_count": 400,
+      "rejected_count": 0,
+      "retention_rate": 1.0,
+      "retention_percent": 100.0,
+      "rejection_breakdown": {}
+    }
+  },
+  "input_trace_files": [
+    "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\generated\\traces_Qwen2.5-1.5B-Instruct_chain_of_thought.jsonl"
+  ],
+  "pass_rates_json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\generated\\problem_pass_rates.json",
+  "pass_rates_parquet": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\generated\\problem_pass_rates.parquet",
+  "curated_traces_count": 400
+}

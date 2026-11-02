@@ -1,18 +1,21 @@
-"""Reasoning trace curation and correctness filtering (Phase 3).
+"""Reasoning trace curation, correctness filtering, and yield analysis (Phase 3).
 
 Provides rigorous filtering and quality checks for synthetic reasoning traces:
 1. Correctness: verifies extracted answer matches gold answer via is_equivalent.
-2. Answer format: ensures final answer is parseable and valid.
+2. Answer format: ensures final answer is parseable and adheres to canonical answer contract.
 3. Quality & length: checks token bounds (min/max tokens) and rejects truncated responses.
 4. Degeneracy check: detects repetitive text and looping n-grams.
-5. Filter statistics: computes comprehensive retention and rejection breakdowns.
+5. Per-problem pass rates: computes k-sample pass rates and difficulty distributions (Phase 6 input).
+6. Yield analysis: computes overall yield, solve rates, unsolved counts, and formatting failures.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from src.data.synthetic import ReasoningTrace
@@ -48,6 +51,144 @@ class CurationFilterStats:
             "retention_percent": round(self.retention_percent, 2),
             "rejection_breakdown": self.rejection_breakdown,
         }
+
+
+@dataclass
+class ProblemPassRate:
+    """Pass rate metrics for a single mathematical problem across k sampled traces."""
+
+    problem_id: str
+    question: str = ""
+    gold_answer: str = ""
+    total_samples: int = 0
+    correct_samples: int = 0
+    pass_rate: float = 0.0
+    is_solved: bool = False
+    difficulty_bin: str = "zero"
+    correct_trace_ids: List[str] = field(default_factory=list)
+    all_trace_ids: List[str] = field(default_factory=list)
+    prompt_types: List[str] = field(default_factory=list)
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "problem_id": self.problem_id,
+            "question": self.question,
+            "gold_answer": self.gold_answer,
+            "total_samples": self.total_samples,
+            "correct_samples": self.correct_samples,
+            "pass_rate": round(self.pass_rate, 4),
+            "is_solved": self.is_solved,
+            "difficulty_bin": self.difficulty_bin,
+            "correct_trace_ids": self.correct_trace_ids,
+            "all_trace_ids": self.all_trace_ids,
+            "prompt_types": self.prompt_types,
+        }
+
+
+@dataclass
+class YieldAnalysisReport:
+    """Comprehensive yield and pass-rate report across generated reasoning traces."""
+
+    total_problems: int = 0
+    total_traces: int = 0
+    correct_traces: int = 0
+    trace_yield_rate: float = 0.0
+    trace_yield_percent: float = 0.0
+    solved_problems: int = 0
+    problem_solve_rate: float = 0.0
+    problem_solve_percent: float = 0.0
+    unsolved_problems: int = 0
+    unsolved_rate: float = 0.0
+    unsolved_percent: float = 0.0
+    distribution_by_correct_count: Dict[str, int] = field(default_factory=dict)
+    distribution_by_difficulty: Dict[str, int] = field(default_factory=dict)
+    format_failures: int = 0
+    format_failure_rate: float = 0.0
+    filter_stats: Optional[CurationFilterStats] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_problems": self.total_problems,
+            "total_traces": self.total_traces,
+            "correct_traces": self.correct_traces,
+            "trace_yield_rate": round(self.trace_yield_rate, 4),
+            "trace_yield_percent": round(self.trace_yield_percent, 2),
+            "solved_problems": self.solved_problems,
+            "problem_solve_rate": round(self.problem_solve_rate, 4),
+            "problem_solve_percent": round(self.problem_solve_percent, 2),
+            "unsolved_problems": self.unsolved_problems,
+            "unsolved_rate": round(self.unsolved_rate, 4),
+            "unsolved_percent": round(self.unsolved_percent, 2),
+            "distribution_by_correct_count": self.distribution_by_correct_count,
+            "distribution_by_difficulty": self.distribution_by_difficulty,
+            "format_failures": self.format_failures,
+            "format_failure_rate": round(self.format_failure_rate, 4),
+            "filter_stats": self.filter_stats.to_dict() if self.filter_stats else {},
+        }
+
+    def to_markdown_summary(self) -> str:
+        """Render a readable markdown summary of yield analysis findings."""
+        lines = [
+            "# Reasoning Trace Yield Analysis Report",
+            "",
+            "## Summary Metrics",
+            f"- **Total Problems Evaluated:** {self.total_problems:,}",
+            f"- **Total Traces Evaluated:** {self.total_traces:,}",
+            f"- **Correct Traces:** {self.correct_traces:,} ({self.trace_yield_percent:.2f}% yield)",
+            f"- **Problems Solved (>= 1 correct trace):** {self.solved_problems:,} ({self.problem_solve_percent:.2f}%)",
+            f"- **Problems Unsolved (0 correct traces):** {self.unsolved_problems:,} ({self.unsolved_percent:.2f}%)",
+            f"- **Format Failures:** {self.format_failures:,} ({self.format_failure_rate * 100:.2f}%)",
+            "",
+            "## Pass-Rate Distribution (Correct Samples out of k)",
+            "| Correct Count | Problem Count | Percentage | Difficulty Category |",
+            "|---|---|---|---|",
+        ]
+
+        for key, count in sorted(self.distribution_by_correct_count.items()):
+            pct = (count / self.total_problems * 100.0) if self.total_problems > 0 else 0.0
+            category = "Zero (0/k)" if key.startswith("0") else "Non-zero"
+            lines.append(f"| `{key}` | {count:,} | {pct:.2f}% | {category} |")
+
+        lines.extend([
+            "",
+            "## Difficulty Breakdown (for Phase 6 GRPO / Difficulty Filter)",
+            "| Difficulty Zone | Problem Count | Share of Problems | Description |",
+            "|---|---|---|---|",
+            f"| **Zero (0/k)** | {self.distribution_by_difficulty.get('zero', 0):,} | {(self.distribution_by_difficulty.get('zero', 0) / self.total_problems * 100 if self.total_problems > 0 else 0):.2f}% | Completely failed by teacher model |",
+            f"| **Hard (1/k)** | {self.distribution_by_difficulty.get('hard', 0):,} | {(self.distribution_by_difficulty.get('hard', 0) / self.total_problems * 100 if self.total_problems > 0 else 0):.2f}% | High difficulty; only 1 sample succeeded |",
+            f"| **Medium (2-3/k)** | {self.distribution_by_difficulty.get('medium', 0):,} | {(self.distribution_by_difficulty.get('medium', 0) / self.total_problems * 100 if self.total_problems > 0 else 0):.2f}% | Learning zone / ideal for GRPO variance |",
+            f"| **Easy (4/k)** | {self.distribution_by_difficulty.get('easy', 0):,} | {(self.distribution_by_difficulty.get('easy', 0) / self.total_problems * 100 if self.total_problems > 0 else 0):.2f}% | Mastered by teacher model |",
+            "",
+        ])
+
+        if self.filter_stats and self.filter_stats.rejection_breakdown:
+            lines.extend([
+                "## Curation Filter Rejection Breakdown",
+                "| Rejection Reason | Count | Share of Rejected Traces |",
+                "|---|---|---|",
+            ])
+            rejected = self.filter_stats.rejected_count
+            for reason, cnt in sorted(self.filter_stats.rejection_breakdown.items(), key=lambda x: x[1], reverse=True):
+                share = (cnt / rejected * 100.0) if rejected > 0 else 0.0
+                lines.append(f"| `{reason}` | {cnt:,} | {share:.2f}% |")
+            lines.append("")
+
+        return "\n".join(lines)
+
+
+def classify_difficulty(correct_samples: int, total_samples: int) -> str:
+    """Classify problem difficulty bin based on sample pass rate."""
+    if total_samples <= 0 or correct_samples == 0:
+        return "zero"
+    if correct_samples == total_samples:
+        return "easy"
+    rate = correct_samples / total_samples
+    if rate <= 0.25:
+        return "hard"
+    return "medium"
 
 
 def detect_repeated_ngrams(
@@ -218,25 +359,238 @@ class CorrectnessFilter:
 
 def compute_problem_pass_rates(
     traces: Sequence[Union[Dict[str, Any], ReasoningTrace]],
-) -> Dict[str, Dict[str, Any]]:
-    """Compute per-problem pass rate statistics across reasoning traces."""
+    problems: Optional[Sequence[Dict[str, Any]]] = None,
+) -> Dict[str, ProblemPassRate]:
+    """Compute per-problem pass rate statistics across reasoning traces.
+
+    Args:
+        traces: Sequence of reasoning traces (dicts or ReasoningTrace objects).
+        problems: Optional sequence of problems to ensure even problems with zero
+            traces or zero correct traces are fully indexed.
+
+    Returns:
+        Dictionary mapping problem_id to ProblemPassRate.
+    """
     problem_traces: Dict[str, List[Dict[str, Any]]] = {}
 
     for t in traces:
-        d = t.to_dict() if isinstance(t, ReasoningTrace) else t
-        pid = d["problem_id"]
+        d = t.to_dict() if isinstance(t, ReasoningTrace) else dict(t)
+        pid = str(d["problem_id"])
         problem_traces.setdefault(pid, []).append(d)
 
-    pass_rate_stats: Dict[str, Dict[str, Any]] = {}
+    # Initialize lookup from problem definitions if provided
+    pass_rate_stats: Dict[str, ProblemPassRate] = {}
+    if problems:
+        for p in problems:
+            pid = str(p.get("problem_id", ""))
+            if not pid:
+                continue
+            pass_rate_stats[pid] = ProblemPassRate(
+                problem_id=pid,
+                question=str(p.get("question", "")),
+                gold_answer=str(p.get("gold_answer", "")),
+                total_samples=0,
+                correct_samples=0,
+                pass_rate=0.0,
+                is_solved=False,
+                difficulty_bin="zero",
+            )
+
+    # Populate pass rates from traces
     for pid, p_list in problem_traces.items():
         total_k = len(p_list)
-        correct_count = sum(1 for item in p_list if item.get("is_correct", False))
+        correct_items = [item for item in p_list if item.get("is_correct", False)]
+        correct_count = len(correct_items)
         rate = correct_count / total_k if total_k > 0 else 0.0
-        pass_rate_stats[pid] = {
-            "total_samples": total_k,
-            "correct_samples": correct_count,
-            "pass_rate": round(rate, 4),
-            "is_solved": correct_count > 0,
-        }
+
+        first_item = p_list[0]
+        q_text = first_item.get("question", "")
+        gold_ans = str(first_item.get("gold_answer", ""))
+
+        all_trace_ids = [item.get("trace_id", "") for item in p_list if item.get("trace_id")]
+        correct_trace_ids = [
+            item.get("trace_id", "") for item in correct_items if item.get("trace_id")
+        ]
+        prompt_types = list({item.get("prompt_type", "") for item in p_list if item.get("prompt_type")})
+
+        diff_bin = classify_difficulty(correct_count, total_k)
+
+        pass_rate_stats[pid] = ProblemPassRate(
+            problem_id=pid,
+            question=q_text or (pass_rate_stats[pid].question if pid in pass_rate_stats else ""),
+            gold_answer=gold_ans or (pass_rate_stats[pid].gold_answer if pid in pass_rate_stats else ""),
+            total_samples=total_k,
+            correct_samples=correct_count,
+            pass_rate=round(rate, 4),
+            is_solved=correct_count > 0,
+            difficulty_bin=diff_bin,
+            correct_trace_ids=correct_trace_ids,
+            all_trace_ids=all_trace_ids,
+            prompt_types=prompt_types,
+        )
 
     return pass_rate_stats
+
+
+def save_problem_pass_rates(
+    pass_rates: Dict[str, Union[ProblemPassRate, Dict[str, Any]]],
+    output_path: Union[str, Path],
+) -> Tuple[Path, Optional[Path]]:
+    """Save problem pass rates to JSON and companion Parquet formats.
+
+    Args:
+        pass_rates: Mapping of problem_id to ProblemPassRate or dict.
+        output_path: Target path (e.g. data/synthetic/generated/problem_pass_rates.json).
+
+    Returns:
+        Tuple of (json_path, parquet_path or None).
+    """
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    json_dict: Dict[str, Dict[str, Any]] = {}
+    records: List[Dict[str, Any]] = []
+
+    for pid, obj in pass_rates.items():
+        d = obj.to_dict() if isinstance(obj, ProblemPassRate) else dict(obj)
+        json_dict[pid] = d
+        records.append(d)
+
+    json_file = out_path if out_path.suffix == ".json" else out_path.with_suffix(".json")
+    json_file.write_text(json.dumps(json_dict, indent=2), encoding="utf-8")
+    logger.info(f"Saved {len(json_dict)} problem pass rates to: {json_file}")
+
+    parquet_file: Optional[Path] = None
+    try:
+        import pandas as pd
+
+        parquet_path = json_file.with_suffix(".parquet")
+        df = pd.DataFrame(records)
+        df.to_parquet(parquet_path, index=False)
+        parquet_file = parquet_path
+        logger.info(f"Saved companion parquet pass rates to: {parquet_path}")
+    except Exception as exc:
+        logger.warning(f"Failed to save companion parquet pass rates: {exc}")
+
+    return json_file, parquet_file
+
+
+def load_problem_pass_rates(
+    input_path: Union[str, Path],
+) -> Dict[str, Dict[str, Any]]:
+    """Load problem pass rates from JSON or Parquet file."""
+    in_path = Path(input_path)
+    if not in_path.exists():
+        raise FileNotFoundError(f"Pass rates file not found: {in_path}")
+
+    if in_path.suffix == ".parquet":
+        import pandas as pd
+
+        df = pd.read_parquet(in_path)
+        records = df.to_dict(orient="records")
+        return {str(r["problem_id"]): r for r in records}
+
+    content = in_path.read_text(encoding="utf-8")
+    data = json.loads(content)
+    if isinstance(data, list):
+        return {str(r["problem_id"]): r for r in data}
+    return data
+
+
+def analyze_reasoning_yield(
+    traces: Sequence[Union[Dict[str, Any], ReasoningTrace]],
+    problems: Optional[Sequence[Dict[str, Any]]] = None,
+    correctness_filter: Optional[CorrectnessFilter] = None,
+) -> Tuple[YieldAnalysisReport, Dict[str, ProblemPassRate], List[Dict[str, Any]]]:
+    """Execute complete reasoning trace yield analysis and pass-rate aggregation.
+
+    Args:
+        traces: Sequence of traces.
+        problems: Optional complete problem list to verify coverage.
+        correctness_filter: Optional filter engine (defaults to standard CorrectnessFilter).
+
+    Returns:
+        (report, per_problem_pass_rates, kept_traces)
+    """
+    filter_engine = correctness_filter or CorrectnessFilter()
+
+    # Step 1: Run correctness filtering
+    kept_traces, filter_stats = filter_engine.filter_traces(traces)
+
+    # Step 2: Compute format failures on original traces
+    format_failures = 0
+    for t in traces:
+        raw = t.to_dict() if isinstance(t, ReasoningTrace) else t
+        comp = raw.get("completion", "")
+        method = raw.get("extraction_method")
+        if method is None:
+            _, method = extract_answer(comp)
+        if method != "hash":
+            format_failures += 1
+
+    # Step 3: Compute per-problem pass rates
+    # Note: we use the filtered flags so is_correct is strictly true
+    annotated_traces: List[Dict[str, Any]] = []
+    kept_ids = {t["trace_id"] for t in kept_traces if "trace_id" in t}
+
+    for t in traces:
+        raw = dict(t.to_dict() if isinstance(t, ReasoningTrace) else t)
+        raw_tid = raw.get("trace_id")
+        if raw_tid:
+            raw["is_correct"] = raw_tid in kept_ids
+        else:
+            # Fall back to evaluation function if trace_id is missing
+            is_ok, _ = filter_engine.filter_trace(raw)
+            raw["is_correct"] = is_ok
+        annotated_traces.append(raw)
+
+    pass_rates = compute_problem_pass_rates(annotated_traces, problems=problems)
+
+    # Step 4: Aggregate distributions
+    total_problems = len(pass_rates)
+    total_traces = len(traces)
+    correct_traces = len(kept_traces)
+
+    trace_yield_rate = correct_traces / total_traces if total_traces > 0 else 0.0
+    format_fail_rate = format_failures / total_traces if total_traces > 0 else 0.0
+
+    solved_count = 0
+    unsolved_count = 0
+    dist_by_count: Dict[str, int] = {}
+    dist_by_diff: Dict[str, int] = {"zero": 0, "hard": 0, "medium": 0, "easy": 0}
+
+    for p in pass_rates.values():
+        if p.is_solved:
+            solved_count += 1
+        else:
+            unsolved_count += 1
+
+        count_key = f"{p.correct_samples}_of_{p.total_samples}"
+        dist_by_count[count_key] = dist_by_count.get(count_key, 0) + 1
+
+        dbin = p.difficulty_bin
+        dist_by_diff[dbin] = dist_by_diff.get(dbin, 0) + 1
+
+    problem_solve_rate = solved_count / total_problems if total_problems > 0 else 0.0
+    unsolved_rate = unsolved_count / total_problems if total_problems > 0 else 0.0
+
+    report = YieldAnalysisReport(
+        total_problems=total_problems,
+        total_traces=total_traces,
+        correct_traces=correct_traces,
+        trace_yield_rate=trace_yield_rate,
+        trace_yield_percent=trace_yield_rate * 100.0,
+        solved_problems=solved_count,
+        problem_solve_rate=problem_solve_rate,
+        problem_solve_percent=problem_solve_rate * 100.0,
+        unsolved_problems=unsolved_count,
+        unsolved_rate=unsolved_rate,
+        unsolved_percent=unsolved_rate * 100.0,
+        distribution_by_correct_count=dist_by_count,
+        distribution_by_difficulty=dist_by_diff,
+        format_failures=format_failures,
+        format_failure_rate=format_fail_rate,
+        filter_stats=filter_stats,
+    )
+
+    return report, pass_rates, kept_traces
