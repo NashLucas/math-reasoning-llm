@@ -1,36 +1,33 @@
 # Day 16 Reasoning Prompts Verification Report
 
-- **Date:** 2026-11-02 15:24:35 UTC
-- **Model Evaluated:** `Qwen/Qwen2.5-1.5B-Instruct` (Mock / Simulation Mode)
+- **Date:** 2026-11-02 16:07:52 UTC
+- **Model Evaluated:** `Qwen/Qwen2.5-1.5B-Instruct` (MOCK / simulation)
+- **Decoding:** greedy, engine default stop rules
 - **Phase:** Phase 3 (Reasoning Data)
 - **Milestone:** Day 16 — Reasoning Prompts Verification
 
+> [!WARNING]
+> **Mock run.** The mock generator writes `#### <gold answer>` itself, so the numbers below are
+> 100% by construction and say nothing about the prompts. Rerun with `--use_real_model`.
+
 ## Summary Results Table
 
-| Prompt Strategy | Type Key | Problems Tested | Format Compliance (%) | Accuracy (%) | Contract Status |
-|---|---|---|---|---|---|
-| Chain-of-Thought | `chain_of_thought` | 10 | 100.0% | 100.0% | PASSED (100% Canonical) |
-| Solve-then-Verify | `solve_then_verify` | 10 | 100.0% | 100.0% | PASSED (100% Canonical) |
-| Alternative-Method | `alternative_method` | 10 | 100.0% | 100.0% | PASSED (100% Canonical) |
+| Prompt Strategy | Type Key | Problems | Format Compliance | Accuracy | Truncated | Text after `####` |
+|---|---|---|---|---|---|---|
+| Chain-of-Thought | `chain_of_thought` | 10 | 100.0% | 100.0% | 0 | 0 |
+| Solve-then-Verify | `solve_then_verify` | 10 | 100.0% | 100.0% | 0 | 0 |
+| Alternative-Method | `alternative_method` | 10 | 100.0% | 100.0% | 0 | 0 |
 
-## Prompt Templates & Canonical Contract
+Format compliance means the parser found the answer on a `####` line. Accuracy is only a sanity
+check here; the Day 16 check is about the format. "Text after `####`" counts completions where
+the model kept writing after the answer line (cut off by the engine, but a sign the prompt is not
+followed literally).
 
-All three prompt strategies strictly enforce the canonical answer format contract:
-> `On the last line, write the final numeric answer as '#### <number>'`
+## Non-compliant and Notable Completions
 
-### 1. Chain-of-Thought (`chain_of_thought`)
-- **Approach:** Direct step-by-step reasoning with arithmetic breakdown.
-- **System Prompt:** Instructs expert mathematical reasoning with intermediate arithmetic steps.
+None: every completion ended on a `####` line with nothing after it.
 
-### 2. Solve-then-Verify (`solve_then_verify`)
-- **Approach:** Two-stage reasoning (Initial Solution + Explicit Verification).
-- **System Prompt:** Mandates verifying intermediate steps, checking boundary conditions, or testing inverse operations before stating the final answer.
-
-### 3. Alternative-Method (`alternative_method`)
-- **Approach:** Algebraic modeling, working backwards, or proportional reasoning.
-- **System Prompt:** Instructs finding an alternative perspective or formulation rather than simple arithmetic.
-
-## Sample Completions Inspection
+## One Completion per Strategy
 
 ### Strategy: Chain-of-Thought
 - **Problem ID:** `gsm8k_4b291b0c6a0ca2da`
@@ -80,8 +77,7 @@ Solving for x directly gives x = 705.
 #### 705
 ```
 
-## Phase 3 Day 16 Gate Status
+## Day 16 Check
 
-**Verdict:** ALL PROMPTS PASSED CANONICAL CONTRACT
-- All three reasoning prompt types produce canonical `#### <number>` output.
-- Ready for Day 17: Trace Sampler (`src/data/synthetic.py`).
+**Verdict:** NOT VERIFIED (mock run)
+- Day 16's done-when needs real development-model outputs.
