@@ -181,6 +181,11 @@ def main() -> None:
 
     logger.info("=== Starting Reasoning Trace Yield Analysis (Phase 3 Day 19) ===")
 
+    out_dir = Path(args.output_dir)
+    if not out_dir.is_absolute():
+        out_dir = project_root / out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     # 1. Resolve trace files
     trace_files = resolve_trace_files(args.traces_file, project_root, is_mock=args.mock)
 
@@ -197,13 +202,17 @@ def main() -> None:
             from src.data.synthetic import ReasoningPromptType, TraceSampler
             sample_probs = load_synthetic_problems(limit=10, allow_sample_fallback=True)
             mock_sampler = TraceSampler(
-                model_name="mock-model",
-                prompt_types=[ReasoningPromptType.CHAIN_OF_THOUGHT],
-                k_samples=4,
-                mock=True,
+                model_name_or_path="mock-model",
+                output_dir=out_dir,
+                use_mock=True,
             )
-            mock_traces = mock_sampler.sample_traces(sample_probs)
-            traces_map = {t.trace_id: t.to_dict() for t in mock_traces}
+            traces_path = mock_sampler.sample_traces(
+                problems=sample_probs,
+                prompt_types=[ReasoningPromptType.CHAIN_OF_THOUGHT],
+                samples_per_problem=4,
+            )
+            traces_map = load_existing_traces_by_id(traces_path)
+            trace_files = [traces_path]
         else:
             logger.error(
                 "No reasoning trace files found in data/synthetic/generated/. "
@@ -230,11 +239,6 @@ def main() -> None:
     )
 
     # 4. Save per-problem pass rates
-    out_dir = Path(args.output_dir)
-    if not out_dir.is_absolute():
-        out_dir = project_root / out_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     pass_rates_path = out_dir / args.pass_rates_name
     json_saved, parquet_saved = save_problem_pass_rates(pass_rates, pass_rates_path)
     logger.info(f"Problem pass rates saved to: {json_saved}")
