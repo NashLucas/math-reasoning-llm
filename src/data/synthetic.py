@@ -224,6 +224,13 @@ def load_synthetic_problems(
     else:
         id_to_record = {r["problem_id"]: r for r in filtered.to_dict(orient="records")}
         records = [id_to_record[pid] for pid in subset_ids if pid in id_to_record]
+        if used_sample_fallback and limit is not None and len(records) < limit:
+            existing_ids = {r["problem_id"] for r in records}
+            for r in df_train.to_dict(orient="records"):
+                if r["problem_id"] not in existing_ids:
+                    records.append(r)
+                    if len(records) >= limit:
+                        break
 
     if limit is not None and limit > 0:
         records = records[:limit]

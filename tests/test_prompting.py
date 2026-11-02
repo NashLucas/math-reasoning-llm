@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from scripts.test_reasoning_prompts import (
     day16_verdict,
-    test_prompts_on_samples,
+    evaluate_prompts_on_samples,
     text_after_hash_line,
 )
 from src.reasoning.prompting import (
@@ -231,7 +231,7 @@ class TestReasoningPrompting(unittest.TestCase):
 
         with patch("src.model.load_model_and_tokenizer", autospec=True, return_value=(object(), None)), \
                 patch("src.generation.generate_batch_hf", autospec=True, side_effect=fake_generate_batch_hf) as mock_gen:
-            res = test_prompts_on_samples(
+            res = evaluate_prompts_on_samples(
                 sample_problems=problems,
                 use_real_model=True,
                 batch_size=10,

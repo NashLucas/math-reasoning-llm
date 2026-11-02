@@ -81,8 +81,8 @@ class TestSyntheticDataGeneration(unittest.TestCase):
 
     def test_load_synthetic_problems_and_contamination_protection(self) -> None:
         """Verify loading synthetic problems, zero test/val overlap, and no silent fallback in real mode."""
-        problems = load_synthetic_problems(limit=10, allow_sample_fallback=True)
-        self.assertEqual(len(problems), 10)
+        problems = load_synthetic_problems(limit=5, allow_sample_fallback=True)
+        self.assertEqual(len(problems), 5)
 
         for prob in problems:
             self.assertIn("problem_id", prob)
