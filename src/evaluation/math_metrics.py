@@ -231,7 +231,7 @@ def compute_format_statistics(records: Sequence[Dict[str, Any]]) -> Dict[str, fl
 
     Categories:
         - Format compliance: method == 'hash' (canonical '#### <number>' contract)
-        - Fallback: method in ('boxed', 'answer_is', 'last_number')
+        - Fallback: method in ('boxed', 'bold', 'answer_is', 'last_number')
         - Unparseable: method == 'none' or answer is None
     """
     all_completions: List[Dict[str, Any]] = []
@@ -262,7 +262,7 @@ def compute_format_statistics(records: Sequence[Dict[str, Any]]) -> Dict[str, fl
             unparseable_count += 1
         elif method == "hash":
             hash_count += 1
-        elif method in ("boxed", "answer_is", "last_number"):
+        elif method in ("boxed", "bold", "answer_is", "last_number"):
             fallback_count += 1
         else:
             # Unknown non-canonical method

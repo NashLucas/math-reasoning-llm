@@ -137,7 +137,7 @@ def main() -> int:
 
         if method == "hash":
             canonical_count += 1
-        elif method in ("boxed", "answer_is", "last_number"):
+        elif method in ("boxed", "bold", "answer_is", "last_number"):
             fallback_count += 1
         else:
             unparseable_count += 1
