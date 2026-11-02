@@ -1,12 +1,33 @@
-"""Script to generate synthetic reasoning traces (Phase 3 Day 17).
+#!/usr/bin/env python3
+"""Synthetic reasoning data generation and multi-strategy sampling pipeline (Phase 3).
 
-Samples reasoning traces from the 3,000-problem training subset across specified
-prompt strategies, evaluating correctness and format compliance, and persisting
-chunked, resumable JSONL records.
+Generates reasoning traces across problems in the 3,000-problem training subset
+using various prompt strategies (chain_of_thought, solve_then_verify, alternative_method).
+Features:
+- Resumable chunked generation skipping already-finished traces
+- Left-padded batched inference for high throughput
+- Deterministic mock generation mode for rapid development and testing
+- Integration with CorrectnessFilter to discard incorrect or degenerate traces
+- Support for filtering to solved CoT problems for Day 20 verification & alternative traces
+- Individual prompt-type slicing for downstream judge evaluations (Day 21)
 
-Supports:
-- Real model generation on GPU via --use_real_model (e.g. Qwen/Qwen2.5-1.5B-Instruct or DeepSeek-Math-7B-Instruct)
-- Mock simulation on CPU via --use_mock (default when --use_real_model is omitted; checks plumbing only)
+Usage:
+    # Day 17: Development baseline on 100 problems
+    python scripts/generate_reasoning_data.py --limit 100 --samples_per_problem 4
+
+    # Day 18: 7B Instruct CoT sampling on G4
+    python scripts/generate_reasoning_data.py \
+        --model_name "deepseek-ai/deepseek-math-7b-instruct" \
+        --prompt_types "chain_of_thought" \
+        --samples_per_problem 4 \
+        --use_real_model
+
+    # Day 20: Solve-then-verify and alternative-method traces on solved problems
+    python scripts/generate_reasoning_data.py \
+        --prompt_types "solve_then_verify,alternative_method" \
+        --samples_per_problem 1 \
+        --only_solved \
+        --report_name "day20_multi_strategy_traces"
 """
 
 from __future__ import annotations
@@ -17,14 +38,18 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.data.curation import CorrectnessFilter, CurationFilterStats  # noqa: E402
+from src.data.curation import (  # noqa: E402
+    CorrectnessFilter,
+    CurationFilterStats,
+    filter_problems_by_pass_rate,
+)
 from src.data.synthetic import (  # noqa: E402
     TraceSampler,
     compute_trace_yield,
@@ -46,6 +71,7 @@ def generate_markdown_report(
     use_real_model: bool,
     filter_stats: Optional[CurationFilterStats] = None,
     report_title: Optional[str] = None,
+    per_strategy_breakdown: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> None:
     """Generate Markdown summary of the reasoning data generation run."""
     mode_label = "Real Model" if use_real_model else "MOCK / Simulation"
@@ -73,7 +99,7 @@ def generate_markdown_report(
         ])
 
     lines.extend([
-        "## Yield & Quality Metrics",
+        "## Overall Yield & Quality Metrics",
         "",
         "| Metric | Value |",
         "|---|---|",
@@ -85,6 +111,23 @@ def generate_markdown_report(
         f"| Problems with $\\ge 1$ Correct Trace | {yield_metrics['problems_with_at_least_one_correct']:,} / {yield_metrics['total_problems']:,} ({yield_metrics['problem_coverage_rate'] * 100:.1f}%) |",
         "",
     ])
+
+    if per_strategy_breakdown:
+        lines.extend([
+            "## Per-Strategy Breakdown",
+            "",
+            "| Strategy | Traces | Format Compliance | Correct Count | Accuracy (%) | Kept by Filter |",
+            "|---|---|---|---|---|---|",
+        ])
+        for ptype, pmetrics in per_strategy_breakdown.items():
+            lines.append(
+                f"| `{ptype}` | {pmetrics['total_traces']:,} | "
+                f"{pmetrics['format_compliance_percent']:.1f}% | "
+                f"{pmetrics['correct_traces']:,} | "
+                f"{pmetrics['trace_accuracy_percent']:.1f}% | "
+                f"{pmetrics.get('kept_count', pmetrics['correct_traces']):,} |"
+            )
+        lines.append("")
 
     if filter_stats is not None:
         lines.extend([
@@ -98,15 +141,22 @@ def generate_markdown_report(
             "",
             "### Rejection Breakdown",
             "",
-            "| Reason | Count |",
-            "|---|---|",
         ])
-        for reason, rcount in filter_stats.rejection_breakdown.items():
-            lines.append(f"| `{reason}` | {rcount:,} |")
-        lines.append("")
+        if filter_stats.rejection_breakdown:
+            lines.extend([
+                "| Reason | Count | Share (%) |",
+                "|---|---|---|",
+            ])
+            rejected_total = filter_stats.rejected_count
+            for reason, count in filter_stats.rejection_breakdown.items():
+                share = (count / rejected_total * 100.0) if rejected_total > 0 else 0.0
+                lines.append(f"| `{reason}` | {count:,} | {share:.1f}% |")
+        else:
+            lines.append("No traces rejected (100% retention).")
 
     lines.extend([
-        "## Pass-Rate Distribution (Correct Samples per Problem)",
+        "",
+        "## Pass Rate Distribution",
         "",
         "| Bucket | Problem Count | Share (%) |",
         "|---|---|---|",
@@ -119,15 +169,15 @@ def generate_markdown_report(
 
     lines.extend([
         "",
-        "## Phase 3 Day 17 Status",
+        "## Status & Next Steps",
         "",
         f"**Status:** {verdict}",
         "- Records contain prompt, completion, parsed answer, extraction method, correctness flag, token counts, and timestamp.",
     ])
     if use_real_model:
-        lines.append("- Ready for Day 18: Full 3,000-problem Chain-of-Thought generation with 7B Instruct.")
+        lines.append("- Traces verified and ready for Day 21 Judge scoring and SFT curation.")
     else:
-        lines.append("- Next: Run `--use_real_model` on 100 problems with `Qwen/Qwen2.5-1.5B-Instruct` on a cheap GPU.")
+        lines.append("- Mock run verified: run `--use_real_model` on Colab G4 for real generation.")
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -190,6 +240,29 @@ def main() -> None:
         help="Base name for output report files (default: auto)",
     )
     parser.add_argument(
+        "--reports_dir",
+        type=str,
+        default="reports",
+        help="Directory to save reports (default: reports)",
+    )
+    parser.add_argument(
+        "--only_solved",
+        action="store_true",
+        help="Filter problems to those with at least one correct CoT trace (Phase 3 Day 20)",
+    )
+    parser.add_argument(
+        "--pass_rates_file",
+        type=str,
+        default=None,
+        help="Path to problem pass rates file for filtering solved problems",
+    )
+    parser.add_argument(
+        "--split_by_prompt_type",
+        action="store_true",
+        default=True,
+        help="Save individual JSONL files for each prompt type in addition to the combined file",
+    )
+    parser.add_argument(
         "--chunk_size",
         type=int,
         default=10,
@@ -229,7 +302,7 @@ def main() -> None:
     logger.info(
         f"Starting reasoning data generation: limit={limit_val}, "
         f"samples_per_prob={args.samples_per_problem}, prompt_types={prompt_types_list}, "
-        f"model={args.model_name}, use_mock={use_mock_flag}"
+        f"model={args.model_name}, use_mock={use_mock_flag}, only_solved={args.only_solved}"
     )
 
     # 1. Load problems from synthetic subset
@@ -237,9 +310,28 @@ def main() -> None:
         limit=limit_val,
         allow_sample_fallback=use_mock_flag,
     )
-    logger.info(f"Loaded {len(problems)} problems for synthetic trace generation.")
+    logger.info(f"Loaded {len(problems)} initial problems from training subset.")
 
-    # 2. Initialize sampler (output_dir=None resolves through ConfigManager to Drive under colab)
+    # 1b. Filter to solved problems if requested (Day 20 verification & alternative traces)
+    if args.only_solved:
+        pass_rates_path = Path(args.pass_rates_file) if args.pass_rates_file else (
+            PROJECT_ROOT / "data" / "synthetic" / "generated" / "problem_pass_rates.json"
+        )
+        if pass_rates_path.exists():
+            problems = filter_problems_by_pass_rate(problems, pass_rates_path, min_correct=1)
+            logger.info(
+                f"Filtered to {len(problems)} solved problems (>=1 correct CoT trace) using {pass_rates_path}"
+            )
+        else:
+            logger.warning(
+                f"Pass rates file {pass_rates_path} not found; proceeding with loaded problems without pass-rate filtering."
+            )
+
+    if not problems:
+        logger.error("No problems available for reasoning trace generation.")
+        sys.exit(1)
+
+    # 2. Initialize sampler
     sampler = TraceSampler(
         model_name_or_path=args.model_name,
         backend=args.backend,
@@ -260,7 +352,7 @@ def main() -> None:
             top_p=args.top_p,
         )
 
-        # 4. Compute yield metrics
+        # 4. Compute overall yield metrics
         all_traces = load_synthetic_traces(out_path)
         yield_metrics = compute_trace_yield(all_traces)
 
@@ -282,11 +374,38 @@ def main() -> None:
             f"({filter_stats.retention_percent:.1f}%), Rejected {filter_stats.rejected_count}"
         )
 
+        # 5b. Compute per-strategy breakdowns and save individual prompt slices if requested
+        per_strategy: Dict[str, Dict[str, Any]] = {}
+        if len(prompt_types_list) > 1:
+            for ptype in prompt_types_list:
+                ptype_traces = [t for t in all_traces if t.get("prompt_type") == ptype]
+                ptype_yield = compute_trace_yield(ptype_traces)
+                _, ptype_fstats = filter_engine.filter_traces(ptype_traces)
+                ptype_yield["kept_count"] = ptype_fstats.kept_count
+                per_strategy[ptype] = ptype_yield
+
+                if args.split_by_prompt_type:
+                    slice_file = sampler.output_dir / f"traces_{sampler.model_slug}_{ptype}.jsonl"
+                    with open(slice_file, "w", encoding="utf-8") as f:
+                        for tr in ptype_traces:
+                            f.write(json.dumps(tr) + "\n")
+                    logger.info(f"Saved {len(ptype_traces)} traces for '{ptype}' to {slice_file.name}")
+
         # 6. Save reports
-        reports_dir = PROJECT_ROOT / "reports"
+        reports_dir = Path(args.reports_dir)
+        if not reports_dir.is_absolute():
+            reports_dir = PROJECT_ROOT / reports_dir
         reports_dir.mkdir(parents=True, exist_ok=True)
 
-        base_name = args.report_name or ("day18_cot_sampling" if "chain_of_thought" in prompt_types_list and len(prompt_types_list) == 1 else "day17_synthetic_generation")
+        if args.report_name:
+            base_name = args.report_name
+        elif len(prompt_types_list) == 1 and prompt_types_list[0] == "chain_of_thought":
+            base_name = "day18_cot_sampling"
+        elif set(prompt_types_list) == {"solve_then_verify", "alternative_method"}:
+            base_name = "day20_multi_strategy_traces"
+        else:
+            base_name = "reasoning_data_generation"
+
         json_report = reports_dir / f"{base_name}_report.json"
         with open(json_report, "w", encoding="utf-8") as f:
             json.dump({
@@ -295,9 +414,11 @@ def main() -> None:
                 "verdict": "PASSED" if real_flag else "MOCK",
                 "prompt_types": prompt_types_list,
                 "samples_per_problem": args.samples_per_problem,
+                "only_solved": args.only_solved,
                 "output_file": str(out_path),
                 "yield_metrics": yield_metrics,
                 "curation_filter": filter_stats.to_dict(),
+                "per_strategy_breakdown": per_strategy,
             }, f, indent=2)
 
         md_report = reports_dir / f"{base_name}.md"
@@ -311,6 +432,7 @@ def main() -> None:
             use_real_model=real_flag,
             filter_stats=filter_stats,
             report_title=f"{base_name.replace('_', ' ').title()}",
+            per_strategy_breakdown=per_strategy if per_strategy else None,
         )
 
         if not real_flag:
