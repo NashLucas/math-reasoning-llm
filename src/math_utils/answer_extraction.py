@@ -31,6 +31,11 @@ FINAL_LINE_PHRASE_PATTERNS = [
 ]
 PHRASE_PATTERNS = ANSWER_PHRASE_PATTERNS + FINAL_LINE_PHRASE_PATTERNS
 
+# Pattern 2b: a bold span containing a number, e.g. '**10**' or '**14 days**'. Chat models often
+# bold the final answer inside a sentence that also restates other numbers from the question
+# ("Sanya will need **14 days** to wash all 98 bath towels").
+BOLD_NUMBER_PATTERN = re.compile(r"\*\*([^*\n]*?\d[^*\n]*?)\*\*")
+
 # Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives, currency)
 NUMBER_PATTERN = re.compile(r"[-−–]?\s*[\$€£¥₹₩¢]?\s*[-−–]?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
 
@@ -63,6 +68,7 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
 
     1. '####' line (canonical contract; takes the LAST occurrence)
     2. LaTeX \\boxed{...}
+    2b. A bold number on the last line ('**10**', '**14 days**')
     3. Natural language 'answer is' phrasing
     4. Fallback: the last number appearing in the response
 
@@ -87,9 +93,17 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
         if cleaned:
             return boxed, "boxed"
 
-    # Tier 3: Natural language phrasing
     lines = [line for line in text.splitlines() if line.strip()]
     last_line = lines[-1] if lines else ""
+
+    # Tier 2b: bold number on the last line (the model's highlighted final answer)
+    bold = BOLD_NUMBER_PATTERN.findall(last_line)
+    if bold:
+        candidate = bold[-1].strip()
+        if strip_formatting(candidate):
+            return candidate, "bold"
+
+    # Tier 3: Natural language phrasing
     searches = [(p, text) for p in ANSWER_PHRASE_PATTERNS] + [(p, last_line) for p in FINAL_LINE_PHRASE_PATTERNS]
     for pattern, region in searches:
         matches = pattern.findall(region)
