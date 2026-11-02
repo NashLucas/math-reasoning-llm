@@ -4,6 +4,34 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 19 — Reasoning Trace Yield Analysis & Per-Problem Pass Rates
+
+- **Date:** 2026-11-02
+- **Run ID:** `synthetic-20261102_day19_yield_analysis`
+- **Branch:** `day-19-yield-analysis`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & test suite)
+
+### Yield Analysis & Per-Problem Pass Rates (`src/data/curation.py`, `scripts/analyze_reasoning_yield.py`)
+1. **Per-Problem Pass Rates (Phase 6 Input):**
+   - Implemented `ProblemPassRate`, `compute_problem_pass_rates`, `save_problem_pass_rates`, and `load_problem_pass_rates`.
+   - Aggregates correct samples out of $k=4$, overall pass rates, solve indicators, trace IDs, and difficulty classification (`zero`: 0/4, `hard`: 1/4, `medium`: 2–3/4, `easy`: 4/4).
+   - Saves formatted `problem_pass_rates.json` and companion `problem_pass_rates.parquet` for fast vectorized querying and filtering in Phase 6 GRPO difficulty filtering.
+2. **Yield Analysis Reporting & Tooling:**
+   - Implemented `YieldAnalysisReport` and `analyze_reasoning_yield`.
+   - Measures overall trace yield (correct traces / total traces), problem solve rate (fraction of problems with $\ge 1$ correct trace), unsolved problems (0/k correct), format failures (non-hash or unparseable), and filter rejection breakdowns.
+   - Built CLI script `scripts/analyze_reasoning_yield.py` with automatic trace discovery, glob matching, mock mode, and initial curated SFT trace export (`data/synthetic/curated/traces_curated_sft.jsonl`).
+   - Verified on 400 dev baseline traces (100 problems × 4 samples): 100% yield, 0 format failures, 100% solve rate.
+3. **Colab Launcher Integration:**
+   - Added Step 16 to `notebooks/00_colab_launcher.ipynb` to execute yield analysis and generate pass rate tables on the full 12,000-trace 7B Instruct CoT dataset on Colab G4.
+
+### Verification & Testing
+- **Unit Test Suite:** `tests/test_curation.py` expanded to 14 comprehensive tests covering valid traces, wrong answers, unparseable answers, truncation, min tokens, n-gram repetition detection, batch filtering, pass rates, problem coverage, difficulty binning, JSON/Parquet serialization, yield analysis metrics, dataclass inputs, and CLI mock execution. All 14 tests pass. Total test suite: 190 tests pass.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/data/curation.py`, `src/data/__init__.py`, `scripts/analyze_reasoning_yield.py`, `tests/test_curation.py`, `notebooks/00_colab_launcher.ipynb`, `data/synthetic/generated/problem_pass_rates.json`, `data/synthetic/generated/problem_pass_rates.parquet`, `reports/day19_yield_analysis.md`, `reports/day19_yield_analysis_report.json`.
+
+---
+
 ## Run Entry: Phase 3 Day 18 — 7B Chain-of-Thought Sampling & Correctness Filter
 
 - **Date:** 2026-11-02
