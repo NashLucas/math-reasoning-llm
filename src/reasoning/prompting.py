@@ -33,7 +33,8 @@ class ReasoningPromptType(str, Enum):
 # Canonical answer format contract required across all prompts
 CANONICAL_ANSWER_INSTRUCTION = (
     "At the end of your response, provide the final numeric answer on a new line "
-    "prefixed with '#### ', for example:\n#### 42"
+    "prefixed with '#### ', for example:\n#### 42\n"
+    "Write only the plain number after '#### ' (no units, currency symbols, or trailing text)."
 )
 
 CANONICAL_LINE_INSTRUCTION = (
@@ -86,6 +87,7 @@ PROMPT_CONFIGS: Dict[ReasoningPromptType, ReasoningPromptConfig] = {
             "1. Initial Solution: Work through the problem step by step to find an answer.\n"
             "2. Verification: Carefully verify your reasoning and calculations (for example, by checking "
             "inverse arithmetic, substituting the answer back into the problem conditions, or checking sanity constraints).\n"
+            "Write the '#### <number>' line only once, at the very end after Stage 2 verification is complete.\n"
             f"{CANONICAL_ANSWER_INSTRUCTION}"
         ),
         user_template=(
@@ -93,6 +95,7 @@ PROMPT_CONFIGS: Dict[ReasoningPromptType, ReasoningPromptConfig] = {
             "Please solve this math problem using a two-stage approach:\n"
             "1. Solve: Find the solution step by step.\n"
             "2. Verify: Check your calculations and reasoning to confirm the answer is correct.\n\n"
+            "Do not write '####' until after Stage 2 verification is complete. "
             f"{CANONICAL_LINE_INSTRUCTION}"
         ),
         plain_text_template=(

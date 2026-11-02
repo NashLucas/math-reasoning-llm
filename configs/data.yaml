@@ -42,6 +42,8 @@ samples:
 synthetic:
   # Phase 3 subset selected from training pool (excluding val/test)
   subset_size: 3000
+  seed: 42
+  subset_file: "data/splits/synthetic_subset_ids.json"
   samples_per_problem: 4
   target_curated_traces: 4000
   target_problems_covered: 2500
