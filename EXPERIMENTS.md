@@ -4,6 +4,50 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 21 — LLM Judge Rubric & Benchmark Calibration
+
+- **Date:** 2026-11-02
+- **Run ID:** synthetic-20261102_day21_judge_calibration
+- **Branch:** day-21-judge
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & calibration test suite)
+
+### LLM Judge Rubric & Calibration Benchmark (src/reasoning/judge.py, scripts/score_traces_judge.py)
+1. **Scoring Rubric Implementation:**
+   - Implemented JudgeScore, ScoredTrace, ormat_judge_prompt, parse_judge_output, and compute_overall_score in src/reasoning/judge.py.
+   - Built 3-dimension continuous scoring rubric (0.0 to 1.0):
+     - **Completeness:** Derivation clarity, all intermediate steps, lack of logical jumps.
+     - **Verification Quality:** Active self-checking, back-substitution, condition checks (for solve_then_verify).
+     - **Novelty / Diversity:** Distinct mathematical formulation vs. standard CoT (for lternative_method).
+   - Strategy-specific weighting presets:
+     - chain_of_thought: 100% completeness.
+     - solve_then_verify: 50% completeness, 50% verification quality.
+     - lternative_method: 40% completeness, 60% novelty.
+   - Robust output parser supporting standard markdown bullets, embedded JSON code blocks, fractions (e.g. 8/10), percentages (85%), and fallback handling.
+   - Design Rule 4 strictly enforced: Judge scores are qualitative rankings over already-correct traces filtered by correctness.
+
+2. **20-Trace Ground-Truth Benchmark:**
+   - Created balanced 20-trace calibration benchmark in data/calibration/manual_scores_20.json: 8 chain-of-thought, 6 solve-then-verify, and 6 alternative-method traces covering High, Medium, and Low quality spectrum.
+   - Built compute_pearson_correlation and compute_judge_calibration.
+   - Calibration Gate ( \ge 0.60$):
+     - Achieved Pearson correlation  = 0.8851 \ge 0.60$ with MAE = 0.0927 against manual ground-truth scores.
+     - Generated markdown report 
+eports/day21_judge_calibration.md and machine-readable 
+eports/day21_judge_calibration_report.json.
+
+3. **Colab Launcher Integration:**
+   - Added Step 18 to 
+otebooks/00_colab_launcher.ipynb to execute judge scoring and benchmark calibration on GPU (G4) using deepseek-ai/deepseek-math-7b-instruct or fallback mock mode.
+
+### Verification & Testing
+- **Unit Test Suite:** Created 	ests/test_judge.py with 15 comprehensive unit tests (prompt formatting, bullet parsing, JSON block parsing, ratio/percentage parsing, weight calculation, Pearson correlation, calibration thresholds, mock judge evaluation, benchmark dataset schema, CLI end-to-end execution). All 15 tests pass. Total test suite: 208 tests pass.
+- **Ruff Lint Check:** 0 lint errors (
+uff check src tests scripts passed).
+- **Deliverables:** src/reasoning/judge.py, src/reasoning/__init__.py, src/reasoning/prompting.py, data/calibration/manual_scores_20.json, scripts/score_traces_judge.py, 	ests/test_judge.py, 
+otebooks/00_colab_launcher.ipynb, 
+eports/day21_judge_calibration.md, 
+eports/day21_judge_calibration_report.json.
+
 ## Run Entry: Phase 3 Day 20 — Verification & Alternative-Method Trace Generation
 
 - **Date:** 2026-11-02

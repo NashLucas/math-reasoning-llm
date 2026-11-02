@@ -1,7 +1,19 @@
-"""Reasoning module: prompt templates and self-consistency majority voting."""
+"""Reasoning module: prompt templates, self-consistency, and LLM judge rubric evaluation."""
 
 from __future__ import annotations
 
+from src.reasoning.judge import (
+    DEFAULT_WEIGHTS,
+    JUDGE_SYSTEM_PROMPT,
+    JudgeScore,
+    ReasoningJudge,
+    ScoredTrace,
+    compute_judge_calibration,
+    compute_overall_score,
+    compute_pearson_correlation,
+    format_judge_prompt,
+    parse_judge_output,
+)
 from src.reasoning.prompting import (
     CANONICAL_ANSWER_INSTRUCTION,
     CANONICAL_LINE_INSTRUCTION,
@@ -25,10 +37,21 @@ from src.reasoning.self_consistency import (
 __all__ = [
     "CANONICAL_ANSWER_INSTRUCTION",
     "CANONICAL_LINE_INSTRUCTION",
+    "DEFAULT_WEIGHTS",
+    "JUDGE_SYSTEM_PROMPT",
+    "JudgeScore",
     "PROMPT_CONFIGS",
+    "ReasoningJudge",
     "ReasoningPromptConfig",
     "ReasoningPromptType",
+    "ScoredTrace",
     "build_reasoning_prompt_messages",
+    "compute_judge_calibration",
+    "compute_overall_score",
+    "compute_pearson_correlation",
+    "format_chat_messages",
+    "format_few_shot_prompt",
+    "format_judge_prompt",
     "format_reasoning_prompt_text",
     "get_reasoning_prompt_config",
     "get_supported_prompt_types",
@@ -37,5 +60,6 @@ __all__ = [
     "majority_vote_from_completions",
     "majority_vote_with_details",
     "normalize_prompt_type",
+    "parse_judge_output",
     "render_reasoning_prompt",
 ]

@@ -17,8 +17,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from src.data.formatting import apply_chat_template
-
 logger = logging.getLogger(__name__)
 
 
@@ -208,6 +206,8 @@ def render_reasoning_prompt(
     Otherwise, returns the canonical plain-text prompt format.
     """
     if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+        from src.data.formatting import apply_chat_template
+
         messages = build_reasoning_prompt_messages(question=question, prompt_type=prompt_type)
         return apply_chat_template(messages=messages, tokenizer=tokenizer)
 
