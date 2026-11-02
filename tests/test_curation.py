@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,8 @@ from src.data.curation import (
     compute_problem_pass_rates,
     detect_repeated_ngrams,
     evaluate_trace_correctness,
+    filter_problems_by_pass_rate,
+    get_solved_problem_ids,
     load_problem_pass_rates,
     save_problem_pass_rates,
 )
@@ -332,6 +335,80 @@ class TestCurationAndYieldAnalysis(unittest.TestCase):
             self.assertEqual(res.returncode, 0, f"CLI command failed:\n{res.stderr}")
             self.assertTrue((out_dir / "problem_pass_rates.json").exists())
             self.assertTrue((out_dir / "problem_pass_rates.parquet").exists())
+
+
+    def test_get_solved_problem_ids(self) -> None:
+        """Verify extraction of solved problem IDs from pass rate records."""
+        rates = {
+            "p1": {"correct_samples": 3, "is_solved": True},
+            "p2": {"correct_samples": 0, "is_solved": False},
+            "p3": ProblemPassRate(problem_id="p3", total_samples=4, correct_samples=1, is_solved=True),
+            "p4": ProblemPassRate(problem_id="p4", total_samples=4, correct_samples=0, is_solved=False),
+        }
+        solved_ids = get_solved_problem_ids(rates, min_correct=1)
+        self.assertEqual(solved_ids, {"p1", "p3"})
+
+        # Higher threshold: min_correct=2
+        solved_ids_2 = get_solved_problem_ids(rates, min_correct=2)
+        self.assertEqual(solved_ids_2, {"p1"})
+
+    def test_filter_problems_by_pass_rate(self) -> None:
+        """Verify filtering problems sequence using pass rate data."""
+        problems = [
+            {"problem_id": "p1", "question": "Q1"},
+            {"problem_id": "p2", "question": "Q2"},
+            {"problem_id": "p3", "question": "Q3"},
+        ]
+        rates = {
+            "p1": {"correct_samples": 2, "is_solved": True},
+            "p2": {"correct_samples": 0, "is_solved": False},
+            "p3": {"correct_samples": 4, "is_solved": True},
+        }
+        filtered = filter_problems_by_pass_rate(problems, rates)
+        self.assertEqual(len(filtered), 2)
+        self.assertEqual([p["problem_id"] for p in filtered], ["p1", "p3"])
+
+    def test_generate_reasoning_data_cli_only_solved_mock(self) -> None:
+        """Verify generate_reasoning_data.py CLI with --only_solved and multi-prompt strategies."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_dir = Path(tmp_dir) / "output"
+            reports_dir = Path(tmp_dir) / "reports"
+            pass_rates_file = Path(tmp_dir) / "pass_rates.json"
+
+            from src.data.synthetic import load_synthetic_problems
+            sample_probs = load_synthetic_problems(limit=2, allow_sample_fallback=True)
+            p1_id = sample_probs[0]["problem_id"]
+            p2_id = sample_probs[1]["problem_id"]
+
+            pass_rates_file.write_text(json.dumps({
+                p1_id: {"problem_id": p1_id, "correct_samples": 2, "is_solved": True},
+                p2_id: {"problem_id": p2_id, "correct_samples": 0, "is_solved": False},
+            }), encoding="utf-8")
+
+            cmd = [
+                sys.executable,
+                "scripts/generate_reasoning_data.py",
+                "--output_dir",
+                str(out_dir),
+                "--reports_dir",
+                str(reports_dir),
+                "--pass_rates_file",
+                str(pass_rates_file),
+                "--only_solved",
+                "--prompt_types",
+                "solve_then_verify,alternative_method",
+                "--samples_per_problem",
+                "1",
+                "--use_mock",
+                "--limit",
+                "5",
+                "--report_name",
+                "test_day20_multi",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"CLI command failed:\n{res.stderr}")
+            self.assertTrue((reports_dir / "test_day20_multi.md").exists())
+            self.assertTrue((reports_dir / "test_day20_multi_report.json").exists())
 
 
 if __name__ == "__main__":

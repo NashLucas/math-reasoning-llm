@@ -4,6 +4,34 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 20 — Verification & Alternative-Method Trace Generation
+
+- **Date:** 2026-11-02
+- **Run ID:** `synthetic-20261102_day20_multi_strategy_traces`
+- **Branch:** `day-20-verification-and-alternative-traces`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & test suite)
+
+### Verification & Alternative-Method Traces (`scripts/generate_reasoning_data.py`, `src/data/curation.py`)
+1. **Pass-Rate Filtering for Solved Problems:**
+   - Implemented `get_solved_problem_ids` and `filter_problems_by_pass_rate` in `src/data/curation.py`.
+   - Filters problem set strictly to problems achieving at least one correct Chain-of-Thought trace (>= 1 correct sample) from Day 19 pass rates (`problem_pass_rates.json`).
+2. **Multi-Strategy Trace Generation & Filtering:**
+   - Enhanced `scripts/generate_reasoning_data.py` to support `--only_solved`, `--pass_rates_file`, and `--split_by_prompt_type`.
+   - Generates 1 `solve_then_verify` trace and 1 `alternative_method` trace per solved problem.
+   - Automatically filters both trace types with `CorrectnessFilter` and generates individual prompt-type slices (`traces_{model}_{prompt_type}.jsonl`) for downstream LLM judge scoring (Day 21).
+   - Generated 200 dev baseline traces across 100 solved problems (100 solve-then-verify + 100 alternative-method): 100% format compliance, 100% correctness filter retention.
+   - Logged markdown and JSON reports to `reports/day20_multi_strategy_traces.md` and `reports/day20_multi_strategy_traces_report.json`.
+3. **Colab Launcher Integration:**
+   - Added Step 17 to `notebooks/00_colab_launcher.ipynb` to sample verification and alternative traces for all solved CoT problems on Colab G4 using `deepseek-ai/deepseek-math-7b-instruct`.
+
+### Verification & Testing
+- **Unit Test Suite:** Expanded `tests/test_curation.py` with tests for `get_solved_problem_ids`, `filter_problems_by_pass_rate`, and end-to-end CLI execution with `--only_solved` and multi-prompt strategies. All 17 tests pass. Total test suite: 193 tests pass.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/data/curation.py`, `src/data/__init__.py`, `scripts/generate_reasoning_data.py`, `tests/test_curation.py`, `notebooks/00_colab_launcher.ipynb`, `reports/day20_multi_strategy_traces.md`, `reports/day20_multi_strategy_traces_report.json`.
+
+---
+
 ## Run Entry: Phase 3 Day 19 — Reasoning Trace Yield Analysis & Per-Problem Pass Rates
 
 - **Date:** 2026-11-02

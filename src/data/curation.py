@@ -594,3 +594,51 @@ def analyze_reasoning_yield(
     )
 
     return report, pass_rates, kept_traces
+
+
+def get_solved_problem_ids(
+    pass_rates: Union[Dict[str, Any], Path, str],
+    min_correct: int = 1,
+) -> set[str]:
+    """Extract set of problem IDs that have at least min_correct correct traces.
+
+    Args:
+        pass_rates: Dict of problem_id to pass rate data, or path to problem_pass_rates.json/.parquet.
+        min_correct: Minimum number of correct samples required (default 1).
+
+    Returns:
+        Set of solved problem IDs.
+    """
+    if isinstance(pass_rates, (str, Path)):
+        data = load_problem_pass_rates(pass_rates)
+    else:
+        data = pass_rates
+
+    solved_ids: set[str] = set()
+    for pid, info in data.items():
+        if isinstance(info, ProblemPassRate):
+            if info.correct_samples >= min_correct or (min_correct <= 1 and info.is_solved):
+                solved_ids.add(str(pid))
+        elif isinstance(info, dict):
+            if info.get("correct_samples", 0) >= min_correct or (min_correct <= 1 and info.get("is_solved", False)):
+                solved_ids.add(str(pid))
+    return solved_ids
+
+
+def filter_problems_by_pass_rate(
+    problems: Sequence[Dict[str, Any]],
+    pass_rates: Union[Dict[str, Any], Path, str],
+    min_correct: int = 1,
+) -> List[Dict[str, Any]]:
+    """Filter problem list to only those that achieved at least min_correct correct traces.
+
+    Args:
+        problems: Sequence of problem dictionaries (each containing 'problem_id').
+        pass_rates: Dict of problem_id to pass rate data, or path to problem_pass_rates.json/.parquet.
+        min_correct: Minimum number of correct samples required (default 1).
+
+    Returns:
+        Filtered list of problem dictionaries preserving original order.
+    """
+    solved_ids = get_solved_problem_ids(pass_rates, min_correct=min_correct)
+    return [p for p in problems if str(p.get("problem_id", "")) in solved_ids]
