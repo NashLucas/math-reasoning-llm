@@ -1,0 +1,371 @@
+{
+  "chain_of_thought": {
+    "name": "Chain-of-Thought",
+    "description": "Direct step-by-step mathematical reasoning and calculation.",
+    "total_problems": 10,
+    "compliant_count": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "correct_count": 10,
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "samples": [
+      {
+        "problem_id": "gsm8k_4b291b0c6a0ca2da",
+        "question": "I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?",
+        "gold_answer": "705",
+        "rendered_prompt": "Question: I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: I went to the music shop and there were CDs of The Life Journey for $100, A Day ...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 705.\n#### 705",
+        "extracted_answer": "705",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_ab23e86ff4d6c371",
+        "question": "Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?",
+        "gold_answer": "20",
+        "rendered_prompt": "Question: Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: Ten more than twice the number of birds on the fence is 50. How many birds are o...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 20.\n#### 20",
+        "extracted_answer": "20",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_eaca8dde46b8c304",
+        "question": "There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?",
+        "gold_answer": "49",
+        "rendered_prompt": "Question: There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 49.\n#### 49",
+        "extracted_answer": "49",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_841be25d6b1ab408",
+        "question": "A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?",
+        "gold_answer": "10",
+        "rendered_prompt": "Question: A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 10.\n#### 10",
+        "extracted_answer": "10",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_7fe5af8178673ef8",
+        "question": "Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?",
+        "gold_answer": "5",
+        "rendered_prompt": "Question: Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of ...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 5.\n#### 5",
+        "extracted_answer": "5",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_a2e5832ab80da161",
+        "question": "There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?",
+        "gold_answer": "40",
+        "rendered_prompt": "Question: There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more ...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 40.\n#### 40",
+        "extracted_answer": "40",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_1074983b6aaa6b79",
+        "question": "James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?",
+        "gold_answer": "100",
+        "rendered_prompt": "Question: James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: James buys jars for his honey.  He has 5 hives that each produce 20 liters of ho...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 100.\n#### 100",
+        "extracted_answer": "100",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_2a99c2fb8cf85121",
+        "question": "American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?",
+        "gold_answer": "325,000",
+        "rendered_prompt": "Question: American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: American carmakers produce 5 650 000 cars each year. Then they distribute it to ...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 325,000.\n#### 325,000",
+        "extracted_answer": "325,000",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_9894090bf7b6975b",
+        "question": "For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?",
+        "gold_answer": "157",
+        "rendered_prompt": "Question: For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: For every white duck at the lake there are 5 fish.  For every black duck there a...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 157.\n#### 157",
+        "extracted_answer": "157",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_36de4c62f6f3d705",
+        "question": "Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?",
+        "gold_answer": "69",
+        "rendered_prompt": "Question: Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?\nSolve the problem step by step. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Let's think step by step.\n",
+        "completion": "Let's solve this step by step.\nGiven the problem: Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch ...\nStep 1: Identify given quantities and relationships.\nStep 2: Compute the intermediate operations.\nStep 3: Calculating final total yields 69.\n#### 69",
+        "extracted_answer": "69",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      }
+    ]
+  },
+  "solve_then_verify": {
+    "name": "Solve-then-Verify",
+    "description": "Two-stage reasoning: initial solution followed by rigorous verification.",
+    "total_problems": 10,
+    "compliant_count": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "correct_count": 10,
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "samples": [
+      {
+        "problem_id": "gsm8k_4b291b0c6a0ca2da",
+        "question": "I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?",
+        "gold_answer": "705",
+        "rendered_prompt": "Question: I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 705.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 705",
+        "extracted_answer": "705",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_ab23e86ff4d6c371",
+        "question": "Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?",
+        "gold_answer": "20",
+        "rendered_prompt": "Question: Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 20.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 20",
+        "extracted_answer": "20",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_eaca8dde46b8c304",
+        "question": "There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?",
+        "gold_answer": "49",
+        "rendered_prompt": "Question: There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 49.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 49",
+        "extracted_answer": "49",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_841be25d6b1ab408",
+        "question": "A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?",
+        "gold_answer": "10",
+        "rendered_prompt": "Question: A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 10.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 10",
+        "extracted_answer": "10",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_7fe5af8178673ef8",
+        "question": "Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?",
+        "gold_answer": "5",
+        "rendered_prompt": "Question: Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 5.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 5",
+        "extracted_answer": "5",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_a2e5832ab80da161",
+        "question": "There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?",
+        "gold_answer": "40",
+        "rendered_prompt": "Question: There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 40.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 40",
+        "extracted_answer": "40",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_1074983b6aaa6b79",
+        "question": "James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?",
+        "gold_answer": "100",
+        "rendered_prompt": "Question: James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 100.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 100",
+        "extracted_answer": "100",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_2a99c2fb8cf85121",
+        "question": "American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?",
+        "gold_answer": "325,000",
+        "rendered_prompt": "Question: American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 325,000.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 325,000",
+        "extracted_answer": "325,000",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_9894090bf7b6975b",
+        "question": "For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?",
+        "gold_answer": "157",
+        "rendered_prompt": "Question: For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 157.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 157",
+        "extracted_answer": "157",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_36de4c62f6f3d705",
+        "question": "Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?",
+        "gold_answer": "69",
+        "rendered_prompt": "Question: Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?\nSolve the problem in two stages: first find the solution step by step, then verify your work. On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Stage 1 - Initial Solution:\n",
+        "completion": "Stage 1 - Initial Solution:\nWorking through the problem step by step gives an initial result of 69.\n\nStage 2 - Verification:\nLet us check this by reversing the arithmetic and verifying constraints.\nAll conditions check out and confirm the initial calculation.\n#### 69",
+        "extracted_answer": "69",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      }
+    ]
+  },
+  "alternative_method": {
+    "name": "Alternative-Method",
+    "description": "Alternative mathematical strategy (algebraic modeling, proportions, or working backwards).",
+    "total_problems": 10,
+    "compliant_count": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "correct_count": 10,
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "samples": [
+      {
+        "problem_id": "gsm8k_4b291b0c6a0ca2da",
+        "question": "I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?",
+        "gold_answer": "705",
+        "rendered_prompt": "Question: I went to the music shop and there were CDs of The Life Journey for $100, A Day a Life for $50, and When You Rescind for $85 on display. If I bought 3 of each CD to share with my friends, what's the total amount of money I spent in the shop?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 705.\n#### 705",
+        "extracted_answer": "705",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_ab23e86ff4d6c371",
+        "question": "Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?",
+        "gold_answer": "20",
+        "rendered_prompt": "Question: Ten more than twice the number of birds on the fence is 50. How many birds are on the fence?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 20.\n#### 20",
+        "extracted_answer": "20",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_eaca8dde46b8c304",
+        "question": "There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?",
+        "gold_answer": "49",
+        "rendered_prompt": "Question: There are 50 apples and 40 oranges in the cafeteria. If an apple costs $0.80 and an orange costs $0.50, how much does the cafeteria earn for apples and oranges if there are only 10 apples and 6 oranges left?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 49.\n#### 49",
+        "extracted_answer": "49",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_841be25d6b1ab408",
+        "question": "A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?",
+        "gold_answer": "10",
+        "rendered_prompt": "Question: A hot dog stand sells 10 hot dogs every hour, each one selling for $2.  How many hours does the stand need to run to make $200 in sales?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 10.\n#### 10",
+        "extracted_answer": "10",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_7fe5af8178673ef8",
+        "question": "Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?",
+        "gold_answer": "5",
+        "rendered_prompt": "Question: Orlan gave one-fourth of his 20-meter rope to Allan. He then gave two-thirds of the remaining to Jack. How many meters of rope is left to Orlan?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 5.\n#### 5",
+        "extracted_answer": "5",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_a2e5832ab80da161",
+        "question": "There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?",
+        "gold_answer": "40",
+        "rendered_prompt": "Question: There is 80 mg of caffeine in a cup of coffee. Lisa does not want to drink more than 200 mg of caffeine per day. If she drinks three cups of coffee, how many milligrams of coffee did Lisa drink over her goal?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 40.\n#### 40",
+        "extracted_answer": "40",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_1074983b6aaa6b79",
+        "question": "James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?",
+        "gold_answer": "100",
+        "rendered_prompt": "Question: James buys jars for his honey.  He has 5 hives that each produce 20 liters of honey.  Each jar can hold .5 liters.  How many jars will he need to buy if his friend is bringing his own jars for half the honey?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 100.\n#### 100",
+        "extracted_answer": "100",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_2a99c2fb8cf85121",
+        "question": "American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?",
+        "gold_answer": "325,000",
+        "rendered_prompt": "Question: American carmakers produce 5 650 000 cars each year. Then they distribute it to 5 car suppliers. The first supplier receives 1 000 000 cars each. The second supplier receives 500 000 cars more while the third car supplier receives the same number as the first and second suppliers combined. The fourth and the fifth supplier receive an equal number of cars. How many cars do the fourth and fourth suppliers each receive?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 325,000.\n#### 325,000",
+        "extracted_answer": "325,000",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_9894090bf7b6975b",
+        "question": "For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?",
+        "gold_answer": "157",
+        "rendered_prompt": "Question: For every white duck at the lake there are 5 fish.  For every black duck there are 10 fish and for every multicolor duck there are 12 fish.  Currently there are 3 white ducks, 7 black ducks and 6 multicolored ducks.  How many fish are in the lake?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 157.\n#### 157",
+        "extracted_answer": "157",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      },
+      {
+        "problem_id": "gsm8k_36de4c62f6f3d705",
+        "question": "Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?",
+        "gold_answer": "69",
+        "rendered_prompt": "Question: Jackson\u2019s mom packs him a peanut butter and jelly sandwich for his school lunch on Wednesdays and Fridays. There are 36 weeks of school and Jackson has only missed 1 Wednesday and 2 Fridays. How many peanut butter and jelly sandwiches did he eat for lunch this school year?\nSolve the problem using an alternative method (e.g. algebraic equations or working backwards). On the last line, write the final numeric answer as '#### <number>'.\nAnswer: Alternative Method:\n",
+        "completion": "Alternative Strategy (Algebraic Formulation / Working Backwards):\nInstead of sequential arithmetic, let x represent the unknown quantity.\nFormulating the equation according to the problem constraints:\nSolving for x directly gives x = 69.\n#### 69",
+        "extracted_answer": "69",
+        "extraction_method": "hash",
+        "format_compliant": true,
+        "is_correct": true
+      }
+    ]
+  }
+}

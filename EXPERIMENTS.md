@@ -4,6 +4,35 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 16 — Reasoning Prompts (CoT, Solve-then-Verify, Alternative-Method)
+
+- **Date:** 2026-11-02
+- **Run ID:** `reasoning-20261102_day16_reasoning_prompts`
+- **Branch:** `day-16-reasoning-prompts`
+- **Hardware / Platform:** Local workstation / Colab Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & test suite)
+
+### Reasoning Prompts Architecture (`src/reasoning/prompting.py`)
+1. **Three Prompt Strategies:**
+   - **Chain-of-Thought (`chain_of_thought` / `cot`):** Standard step-by-step mathematical reasoning breaking down arithmetic and logical transitions.
+   - **Solve-then-Verify (`solve_then_verify` / `verify`):** Explicit two-stage reasoning protocol: Stage 1 finds initial solution; Stage 2 performs verification via inverse arithmetic, constraint substitution, or boundary sanity checks.
+   - **Alternative-Method (`alternative_method` / `alt`):** Directs the model to employ an alternative or complementary mathematical formulation (e.g. algebraic equations, proportions, or working backwards instead of standard sequential arithmetic).
+2. **Canonical Contract Enforcement:**
+   - Every prompt configuration explicitly states the canonical answer contract: `"On the last line, write the final numeric answer as '#### <number>'."`
+   - Supports both chat template rendering (`build_reasoning_prompt_messages`, `render_reasoning_prompt`) for instruct teacher models and plain text formatting (`format_reasoning_prompt_text`) for base models.
+3. **Verification on Sample Problems (`scripts/test_reasoning_prompts.py`):**
+   - Evaluated on 10 training sample problems from `data/sample/train_sample.parquet`.
+   - Verified 100% format compliance (`#### <number>`) across all three prompt strategies (`reports/day16_reasoning_prompts.md`, `reports/day16_prompt_verification.json`).
+4. **Colab Launcher Integration:**
+   - Added Step 13 to `notebooks/00_colab_launcher.ipynb` to run prompt verification with either the real development model on GPU or local simulation.
+
+### Verification & Testing
+- **Unit Test Suite:** `tests/test_prompting.py` (8 new test cases covering enums, aliases, canonical contract presence, chat messages, plain text formatting, and tokenizer chat template rendering).
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/reasoning/prompting.py`, `src/reasoning/__init__.py`, `scripts/test_reasoning_prompts.py`, `tests/test_prompting.py`, `reports/day16_prompt_verification.json`, `reports/day16_reasoning_prompts.md`.
+
+---
+
 ## Run Entry: Phase 2 Review Fixes (Evaluation Engine)
 
 - **Date:** 2026-11-01
