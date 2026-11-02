@@ -4,6 +4,32 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 18 — 7B Chain-of-Thought Sampling & Correctness Filter
+
+- **Date:** 2026-11-02
+- **Run ID:** `synthetic-20261102_day18_cot_sampling`
+- **Branch:** `day-18-cot-sampling-and-curation`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & test suite)
+
+### Chain-of-Thought Sampling & Curation Filter (`src/data/curation.py`)
+1. **Correctness Filter Implementation:**
+   - Implemented `CorrectnessFilter`, `evaluate_trace_correctness`, `detect_repeated_ngrams`, and `compute_problem_pass_rates`.
+   - Criteria: extracted answer must match gold answer via `is_equivalent()`, token counts within bounds [10, 512], un-truncated (`finish_reason != 'length'`), non-empty, and free of degenerate repetition loops.
+   - Computes detailed filter statistics: evaluated count, kept count, retention rate, and rejection breakdown.
+2. **7B Instruct CoT Sampling Pipeline (`scripts/generate_reasoning_data.py`):**
+   - Configured for sampling 4 chain-of-thought traces per problem across the 3,000-problem training subset using `deepseek-ai/deepseek-math-7b-instruct` under the `sampled` preset (12,000 traces target on G4).
+   - Integrated correctness filtering directly into trace generation reporting (`reports/day18_cot_sampling.md`, `reports/day18_cot_sampling_report.json`).
+3. **Colab Launcher Integration:**
+   - Added Step 15 to `notebooks/00_colab_launcher.ipynb` to execute the full 12,000-trace 7B Instruct CoT generation on G4 or dry-run locally.
+
+### Verification & Testing
+- **Unit Test Suite:** `tests/test_curation.py` (10 unit tests covering valid traces, wrong answers, unparseable answers, truncation, min tokens, n-gram repetition detection, batch filtering, pass rates, and dataclass inputs). All 10 passed.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/data/curation.py`, `src/data/__init__.py`, `tests/test_curation.py`, `reports/day18_cot_sampling.md`, `reports/day18_cot_sampling_report.json`.
+
+---
+
 ## Run Entry: Phase 3 Day 17 — Trace Sampler & 100-Problem Development Run (Code + Plumbing; GPU Run Pending)
 
 - **Date:** 2026-11-02
