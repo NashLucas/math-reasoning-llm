@@ -106,6 +106,7 @@ def verify_with_real_model(
         output_file=output_jsonl,
         model=model,
         tokenizer=tokenizer,
+        backend="hf",  # Day 11 checks the Hugging Face engine
         batch_size=batch_size,
         preset="greedy",
     )
@@ -131,6 +132,7 @@ def verify_with_real_model(
         output_file=output_jsonl,
         model=model,
         tokenizer=tokenizer,
+        backend="hf",  # Day 11 checks the Hugging Face engine
         batch_size=batch_size,
         preset="greedy",
     )

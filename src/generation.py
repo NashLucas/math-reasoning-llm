@@ -527,6 +527,15 @@ def run_generation_pipeline(
     decoding = _decoding_params(preset, cfg)
     active_backend = resolve_generation_backend(backend)
 
+    # A model passed in decides the backend under 'auto': a Hugging Face model with its tokenizer
+    # must not be handed to vLLM just because vLLM is installed on this runtime
+    if model is not None and (backend or "auto").lower() == "auto":
+        is_vllm_engine = isinstance(LLM, type) and isinstance(model, LLM)
+        if is_vllm_engine:
+            active_backend = "vllm"
+        elif tokenizer is not None:
+            active_backend = "hf"
+
     # Default prompt formatter: 8-shot few-shot prompt
     if prompt_formatter is None:
         from src.data.formatting import format_few_shot_prompt
