@@ -155,7 +155,7 @@ def load_model(
     logger.info(f"Loading base model '{model_path_str}' (dtype={resolved_dtype}, device={resolved_device})")
     model = AutoModelForCausalLM.from_pretrained(
         model_path_str,
-        torch_dtype=resolved_dtype,
+        dtype=resolved_dtype,
         device_map=resolved_device,
         cache_dir=cache_dir_str,
         trust_remote_code=kwargs.pop("trust_remote_code", True),

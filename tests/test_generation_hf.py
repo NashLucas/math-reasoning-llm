@@ -126,6 +126,21 @@ class TestHfGenerationOnTinyModel(unittest.TestCase):
         self.assertEqual(batched["completion"], alone["completion"])
         self.assertEqual(batched["completion_tokens"], alone["completion_tokens"])
 
+    def test_passed_hf_model_uses_hf_backend_when_vllm_is_installed(self):
+        """Colab G4 regression: with vLLM installed, 'auto' handed a passed-in HF model to vLLM."""
+        from unittest.mock import patch
+
+        model = make_scripted_lm(self.tokenizer, letter_chain(self.tokenizer, "bcdefghijk"))
+        problems = [{"problem_id": "p1", "question": "b", "gold_answer": "1"}]
+        with tempfile.TemporaryDirectory() as tmp, patch("src.generation.is_vllm_available", return_value=True), \
+                patch("src.generation.generate_batch_vllm") as vllm_generate:
+            recs = run_generation_pipeline(
+                problems, Path(tmp) / "g.jsonl", model=model, tokenizer=self.tokenizer,
+                prompt_formatter=lambda p: p["question"], generation_config={"max_new_tokens": 20},
+            )
+        vllm_generate.assert_not_called()
+        self.assertEqual(recs[0]["generated_text"], "cdefghijk")
+
     def test_sampled_runs_are_reproducible_with_seed(self):
         problems = [{"problem_id": f"p{i}", "question": f"w0{i} w11", "gold_answer": "1"} for i in range(3)]
         with tempfile.TemporaryDirectory() as tmp:
