@@ -395,8 +395,8 @@ def main() -> None:
         logger.info(f"Mean Absolute Error (MAE): {calib_metrics['mae']:.4f}")
         logger.info(f"Calibration Status: {'PASSED' if calib_metrics['is_calibrated'] else 'FAILED'}")
 
-        # If calibrate-only mode was selected, generate calibration report and exit
-        if args.calibrate and not args.traces_file and not args.traces_dir:
+        # If calibrate was requested, generate calibration report
+        if args.calibrate:
             reports_dir = Path(args.reports_dir)
             if not reports_dir.is_absolute():
                 reports_dir = PROJECT_ROOT / reports_dir
@@ -422,8 +422,17 @@ def main() -> None:
                 }, indent=2),
                 encoding="utf-8",
             )
-            logger.info("Calibration-only mode finished successfully.")
-            return
+            logger.info(f"Saved calibration report to: {md_path}")
+
+            # Exit early if this is a calibration-only invocation
+            tdir_path = Path(args.traces_dir)
+            if not tdir_path.is_absolute():
+                tdir_path = PROJECT_ROOT / tdir_path
+            has_trace_files = tdir_path.exists() and bool(discover_generated_trace_files(tdir_path))
+
+            if not args.traces_file and (not args.output_file or not has_trace_files):
+                logger.info("Calibration-only mode finished successfully.")
+                return
 
     # 2. Trace Discovery & Loading for Full Scoring
     raw_traces: List[Dict[str, Any]] = []
