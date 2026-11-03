@@ -4,6 +4,36 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 4 Day 28 — Learning-Rate Sweep on the Development Model
+
+- **Date:** 2026-11-03
+- **Run ID:** `sft-20261103_day28_lr_sweep`
+- **Branch:** `day-28-lr-sweep`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (CPU dry-run, tokenizer validation & unit testing)
+
+### Learning-Rate Sweep & Model Optimization (`scripts/sweep_learning_rates.py`)
+1. **Candidate Hyperparameter Comparison:**
+   - Evaluated three learning rates on the development model: `5e-5`, `1e-4`, and `2e-4`.
+   - Tracked training loss progression, greedy validation accuracy, and canonical `#### <number>` format compliance using `ValidationEvalCallback`.
+   - Comparative outcomes:
+     - `5e-05`: Final loss `0.6718` (62.7% reduction), Val Accuracy 100.0%, Format Compliance 100.0%.
+     - `1e-04`: Final loss `0.2288` (83.4% reduction), Val Accuracy 100.0%, Format Compliance 100.0%. **[SELECTED]**
+     - `2e-04`: Final loss `0.3694` (76.2% reduction), Val Accuracy 100.0%, Format Compliance 100.0%.
+   - **Decision:** Selected `1e-4` as the optimal learning rate yielding the lowest cross-entropy loss, robust gradient descent, and high validation accuracy.
+
+2. **Development Adapter Persistence for Phase 6:**
+   - Preserved the best development adapter model at `outputs/sft/adapter_model_dev/` to serve as the trial starting checkpoint for Phase 6 GRPO development runs.
+
+3. **Colab Launcher Integration (`notebooks/00_colab_launcher.ipynb`):**
+   - Added Step 25 executing the learning-rate sweep across `5e-5`, `1e-4`, and `2e-4` on Colab GPU.
+
+4. **Audit Reports & Verification:**
+   - Generated `reports/day28_lr_sweep_report.md` and `reports/day28_lr_sweep_report.json`.
+   - Unit tests created in `tests/test_lr_sweep.py` validating sweep orchestration, metric comparisons, and adapter export.
+
+---
+
 ## Run Entry: Phase 4 Day 27 — Periodic Validation Callback, Template Parity & Overfitting Sanity
 
 - **Date:** 2026-11-03

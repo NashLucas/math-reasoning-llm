@@ -98,6 +98,12 @@ def main() -> None:
         help="Optional max training steps override.",
     )
     parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=None,
+        help="Optional learning rate override (e.g. 5e-5, 1e-4, 2e-4).",
+    )
+    parser.add_argument(
         "--no_resume",
         action="store_true",
         help="Do not resume from existing checkpoints in output_dir.",
@@ -163,6 +169,7 @@ def main() -> None:
         sample_limit=args.sample_limit if args.sample_mode else None,
         device=args.device,
         max_steps=args.max_steps,
+        learning_rate=args.learning_rate,
         eval_steps=args.eval_steps,
         eval_limit=args.eval_limit,
         val_path=args.val_file,

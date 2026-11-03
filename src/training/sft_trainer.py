@@ -271,6 +271,7 @@ class MockSFTTrainer:
         self.max_steps = max_steps
         self.callbacks = callbacks or []
         self.global_step = 0
+        self.loss_history: List[Dict[str, Any]] = []
         self.kwargs = kwargs
 
     def train(self, resume_from_checkpoint: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
@@ -281,10 +282,28 @@ class MockSFTTrainer:
             logger.info(f"Resuming MockSFTTrainer from checkpoint: {resume_from_checkpoint}")
             start_step = 2
 
-        logger.info(f"MockSFTTrainer: training on {len(self.train_dataset)} examples for {self.max_steps} steps...")
+        # Determine loss decay rate based on learning rate
+        lr = 2e-4
+        if "training_args" in self.kwargs:
+            targs = self.kwargs["training_args"]
+            if hasattr(targs, "learning_rate"):
+                lr = getattr(targs, "learning_rate", lr)
+            elif isinstance(targs, dict):
+                lr = targs.get("learning_rate", lr)
+        elif "learning_rate" in self.kwargs:
+            lr = self.kwargs["learning_rate"]
+
+        if lr <= 6e-5:
+            decay_factor = 0.72  # Slower convergence
+        elif lr <= 1.5e-4:
+            decay_factor = 0.55  # Optimal convergence
+        else:
+            decay_factor = 0.62  # Standard convergence
+
+        logger.info(f"MockSFTTrainer: training on {len(self.train_dataset)} examples for {self.max_steps} steps (lr={lr}, decay={decay_factor})...")
         loss_history = []
         for step in range(start_step + 1, self.max_steps + 1):
-            simulated_loss = round(max(0.005, 2.5 * (0.6 ** step)), 4)
+            simulated_loss = round(max(0.005, 2.5 * (decay_factor ** step)), 4)
             loss_history.append({"step": step, "loss": simulated_loss})
             self.global_step = step
 
@@ -307,6 +326,7 @@ class MockSFTTrainer:
                 encoding="utf-8",
             )
 
+        self.loss_history = loss_history
         return {
             "global_step": self.global_step,
             "training_loss": loss_history[-1]["loss"] if loss_history else 0.5,
@@ -358,6 +378,7 @@ def build_sft_trainer(
             output_dir=output_dir or "checkpoints/sft",
             max_steps=max_steps or 5,
             callbacks=callbacks,
+            training_args=training_args,
         )
 
     # If PEFT and LoraConfig are available, apply LoRA to model
@@ -402,6 +423,7 @@ def run_sft_training(
     sample_limit: Optional[int] = None,
     device: Optional[str] = None,
     max_steps: Optional[int] = None,
+    learning_rate: Optional[float] = None,
     callbacks: Optional[List[Any]] = None,
     eval_steps: Optional[int] = None,
     eval_limit: int = 100,
@@ -421,6 +443,7 @@ def run_sft_training(
         sample_limit: Optional limit for testing/dry runs.
         device: Device string ('cuda', 'cpu').
         max_steps: Optional step limit for testing.
+        learning_rate: Optional learning rate override (e.g. 5e-5, 1e-4, 2e-4).
         callbacks: Optional list of Trainer callbacks.
         eval_steps: Optional step interval for periodic validation evaluation.
         eval_limit: Number of validation problems to evaluate per callback step.
@@ -477,11 +500,16 @@ def run_sft_training(
 
     # 3. Load Configurations
     lora_cfg = load_lora_config(config_path=lora_config_path)
+    extra_train_kwargs: Dict[str, Any] = {}
+    if learning_rate is not None:
+        extra_train_kwargs["learning_rate"] = learning_rate
+
     train_args = load_training_arguments(
         args_path=training_args_path,
         output_dir=out_dir_path,
         device=device,
         max_steps=max_steps if max_steps else -1,
+        **extra_train_kwargs,
     )
 
     # 4. Check for Checkpoint Resumption
