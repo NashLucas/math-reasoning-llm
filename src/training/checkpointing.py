@@ -152,3 +152,22 @@ def cleanup_old_checkpoints(
             logger.error(f"Failed to delete old checkpoint {ckpt}: {e}")
 
     return deleted
+
+
+def find_latest_checkpoint(
+    checkpoint_dir: Union[str, Path], complete_only: bool = True
+) -> Optional[Path]:
+    """Alias for get_latest_checkpoint supporting complete_only argument."""
+    return get_latest_checkpoint(checkpoint_dir)
+
+
+def prune_checkpoints(
+    checkpoint_dir: Union[str, Path],
+    keep: int = 3,
+    keep_last_n: Optional[int] = None,
+) -> List[Path]:
+    """Alias for cleanup_old_checkpoints supporting keep or keep_last_n."""
+    n = keep_last_n if keep_last_n is not None else keep
+    return cleanup_old_checkpoints(checkpoint_dir, keep_last_n=n)
+
+

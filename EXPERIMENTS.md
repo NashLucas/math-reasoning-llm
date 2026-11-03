@@ -4,6 +4,46 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 4 Day 26 — SFT Dataset Formatting, Completion Loss Masking & Trainer Setup
+
+- **Date:** 2026-11-03
+- **Run ID:** `sft-20261103_day26_data_and_trainer`
+- **Branch:** `day-26-sft-data-and-trainer`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (CPU dry-run, tokenizer validation & unit testing)
+
+### SFT Dataset Pipeline & Loss Masking (`src/data/sft_dataset.py`, `scripts/verify_sft_tokenization.py`)
+1. **Prompt-Completion Formatting:**
+   - Standardized SFT prompt structure using GSM8K zero-shot template matching inference:
+     - Prompt: `Question: {question}\n\nSolution:`
+     - Completion: ` {solution_text}` (guaranteeing canonical `\n#### <number>` termination).
+   - Ensured EOS token is appended to the completion so the model learns autoregressive termination.
+
+2. **Completion-Only Loss Masking:**
+   - Prompt tokens receive label `-100` (ignored during cross-entropy loss computation).
+   - Completion tokens preserve ground-truth token IDs for gradient updates.
+   - EOS token is verified to be explicitly supervised (`labels[-1] == eos_token_id`), avoiding the common pitfall where padding mask accidentally masks completion EOS tokens.
+   - Executed hand-check verification on 3 curated traces from `traces_curated_sft.jsonl`:
+     - Result: 3/3 passed (prompt masked, completion unmasked, EOS present and supervised).
+     - Generated `reports/day26_sft_tokenization_check.md` and `reports/day26_sft_tokenization_check.json`.
+
+3. **LoRA & Training Hyperparameters (`configs/lora_config.yaml`, `configs/training_args.json`):**
+   - **LoRA Config:** `r: 16`, `lora_alpha: 32` (2x rank), `lora_dropout: 0.05`, `task_type: "CAUSAL_LM"`, targeting all 7 linear projections (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`).
+   - **Training Arguments:** `bf16: true`, `gradient_checkpointing: true`, `learning_rate: 2e-4`, `lr_scheduler_type: "cosine"`, `warmup_ratio: 0.03`, `num_train_epochs: 3`, `per_device_train_batch_size: 4`, `gradient_accumulation_steps: 8` (effective batch size 32), `max_seq_length: 512`, `save_steps: 50`, `save_total_limit: 5`.
+
+4. **SFT Trainer Orchestration (`src/training/sft_trainer.py`, `scripts/train_sft.py`):**
+   - Implemented `SFTTrainingPipeline` supporting Hugging Face / TRL `SFTTrainer`, dynamic PEFT LoRA loading, and automatic checkpoint discovery/resumption.
+   - Built `MockSFTTrainer` for fast CI/CPU testing and dry runs without GPU dependencies.
+   - Implemented automated metadata provenance logging via `run_info.json`.
+
+5. **Colab Launcher Integration (`notebooks/00_colab_launcher.ipynb`):**
+   - Appended Step 23 to execute Day 26 hand check and SFT training on Google Colab G4.
+
+6. **Unit Tests (`tests/test_sft.py`):**
+   - 13 comprehensive unit tests validating prompt formatting, completion loss masking, EOS token inclusion, collator label masking, config loading, trainer orchestration, and CLI dry-run.
+
+---
+
 ## Run Entry: Phase 3 Day 25 — SFT Reasoning Dataset Freeze & Gate v0.4 Verification
 
 - **Date:** 2026-11-03

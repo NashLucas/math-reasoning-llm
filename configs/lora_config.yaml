@@ -1,0 +1,19 @@
+# LoRA Adapter Configuration for SFT and GRPO (Phase 4 & 6)
+# Applied to deepseek-ai/deepseek-math-7b-base (and Qwen development model)
+# Specifications: rank 16-32, alpha twice rank, dropout 0.05, all linear projection layers
+
+r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
+
+# Target modules: all linear projection layers in transformer blocks
+target_modules:
+  - "q_proj"
+  - "k_proj"
+  - "v_proj"
+  - "o_proj"
+  - "gate_proj"
+  - "up_proj"
+  - "down_proj"
