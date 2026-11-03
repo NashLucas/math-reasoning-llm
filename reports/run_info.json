@@ -1,0 +1,82 @@
+{
+  "run_id": "error_analysis-20261103_214016-run",
+  "stage": "error_analysis",
+  "timestamp_utc": "2026-11-03T21:40:16.219042+00:00",
+  "description": "",
+  "git": {
+    "commit_hash": "39cd4365764cf932dd9eaa75d6f99f4ba5df87c0",
+    "commit_short": "39cd436",
+    "branch": "day-31-error-categories",
+    "is_dirty": true,
+    "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+  },
+  "hardware": {
+    "device": "cpu",
+    "cuda_available": false,
+    "gpu_count": 0,
+    "gpu_names": [],
+    "cuda_version": null
+  },
+  "system": {
+    "python_version": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64"
+  },
+  "library_versions": {
+    "torch": "not_installed",
+    "transformers": "5.22.1",
+    "trl": "not_installed",
+    "peft": "not_installed",
+    "accelerate": "not_installed",
+    "datasets": "5.1.0",
+    "vllm": "not_installed",
+    "sentence_transformers": "not_installed",
+    "sklearn": "1.8.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.0",
+    "yaml": "6.0.3",
+    "gradio": "not_installed",
+    "pytest": "not_installed"
+  },
+  "config_snapshot": {
+    "input_file": "data\\sample\\sample_errors.jsonl",
+    "output_file": "reports\\error_analysis_sft.json",
+    "report_file": "reports\\error_analysis_sft.md",
+    "model_name_or_path": "deepseek-ai/deepseek-math-7b-instruct",
+    "use_mock": true,
+    "stage_name": "SFT Round 1",
+    "summary": {
+      "total_evaluated": 11,
+      "correct_count": 2,
+      "error_count": 9,
+      "accuracy": 18.18,
+      "error_rate": 81.82,
+      "category_counts": {
+        "parse_error": 2,
+        "truncation": 1,
+        "arithmetic_slip": 2,
+        "misread_question": 1,
+        "wrong_setup": 1,
+        "incomplete_reasoning": 1,
+        "other": 1
+      },
+      "category_percentages": {
+        "parse_error": 22.22,
+        "truncation": 11.11,
+        "arithmetic_slip": 22.22,
+        "misread_question": 11.11,
+        "wrong_setup": 11.11,
+        "incomplete_reasoning": 11.11,
+        "other": 11.11
+      },
+      "rule_based_count": 3,
+      "rule_based_percentage": 33.33,
+      "semantic_count": 6,
+      "semantic_percentage": 66.67,
+      "sources": {
+        "rule_based": 3,
+        "heuristic_fallback": 6
+      }
+    }
+  }
+}

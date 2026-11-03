@@ -4,6 +4,47 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 31 — Error Taxonomy, Rule-Based Filters & Semantic Error Classifier
+
+- **Date:** 2026-11-03
+- **Run ID:** `sft_targeted-20261103_day31_error_categories`
+- **Branch:** `day-31-error-categories`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (CPU classification, unit testing & sample validation; ~0.5 G4 hours planned for 7B validation set run)
+
+### Error Taxonomy & Classification Pipeline (`src/evaluation/error_analysis.py`, `scripts/error_analysis.py`)
+1. **Tiered 7-Category Error Taxonomy:**
+   - Designed and implemented a strict, non-overlapping classification scheme:
+     - **Rule-Based Filters (evaluated first):**
+       - `parse_error`: Empty outputs, whitespace, malformed completions, or absence of valid numeric final answer (`extract_answer` failure).
+       - `truncation`: Explicit `finish_reason='length'`, engine token exhaustion, unclosed LaTeX `\boxed{`, or abrupt grammatical cutoff mid-derivation.
+     - **Semantic Reasoning Categories (evaluated via 7B instruct or heuristic validator):**
+       - `arithmetic_slip`: Sound conceptual logic and equations, calculation or computation mistake (verified by equation arithmetic evaluators).
+       - `misread_question`: Misread numbers, entities, or solved for wrong quantity asked in the prompt.
+       - `wrong_setup`: Incorrect formula, conceptual approach, or problem formulation.
+       - `incomplete_reasoning`: Stopped prematurely, skipped steps, or guessed without derivation.
+       - `other`: Degenerate repetition, language mixing, or incoherent failure.
+
+2. **Unified Classifier & CLI Orchestration:**
+   - Implemented `ErrorClassifier`: supports Hugging Face pipelines (`deepseek-ai/deepseek-math-7b-instruct`), custom callable backends, and deterministic heuristic fallback.
+   - Built `scripts/error_analysis.py` CLI supporting JSON, JSONL, and Parquet inputs, greedy and self-consistency multi-sample generation formats.
+   - Generates machine-readable telemetry in `reports/error_analysis_sft.json` and human-readable audit in `reports/error_analysis_sft.md`.
+   - Records run provenance via `save_run_info(stage='error_analysis')`.
+
+3. **Sample Dataset & Golden Benchmarks (`data/sample/sample_errors.jsonl`):**
+   - Created 11 realistic test cases spanning all categories to provide an offline demonstration and regression benchmark.
+   - Tested `--sample_mode` CLI execution: 100% taxonomy coverage verified.
+
+4. **Colab Launcher Integration (`notebooks/00_colab_launcher.ipynb`):**
+   - Added Step 28: "Phase 5 Day 31 — Error Analysis & Taxonomy Classification".
+   - Executable command: `!python scripts/error_analysis.py --input_file "outputs/sft/adapter_model/eval_val_greedy/eval_results.json" --model_name_or_path "deepseek-ai/deepseek-math-7b-instruct"`.
+
+5. **Unit Tests & Quality Assurance (`tests/test_error_analysis.py`):**
+   - 22 unit tests covering empty, truncated, unparseable, arithmetic slip, misread question, wrong setup, incomplete reasoning, other, and CLI execution.
+   - Full test suite: 292 tests passing with 0 warnings/errors under `ruff check`.
+
+---
+
 ## Run Entry: Phase 4 Day 30 — Checkpoint Evaluation, Best Adapter Selection & Phase 4 Gate Verification
 
 - **Date:** 2026-11-03
