@@ -1,0 +1,46 @@
+{
+  "yield_summary": {
+    "curated_traces": 400,
+    "target_problems": 100,
+    "coverage_percent": 100.0,
+    "zero_share": "0.0% (0)",
+    "hard_share": "0.0% (0)",
+    "medium_share": "0.0% (0)",
+    "easy_share": "100.0% (100)"
+  },
+  "length_statistics": {
+    "count": 400,
+    "mean": 56.8,
+    "std": 1.7,
+    "min": 54,
+    "max": 61,
+    "p25": 55,
+    "median": 57,
+    "p75": 58,
+    "p95": 59,
+    "p99": 60
+  },
+  "strategy_lengths": {
+    "chain_of_thought": {
+      "count": 400,
+      "mean": 56.8,
+      "std": 1.7,
+      "min": 54,
+      "max": 61,
+      "p25": 55,
+      "median": 57,
+      "p75": 58,
+      "p95": 59,
+      "p99": 60
+    }
+  },
+  "score_statistics": {
+    "mean": 0.85,
+    "std": 0.0,
+    "median": 0.85,
+    "pct_above_0_90": 0.0,
+    "high_clustering": false
+  },
+  "kept_traces_count": 50,
+  "rejected_traces_count": 50
+}
