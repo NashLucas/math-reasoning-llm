@@ -102,6 +102,30 @@ def main() -> None:
         action="store_true",
         help="Do not resume from existing checkpoints in output_dir.",
     )
+    parser.add_argument(
+        "--eval_steps",
+        type=int,
+        default=None,
+        help="Step interval for running the greedy validation evaluation callback (default: None/off).",
+    )
+    parser.add_argument(
+        "--eval_limit",
+        type=int,
+        default=100,
+        help="Number of validation problems to evaluate per callback step (default: 100).",
+    )
+    parser.add_argument(
+        "--val_file",
+        type=str,
+        default="data/splits/val.parquet",
+        help="Path to validation dataset for periodic evaluation callback.",
+    )
+    parser.add_argument(
+        "--generations_dir",
+        type=str,
+        default="logs/generations",
+        help="Directory to save callback generation records and summaries.",
+    )
     args = parser.parse_args()
 
     c_path = Path(args.curated_file)
@@ -124,6 +148,8 @@ def main() -> None:
     logger.info(f"Sample Mode: {args.sample_mode} (limit: {args.sample_limit if args.sample_mode else 'all'})")
     logger.info(f"Device: {args.device}")
     logger.info(f"Resume: {not args.no_resume}")
+    logger.info(f"Eval Steps: {args.eval_steps} (limit: {args.eval_limit})")
+    logger.info(f"Generations Dir: {args.generations_dir}")
     logger.info("==================================================")
 
     trainer, run_info = run_sft_training(
@@ -137,6 +163,10 @@ def main() -> None:
         sample_limit=args.sample_limit if args.sample_mode else None,
         device=args.device,
         max_steps=args.max_steps,
+        eval_steps=args.eval_steps,
+        eval_limit=args.eval_limit,
+        val_path=args.val_file,
+        generations_dir=args.generations_dir,
     )
 
     logger.info("SFT Training Run completed successfully!")

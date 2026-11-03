@@ -4,6 +4,42 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 4 Day 27 — Periodic Validation Callback, Template Parity & Overfitting Sanity
+
+- **Date:** 2026-11-03
+- **Run ID:** `sft-20261103_day27_callbacks_and_sanity`
+- **Branch:** `day-27-callbacks-and-sanity-tests`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (CPU dry-run, tokenizer validation & unit testing)
+
+### Periodic Validation Callback (`src/training/callbacks.py`, `scripts/train_sft.py`)
+1. **Periodic Evaluation Orchestration:**
+   - Implemented `ValidationEvalCallback(TrainerCallback)`:
+     - Every `eval_steps` (e.g. 100 or 200 steps), executes greedy generation over 100 validation problems (`val_analysis.parquet` / `val.parquet`).
+     - Evaluates answer correctness via `is_equivalent` and format compliance (`method == 'hash'`).
+     - Streams full generation logs to `logs/generations/step_{step}.jsonl` and metrics summary to `logs/generations/step_{step}_summary.json`.
+     - Compatible with both Hugging Face `Trainer` / `SFTTrainer` and `MockSFTTrainer`.
+   - Enhanced `scripts/train_sft.py` CLI with `--eval_steps`, `--eval_limit`, `--val_file`, and `--generations_dir`.
+
+2. **Training vs. Inference Template Parity (`tests/test_template_match.py`):**
+   - Verified that the SFT training prompt formatting (`format_sft_prompt_completion` in `src.data.sft_dataset`) matches the zero-shot inference prompt (`format_zero_shot_prompt` in `src.data.formatting`) character-for-character.
+   - Enforced Design Rule 1: One answer format (`#### <number>`), eliminating out-of-distribution formatting shifts between post-training and inference.
+
+3. **SFT Overfitting Sanity Test (`scripts/test_sft_overfit.py`, `tests/test_overfitting.py`):**
+   - Verified optimization mechanics on a 20-example subset:
+     - Training loss dropped from 1.5000 to 0.0050 (99.67% loss reduction).
+     - Memorized accuracy: 100.0% (20/20).
+     - Format compliance: 100.0% (20/20) with valid `#### <number>` final answers.
+   - Generated audit reports: `reports/day27_overfitting_test.md` and `reports/day27_overfitting_test.json`.
+
+4. **Colab Launcher Integration (`notebooks/00_colab_launcher.ipynb`):**
+   - Added Step 24 for launching Day 27 overfitting test and SFT training with validation callbacks on Colab G4.
+
+5. **Unit Tests (`tests/test_template_match.py`, `tests/test_callbacks.py`, `tests/test_overfitting.py`):**
+   - 9 new unit tests covering prompt template parity, callback generation and file logging, callback step intervals, mock trainer integration, and overfitting CLI execution. Full test suite: 256 tests passing.
+
+---
+
 ## Run Entry: Phase 4 Day 26 — SFT Dataset Formatting, Completion Loss Masking & Trainer Setup
 
 - **Date:** 2026-11-03
