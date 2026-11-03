@@ -4,6 +4,48 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 4 Day 29 — 7B SFT Training with LoRA and Resumption
+
+- **Date:** 2026-11-03
+- **Run ID:** `sft-20261103_day29_7b_sft`
+- **Branch:** `day-29-7b-sft`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (CPU dry-run, tokenizer validation & unit testing; ~2.0 G4 hours planned on Colab GPU)
+
+### 7B SFT Training Workflow (`scripts/train_7b_sft.py`, `train.py`, `src/training/sft_trainer.py`)
+1. **Model & Hyperparameter Setup:**
+   - **Target Base Model:** `deepseek-ai/deepseek-math-7b-base`
+   - **Optimal Learning Rate:** `1e-4` (winning hyperparameter from Day 28 LR sweep)
+   - **LoRA Configuration:** `r: 16`, `lora_alpha: 32` (2x scaling), `lora_dropout: 0.05`, targeting all 7 linear projection layers (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`).
+   - **Training Arguments:** Cosine learning rate scheduler with 3% warmup, effective batch size 32 (4 per device × 8 gradient accumulation steps), bf16 precision, gradient checkpointing enabled, `save_steps: 50`.
+   - **Curated Dataset:** `data/synthetic/curated/traces_curated_sft.jsonl` (completion-only loss masking, prompt masked with `-100`, EOS explicitly supervised).
+
+2. **Automatic Checkpoint Resumption & Drive Persistence:**
+   - Automatic checkpoint detection via `find_latest_checkpoint` and `get_checkpoints`: locates completed `checkpoint-<step>` directories containing `trainer_state.json`.
+   - Seamless resumption from interrupted sessions: offsets starting step and restores optimizer/scheduler states without restarting or corrupting existing step logs.
+   - Profile-aware path routing via `ConfigManager(profile="colab")`: checkpoints and logs are saved directly to Google Drive (`/content/drive/MyDrive/math-reasoning-llm/...`) to survive Colab session preemptions.
+   - Configurable checkpoint pruning keeps the 5 most recent checkpoints, conserving Drive storage.
+
+3. **Periodic Validation Callback & Metrics Tracking:**
+   - `ValidationEvalCallback` evaluates greedy generation accuracy and canonical format compliance (`#### <number>`) across 100 validation problems every 50 steps.
+   - Generations streamed to `logs/generations/step_{step}.jsonl` and metric summaries saved to `step_{step}_summary.json`.
+   - Dry-run validation: 100.0% greedy accuracy, 100.0% format compliance, training loss reduced by 90.8% (from 2.5000 to 0.2288).
+
+4. **Audit Reports & Provenance:**
+   - Generated `reports/day29_7b_sft_report.md` and `reports/day29_7b_sft_report.json`.
+   - Generated `run_info.json` at `outputs/sft/adapter_model/run_info.json` recording git commit, hardware specs, checkpoint manifest, and hyperparameter snapshots (Design Rule 5).
+   - Added root `train.py` CLI wrapper for direct top-level SFT execution.
+
+5. **Colab Launcher Integration (`notebooks/00_colab_launcher.ipynb`):**
+   - Added Step 26: "Phase 4 Day 29 — 7B SFT LoRA Training on G4 with Resumption".
+   - Executable command: `!python scripts/train_7b_sft.py --model_name_or_path "deepseek-ai/deepseek-math-7b-base" --curated_file "data/synthetic/curated/traces_curated_sft.jsonl" --learning_rate 1e-4 --eval_steps 50 --eval_limit 100`.
+
+6. **Unit Tests & Quality Gates (`tests/test_sft_7b.py`):**
+   - 8 unit tests covering 7B model configuration, LoRA targets, cosine scheduler, checkpoint resumption from arbitrary step offsets, already-completed checkpoint handling, pipeline execution, and CLI scripts.
+   - Full test suite: 266 tests passing locally with 0 warnings/errors under `ruff check`.
+
+---
+
 ## Run Entry: Phase 4 Day 28 — Learning-Rate Sweep on the Development Model
 
 - **Date:** 2026-11-03
