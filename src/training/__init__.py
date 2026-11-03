@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from src.training.callbacks import (
+    ValidationEvalCallback,
+    load_validation_problems,
+)
 from src.training.checkpointing import (
     find_latest_checkpoint,
     get_checkpoints,
@@ -21,12 +25,14 @@ from src.training.sft_trainer import (
 __all__ = [
     "CompletionOnlyDataCollator",
     "MockSFTTrainer",
+    "ValidationEvalCallback",
     "build_sft_trainer",
     "find_latest_checkpoint",
     "get_checkpoints",
     "is_complete_checkpoint",
     "load_lora_config",
     "load_training_arguments",
+    "load_validation_problems",
     "parse_checkpoint_step",
     "prune_checkpoints",
     "run_sft_training",

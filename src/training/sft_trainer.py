@@ -261,6 +261,7 @@ class MockSFTTrainer:
         train_dataset: List[Dict[str, Any]],
         output_dir: Union[str, Path],
         max_steps: int = 5,
+        callbacks: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
         self.model = model
@@ -268,6 +269,7 @@ class MockSFTTrainer:
         self.train_dataset = train_dataset
         self.output_dir = Path(output_dir)
         self.max_steps = max_steps
+        self.callbacks = callbacks or []
         self.global_step = 0
         self.kwargs = kwargs
 
@@ -282,9 +284,16 @@ class MockSFTTrainer:
         logger.info(f"MockSFTTrainer: training on {len(self.train_dataset)} examples for {self.max_steps} steps...")
         loss_history = []
         for step in range(start_step + 1, self.max_steps + 1):
-            simulated_loss = round(max(0.01, 2.5 - (step * 0.4)), 4)
+            simulated_loss = round(max(0.005, 2.5 * (0.6 ** step)), 4)
             loss_history.append({"step": step, "loss": simulated_loss})
             self.global_step = step
+
+            # Trigger registered callbacks
+            if self.callbacks:
+                mock_state = type("TrainerState", (), {"global_step": step, "log_history": []})()
+                for cb in self.callbacks:
+                    if hasattr(cb, "on_step_end"):
+                        cb.on_step_end(None, mock_state, None, model=self.model, tokenizer=self.tokenizer)
 
             # Save periodic mock checkpoint
             ckpt_dir = self.output_dir / f"checkpoint-{step}"
@@ -325,6 +334,7 @@ def build_sft_trainer(
     training_args: Optional[Any] = None,
     output_dir: Optional[Union[str, Path]] = None,
     max_steps: Optional[int] = None,
+    callbacks: Optional[List[Any]] = None,
 ) -> Any:
     """Build and return an SFTTrainer instance, or MockSFTTrainer in non-torch / mock environments."""
     collator = CompletionOnlyDataCollator(tokenizer=tokenizer)
@@ -347,6 +357,7 @@ def build_sft_trainer(
             train_dataset=train_dataset,
             output_dir=output_dir or "checkpoints/sft",
             max_steps=max_steps or 5,
+            callbacks=callbacks,
         )
 
     # If PEFT and LoraConfig are available, apply LoRA to model
@@ -365,6 +376,7 @@ def build_sft_trainer(
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             data_collator=collator,
+            callbacks=callbacks,
         )
 
     # Fallback to standard Hugging Face Trainer
@@ -375,6 +387,7 @@ def build_sft_trainer(
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         data_collator=collator,
+        callbacks=callbacks,
     )
 
 
@@ -389,6 +402,11 @@ def run_sft_training(
     sample_limit: Optional[int] = None,
     device: Optional[str] = None,
     max_steps: Optional[int] = None,
+    callbacks: Optional[List[Any]] = None,
+    eval_steps: Optional[int] = None,
+    eval_limit: int = 100,
+    val_path: Optional[Union[str, Path]] = None,
+    generations_dir: Union[str, Path] = "logs/generations",
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
 
@@ -403,6 +421,11 @@ def run_sft_training(
         sample_limit: Optional limit for testing/dry runs.
         device: Device string ('cuda', 'cpu').
         max_steps: Optional step limit for testing.
+        callbacks: Optional list of Trainer callbacks.
+        eval_steps: Optional step interval for periodic validation evaluation.
+        eval_limit: Number of validation problems to evaluate per callback step.
+        val_path: Optional path to validation dataset file.
+        generations_dir: Output directory for callback generations and summaries.
 
     Returns:
         Tuple of (trainer, run_metadata_dict).
@@ -468,7 +491,19 @@ def run_sft_training(
         if latest_checkpoint:
             logger.info(f"Found completed checkpoint to resume from: {latest_checkpoint}")
 
-    # 5. Build Trainer and Train
+    # 5. Build Callbacks and Trainer
+    active_callbacks = list(callbacks or [])
+    if eval_steps is not None:
+        from src.training.callbacks import ValidationEvalCallback
+        val_callback = ValidationEvalCallback(
+            val_path=val_path,
+            tokenizer=tokenizer,
+            eval_steps=eval_steps,
+            output_dir=generations_dir,
+            eval_limit=eval_limit,
+        )
+        active_callbacks.append(val_callback)
+
     trainer = build_sft_trainer(
         model=model,
         tokenizer=tokenizer,
@@ -477,6 +512,7 @@ def run_sft_training(
         training_args=train_args,
         output_dir=out_dir_path,
         max_steps=max_steps,
+        callbacks=active_callbacks if active_callbacks else None,
     )
 
     logger.info("Starting SFT training run...")
