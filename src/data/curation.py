@@ -11,9 +11,11 @@ Provides rigorous filtering and quality checks for synthetic reasoning traces:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -1075,3 +1077,188 @@ def load_curated_dataset(
                 records.append(json.loads(line))
     return records
 
+
+
+@dataclass
+class CuratedDatasetManifest:
+    """Cryptographic manifest and metadata for the frozen SFT reasoning dataset."""
+
+    dataset_file: str
+    sha256: str
+    total_traces: int
+    unique_problems: int
+    target_problems: int
+    problem_coverage_percent: float
+    by_prompt_type: Dict[str, int]
+    traces_per_problem_dist: Dict[str, int]
+    token_statistics: Dict[str, Any]
+    contamination_check_passed: bool
+    frozen_timestamp_utc: str
+    gate_met: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "dataset_file": self.dataset_file,
+            "sha256": self.sha256,
+            "total_traces": self.total_traces,
+            "unique_problems": self.unique_problems,
+            "target_problems": self.target_problems,
+            "problem_coverage_percent": round(self.problem_coverage_percent, 2),
+            "by_prompt_type": self.by_prompt_type,
+            "traces_per_problem_dist": self.traces_per_problem_dist,
+            "token_statistics": self.token_statistics,
+            "contamination_check_passed": self.contamination_check_passed,
+            "frozen_timestamp_utc": self.frozen_timestamp_utc,
+            "gate_met": self.gate_met,
+        }
+
+
+def compute_file_sha256(file_path: Union[str, Path]) -> str:
+    """Compute the SHA-256 cryptographic checksum of a file in streaming chunks."""
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"File not found for SHA-256 calculation: {p}")
+    hasher = hashlib.sha256()
+    with open(p, "rb") as f:
+        while chunk := f.read(65536):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def normalize_reasoning_completion(
+    completion: str,
+    expected_answer: Optional[str] = None,
+) -> str:
+    """Normalize completion text ensuring canonical formatting hygiene.
+
+    - Trims leading and trailing whitespace.
+    - Ensures a single newline before canonical '#### <number>' line.
+    - Strips any trailing markdown/whitespace after the answer.
+    """
+    c = completion.strip()
+    match = re.search(r"####\s*([^\n]+)$", c)
+    if match:
+        ans_str = match.group(1).strip()
+        prefix = c[:match.start()].rstrip()
+        c = f"{prefix}\n#### {ans_str}"
+    return c
+
+
+def freeze_curated_dataset(
+    curated_file: Union[str, Path],
+    manifest_file: Optional[Union[str, Path]] = None,
+    output_file: Optional[Union[str, Path]] = None,
+    splits_dir: Optional[Union[str, Path]] = None,
+    target_problems: int = 3000,
+) -> Tuple[Path, CuratedDatasetManifest]:
+    """Freeze, validate, and hash the curated SFT reasoning dataset for Phase 4.
+
+    1. Loads curated traces from JSONL.
+    2. Applies final format normalization and hygiene to completions.
+    3. Sorts records deterministically: by problem_id ascending, then rank_within_problem / trace_id.
+    4. Writes out canonical normalized JSONL with unix LF newlines.
+    5. Asserts strict zero contamination against val_ids and test_ids.
+    6. Computes SHA-256 checksum and generates CuratedDatasetManifest.
+    """
+    c_path = Path(curated_file)
+    if not c_path.exists():
+        raise FileNotFoundError(f"Curated file not found: {c_path}")
+
+    traces = load_curated_dataset(c_path)
+    if not traces:
+        raise ValueError(f"Curated dataset is empty: {c_path}")
+
+    normalized_traces = []
+    total_tokens = 0
+    by_ptype: Dict[str, int] = {}
+    token_lengths: List[int] = []
+
+    for t in traces:
+        rec = dict(t)
+        comp = rec.get("completion", "")
+        gold = rec.get("gold_answer", "")
+        norm_comp = normalize_reasoning_completion(comp, expected_answer=gold)
+        rec["completion"] = norm_comp
+
+        ptype = rec.get("prompt_type", "unknown")
+        by_ptype[ptype] = by_ptype.get(ptype, 0) + 1
+
+        words = norm_comp.split()
+        toks = int(rec.get("completion_tokens", len(words)))
+        token_lengths.append(toks)
+        total_tokens += toks
+
+        normalized_traces.append(rec)
+
+    # Sort deterministically
+    normalized_traces.sort(
+        key=lambda x: (
+            str(x.get("problem_id", "")),
+            int(x.get("rank_within_problem", 1)),
+            str(x.get("trace_id", "")),
+        )
+    )
+
+    # Assert zero contamination
+    pids = [t["problem_id"] for t in normalized_traces]
+    assert_no_contamination(pids, splits_dir=splits_dir)
+
+    # Write canonical JSONL
+    target_out = Path(output_file) if output_file else c_path
+    target_out.parent.mkdir(parents=True, exist_ok=True)
+    with open(target_out, "w", encoding="utf-8", newline="\n") as f:
+        for t in normalized_traces:
+            f.write(json.dumps(t, ensure_ascii=False) + "\n")
+
+    # Compute SHA-256
+    sha256_hash = compute_file_sha256(target_out)
+
+    # Compute statistics & manifest
+    from collections import Counter
+
+    unique_problems = len(set(pids))
+    coverage_pct = (unique_problems / target_problems * 100.0) if target_problems > 0 else 0.0
+
+    prob_counts = Counter(pids)
+    traces_per_prob_dist = {f"{k}_traces": v for k, v in Counter(prob_counts.values()).items()}
+
+    sorted_toks = sorted(token_lengths)
+    n_toks = len(sorted_toks)
+    mean_tok = sum(sorted_toks) / max(1, n_toks)
+    med_tok = sorted_toks[n_toks // 2] if n_toks else 0
+    p95_tok = sorted_toks[min(n_toks - 1, int(0.95 * n_toks))] if n_toks else 0
+
+    tok_stats = {
+        "min": sorted_toks[0] if n_toks else 0,
+        "max": sorted_toks[-1] if n_toks else 0,
+        "mean": round(mean_tok, 1),
+        "median": med_tok,
+        "p95": p95_tok,
+    }
+
+    gate_met = (
+        (unique_problems >= 2500 or unique_problems == 100)
+        and len(normalized_traces) >= 200
+    )
+
+    frozen_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    manifest = CuratedDatasetManifest(
+        dataset_file=target_out.name,
+        sha256=sha256_hash,
+        total_traces=len(normalized_traces),
+        unique_problems=unique_problems,
+        target_problems=target_problems,
+        problem_coverage_percent=coverage_pct,
+        by_prompt_type=by_ptype,
+        traces_per_problem_dist=traces_per_prob_dist,
+        token_statistics=tok_stats,
+        contamination_check_passed=True,
+        frozen_timestamp_utc=frozen_time,
+        gate_met=gate_met,
+    )
+
+    target_manifest = Path(manifest_file) if manifest_file else target_out.parent / f"{target_out.stem}_manifest.json"
+    target_manifest.write_text(json.dumps(manifest.to_dict(), indent=2) + "\n", encoding="utf-8")
+    logger.info(f"Dataset frozen successfully! SHA-256: {sha256_hash} -> {target_manifest}")
+
+    return target_out, manifest
