@@ -11,9 +11,11 @@ from pathlib import Path
 
 from src.reasoning.judge import (
     ReasoningJudge,
+    assign_within_problem_ranks,
     compute_judge_calibration,
     compute_overall_score,
     compute_pearson_correlation,
+    compute_score_distribution,
     format_judge_prompt,
     parse_judge_output,
 )
@@ -273,6 +275,123 @@ class TestReasoningJudgeMockAndCLI(unittest.TestCase):
             self.assertTrue(calib["is_calibrated"])
             self.assertGreaterEqual(calib["pearson_r"], 0.60)
 
+
+
+    def test_compute_score_distribution(self) -> None:
+        """Distribution computes correct statistics and clustering flags."""
+        empty_dist = compute_score_distribution([])
+        self.assertEqual(empty_dist["count"], 0)
+        self.assertFalse(empty_dist["high_clustering"])
+
+        scores = [0.5, 0.7, 0.8, 0.9, 0.95]
+        dist = compute_score_distribution(scores)
+        self.assertEqual(dist["count"], 5)
+        self.assertAlmostEqual(dist["mean"], 0.77)
+        self.assertAlmostEqual(dist["median"], 0.80)
+        self.assertAlmostEqual(dist["min"], 0.5)
+        self.assertAlmostEqual(dist["max"], 0.95)
+        self.assertEqual(dist["buckets"][">=0.90"], 2)
+        self.assertAlmostEqual(dist["pct_above_0_90"], 40.0)
+        self.assertFalse(dist["high_clustering"])
+
+        # High clustering test (>=60% >= 0.90)
+        clustered = [0.92, 0.95, 0.91, 0.98, 0.50]
+        dist_c = compute_score_distribution(clustered)
+        self.assertTrue(dist_c["high_clustering"])
+
+    def test_assign_within_problem_ranks(self) -> None:
+        """Within-problem ranking orders traces by overall_score descending."""
+        traces = [
+            {
+                "trace_id": "p1_t1",
+                "problem_id": "p1",
+                "score": {"overall_score": 0.70},
+                "completion": "short",
+            },
+            {
+                "trace_id": "p1_t2",
+                "problem_id": "p1",
+                "score": {"overall_score": 0.95},
+                "completion": "longer step-by-step",
+            },
+            {
+                "trace_id": "p2_t1",
+                "problem_id": "p2",
+                "score": {"overall_score": 0.85},
+                "completion": "medium",
+            },
+        ]
+        ranked = assign_within_problem_ranks(traces)
+        p1_traces = [t for t in ranked if t["problem_id"] == "p1"]
+        self.assertEqual(len(p1_traces), 2)
+        # Higher score gets rank 1
+        self.assertEqual(p1_traces[0]["trace_id"], "p1_t2")
+        self.assertEqual(p1_traces[0]["rank_within_problem"], 1)
+        self.assertEqual(p1_traces[1]["trace_id"], "p1_t1")
+        self.assertEqual(p1_traces[1]["rank_within_problem"], 2)
+
+    def test_cli_day22_scoring_execution(self) -> None:
+        """Day 22 CLI runs on synthetic traces, assigns ranks, and produces reports."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            sample_traces = [
+                {
+                    "trace_id": "p1_cot_0",
+                    "problem_id": "p1",
+                    "prompt_type": "chain_of_thought",
+                    "question": "Janet has 3 cats and buys 2 more.",
+                    "gold_answer": "5",
+                    "completion": "3 + 2 = 5.\n#### 5",
+                    "completion_tokens": 15,
+                    "finish_reason": "stop",
+                },
+                {
+                    "trace_id": "p1_stv_0",
+                    "problem_id": "p1",
+                    "prompt_type": "solve_then_verify",
+                    "question": "Janet has 3 cats and buys 2 more.",
+                    "gold_answer": "5",
+                    "completion": "Solution: 3 + 2 = 5.\nVerification: 5 - 2 = 3 condition matches.\n#### 5",
+                    "completion_tokens": 25,
+                    "finish_reason": "stop",
+                },
+            ]
+            in_file = tmp_path / "traces_sample_chain_of_thought.jsonl"
+            with open(in_file, "w", encoding="utf-8") as f:
+                for item in sample_traces:
+                    f.write(json.dumps(item) + "\n")
+
+            out_file = tmp_path / "traces_scored.jsonl"
+            cmd = [
+                sys.executable,
+                "scripts/score_traces_judge.py",
+                "--traces_dir",
+                str(tmp_path),
+                "--output_file",
+                str(out_file),
+                "--split_by_prompt_type",
+                "--use_mock",
+                "--reports_dir",
+                str(tmp_path),
+                "--report_name",
+                "test_day22_scoring",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, f"Scoring CLI failed: {result.stderr}")
+            self.assertTrue(out_file.exists())
+
+            # Read scored outputs
+            scored = [json.loads(line) for line in out_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+            self.assertEqual(len(scored), 2)
+            for item in scored:
+                self.assertIn("rank_within_problem", item)
+                self.assertIn("score", item)
+
+            # Check markdown report
+            md_path = tmp_path / "test_day22_scoring.md"
+            self.assertTrue(md_path.exists())
+            json_rep_path = tmp_path / "test_day22_scoring_report.json"
+            self.assertTrue(json_rep_path.exists())
 
 if __name__ == "__main__":
     unittest.main()

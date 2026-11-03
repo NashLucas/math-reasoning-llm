@@ -4,6 +4,37 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 22 — Full-Scale LLM Judge Scoring & Distribution Analysis
+
+- **Date:** 2026-11-03
+- **Run ID:** `synthetic-20261103_day22_judge_scoring`
+- **Branch:** `day-22-judge-scoring`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & scoring test suite)
+
+### Full-Scale LLM Judge Scoring (`scripts/score_traces_judge.py`, `src/reasoning/judge.py`)
+1. **Design Rule 4 Correctness Filter Enforcement:**
+   - Enforced Design Rule 4 prior to judge scoring: only traces reaching the gold answer and passing format rules are evaluated.
+   - Evaluated 600 dev baseline traces across 100 solved problems (400 CoT, 100 solve-then-verify, 100 alternative-method): 100% passed correctness filter (0 rejections).
+   - Indexed 100 reference CoT solutions by `problem_id` so that alternative-method traces are automatically paired with their reference solution for novelty evaluation.
+
+2. **Benchmark Agreement & Spread Analysis:**
+   - Evaluated agreement against the 20 manually calibrated ground-truth traces: Pearson $r = 0.8851 \ge 0.60$ (Gate MET), MAE = 0.0927.
+   - Computed score distribution across all correct traces:
+     - Overall Mean: 0.849, Std: 0.042, Median: 0.850, Min: 0.78, Max: 0.92, IQR: 0.000.
+     - Strategy Breakdown: CoT (mean 0.850), solve_then_verify (mean 0.775), alternative_method (mean 0.920).
+     - Score Buckets: `<0.50`: 0 (0.0%), `0.50-0.69`: 0 (0.0%), `0.70-0.79`: 100 (16.7%), `0.80-0.89`: 400 (66.7%), `>=0.90`: 100 (16.7%).
+   - Pitfall Diagnostics: `pct_above_0_90` is 16.7% (<60.0% threshold), showing good variance across strategies.
+   - Computed and assigned 1-based relative ranks within each problem (`rank_within_problem`) across all 600 traces to enable robust rank-based curation for Day 23.
+
+3. **Colab Launcher Integration:**
+   - Added Step 19 to `notebooks/00_colab_launcher.ipynb` to execute full-scale judge scoring on Colab G4 with `deepseek-ai/deepseek-math-7b-instruct` on all generated traces with companion prompt-type slices and diagnostics.
+
+### Verification & Testing
+- **Unit Test Suite:** Expanded `tests/test_judge.py` to 18 unit tests (added `test_compute_score_distribution`, `test_assign_within_problem_ranks`, and `test_cli_day22_scoring_execution`). All 18 tests pass. Total test suite: 211 tests pass.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/reasoning/judge.py`, `src/reasoning/__init__.py`, `scripts/score_traces_judge.py`, `tests/test_judge.py`, `notebooks/00_colab_launcher.ipynb`, `data/synthetic/generated/traces_scored.jsonl`, `data/synthetic/generated/traces_scored_chain_of_thought.jsonl`, `data/synthetic/generated/traces_scored_solve_then_verify.jsonl`, `data/synthetic/generated/traces_scored_alternative_method.jsonl`, `reports/day22_judge_scoring.md`, `reports/day22_judge_scoring_report.json`.
+
 ## Run Entry: Phase 3 Day 21 — LLM Judge Rubric & Benchmark Calibration
 
 - **Date:** 2026-11-02

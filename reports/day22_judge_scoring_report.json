@@ -1,0 +1,98 @@
+{
+  "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
+  "mode": "mock",
+  "total_loaded": 600,
+  "total_filtered_out": 0,
+  "total_scored": 600,
+  "total_problems": 100,
+  "output_file": "C:\\Users\\DELL\\desktop\\math-reasoning-llm\\data\\synthetic\\generated\\traces_scored.jsonl",
+  "calibration_metrics": {
+    "n_samples": 20,
+    "pearson_r": 0.8851,
+    "mae": 0.0927,
+    "mse": 0.0166,
+    "is_calibrated": true
+  },
+  "overall_distribution": {
+    "count": 600,
+    "mean": 0.8492,
+    "std": 0.0419,
+    "median": 0.85,
+    "min": 0.775,
+    "max": 0.92,
+    "q25": 0.85,
+    "q75": 0.85,
+    "iqr": 0.0,
+    "pct_above_0_90": 16.67,
+    "buckets": {
+      "<0.50": 0,
+      "0.50-0.69": 0,
+      "0.70-0.79": 100,
+      "0.80-0.89": 400,
+      ">=0.90": 100
+    },
+    "high_clustering": false
+  },
+  "by_strategy_distribution": {
+    "chain_of_thought": {
+      "count": 400,
+      "mean": 0.85,
+      "std": 0.0,
+      "median": 0.85,
+      "min": 0.85,
+      "max": 0.85,
+      "q25": 0.85,
+      "q75": 0.85,
+      "iqr": 0.0,
+      "pct_above_0_90": 0.0,
+      "buckets": {
+        "<0.50": 0,
+        "0.50-0.69": 0,
+        "0.70-0.79": 0,
+        "0.80-0.89": 400,
+        ">=0.90": 0
+      },
+      "high_clustering": false
+    },
+    "solve_then_verify": {
+      "count": 100,
+      "mean": 0.775,
+      "std": 0.0,
+      "median": 0.775,
+      "min": 0.775,
+      "max": 0.775,
+      "q25": 0.775,
+      "q75": 0.775,
+      "iqr": 0.0,
+      "pct_above_0_90": 0.0,
+      "buckets": {
+        "<0.50": 0,
+        "0.50-0.69": 0,
+        "0.70-0.79": 100,
+        "0.80-0.89": 0,
+        ">=0.90": 0
+      },
+      "high_clustering": false
+    },
+    "alternative_method": {
+      "count": 100,
+      "mean": 0.92,
+      "std": 0.0,
+      "median": 0.92,
+      "min": 0.92,
+      "max": 0.92,
+      "q25": 0.92,
+      "q75": 0.92,
+      "iqr": 0.0,
+      "pct_above_0_90": 100.0,
+      "buckets": {
+        "<0.50": 0,
+        "0.50-0.69": 0,
+        "0.70-0.79": 0,
+        "0.80-0.89": 0,
+        ">=0.90": 100
+      },
+      "high_clustering": true
+    }
+  }
+}

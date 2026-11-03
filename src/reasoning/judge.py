@@ -622,3 +622,113 @@ def compute_judge_calibration(
         "mse": round(mse, 4),
         "is_calibrated": r >= min_correlation,
     }
+
+def compute_score_distribution(
+    scores: Sequence[Union[JudgeScore, Dict[str, Any], float]],
+) -> Dict[str, Any]:
+    """Compute summary statistics and histogram buckets for a collection of judge scores.
+
+    Useful for Day 22 score spread analysis and detecting judge score clustering (>0.90).
+    """
+    def _extract_val(s: Union[JudgeScore, Dict[str, Any], float]) -> float:
+        if isinstance(s, (int, float)):
+            return float(s)
+        if isinstance(s, JudgeScore):
+            return s.overall_score
+        return float(s.get("overall_score", s.get("score", 0.0)))
+
+    vals = sorted([_extract_val(s) for s in scores])
+    n = len(vals)
+    if n == 0:
+        return {
+            "count": 0,
+            "mean": 0.0,
+            "std": 0.0,
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "q25": 0.0,
+            "q75": 0.0,
+            "iqr": 0.0,
+            "pct_above_0_90": 0.0,
+            "buckets": {"<0.50": 0, "0.50-0.69": 0, "0.70-0.79": 0, "0.80-0.89": 0, ">=0.90": 0},
+            "high_clustering": False,
+        }
+
+    mean_val = sum(vals) / n
+    variance = sum((v - mean_val) ** 2 for v in vals) / n
+    std_val = math.sqrt(variance)
+
+    def _percentile(p: float) -> float:
+        idx = int(p * (n - 1))
+        return vals[idx]
+
+    med_val = _percentile(0.50)
+    q25 = _percentile(0.25)
+    q75 = _percentile(0.75)
+    iqr = q75 - q25
+
+    # Buckets
+    b_lt_50 = sum(1 for v in vals if v < 0.50)
+    b_50_69 = sum(1 for v in vals if 0.50 <= v < 0.70)
+    b_70_79 = sum(1 for v in vals if 0.70 <= v < 0.80)
+    b_80_89 = sum(1 for v in vals if 0.80 <= v < 0.90)
+    b_ge_90 = sum(1 for v in vals if v >= 0.90)
+    pct_above_90 = round((b_ge_90 / n) * 100.0, 2)
+
+    return {
+        "count": n,
+        "mean": round(mean_val, 4),
+        "std": round(std_val, 4),
+        "median": round(med_val, 4),
+        "min": round(vals[0], 4),
+        "max": round(vals[-1], 4),
+        "q25": round(q25, 4),
+        "q75": round(q75, 4),
+        "iqr": round(iqr, 4),
+        "pct_above_0_90": pct_above_90,
+        "buckets": {
+            "<0.50": b_lt_50,
+            "0.50-0.69": b_50_69,
+            "0.70-0.79": b_70_79,
+            "0.80-0.89": b_80_89,
+            ">=0.90": b_ge_90,
+        },
+        "high_clustering": pct_above_90 >= 60.0,
+    }
+
+
+def assign_within_problem_ranks(
+    scored_traces: Sequence[Union[ScoredTrace, Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    """Group scored traces by problem_id and assign 1-based relative ranks.
+
+    Rank 1 is the highest overall_score for that problem.
+    Resolves ties deterministically by prompt type diversity and trace length.
+    """
+    by_problem: Dict[str, List[Dict[str, Any]]] = {}
+    for item in scored_traces:
+        d = item.to_dict() if hasattr(item, "to_dict") else dict(item)
+        pid = str(d.get("problem_id", ""))
+        by_problem.setdefault(pid, []).append(d)
+
+    ranked_results: List[Dict[str, Any]] = []
+    for pid, group in by_problem.items():
+        # Sort descending by overall_score, then secondary by length
+        sorted_group = sorted(
+            group,
+            key=lambda t: (
+                float(t.get("score", {}).get("overall_score", 0.0)),
+                len(t.get("completion", "")),
+            ),
+            reverse=True,
+        )
+        for rank, trace_dict in enumerate(sorted_group, start=1):
+            if "metadata" not in trace_dict or not isinstance(trace_dict["metadata"], dict):
+                trace_dict["metadata"] = {}
+            trace_dict["metadata"]["rank_within_problem"] = rank
+            trace_dict["rank_within_problem"] = rank
+            ranked_results.append(trace_dict)
+
+    return ranked_results
+
