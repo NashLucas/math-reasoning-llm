@@ -21,6 +21,8 @@ from src.data.sft_dataset import (
 from src.run_info import collect_run_info, save_run_info
 from src.training.checkpointing import (
     find_latest_checkpoint,
+    get_checkpoints,
+    parse_checkpoint_step,
     prune_checkpoints,
 )
 
@@ -279,8 +281,9 @@ class MockSFTTrainer:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         start_step = 0
         if resume_from_checkpoint:
-            logger.info(f"Resuming MockSFTTrainer from checkpoint: {resume_from_checkpoint}")
-            start_step = 2
+            parsed = parse_checkpoint_step(resume_from_checkpoint)
+            start_step = parsed if parsed >= 0 else 2
+            logger.info(f"Resuming MockSFTTrainer from checkpoint: {resume_from_checkpoint} (start_step={start_step})")
 
         # Determine loss decay rate based on learning rate
         lr = 2e-4
@@ -299,6 +302,17 @@ class MockSFTTrainer:
             decay_factor = 0.55  # Optimal convergence
         else:
             decay_factor = 0.62  # Standard convergence
+
+        if start_step >= self.max_steps:
+            logger.info(f"MockSFTTrainer: training already complete at step {start_step} >= max_steps {self.max_steps}.")
+            self.global_step = start_step
+            final_loss = round(max(0.005, 2.5 * (decay_factor ** start_step)), 4)
+            return {
+                "global_step": self.global_step,
+                "training_loss": final_loss,
+                "loss_history": [],
+                "resumed_from": str(resume_from_checkpoint),
+            }
 
         logger.info(f"MockSFTTrainer: training on {len(self.train_dataset)} examples for {self.max_steps} steps (lr={lr}, decay={decay_factor})...")
         loss_history = []
@@ -342,6 +356,7 @@ class MockSFTTrainer:
             encoding="utf-8",
         )
         (out / "adapter_model.bin").write_text("mock_adapter_weights", encoding="utf-8")
+        (out / "adapter_model.safetensors").write_bytes(b"mock_safetensors_weights")
         logger.info(f"Saved mock adapter model to: {out}")
 
 
@@ -429,6 +444,7 @@ def run_sft_training(
     eval_limit: int = 100,
     val_path: Optional[Union[str, Path]] = None,
     generations_dir: Union[str, Path] = "logs/generations",
+    use_mock: bool = False,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
 
@@ -460,7 +476,7 @@ def run_sft_training(
 
     # 1. Load Model and Tokenizer
     logger.info(f"Initializing model and tokenizer: {model_name_or_path}")
-    if model_name_or_path.startswith("mock"):
+    if model_name_or_path.startswith("mock") or use_mock:
         tokenizer = MockTokenizer()
         model = MockModel()
     else:
@@ -555,18 +571,28 @@ def run_sft_training(
     if hasattr(tokenizer, "save_pretrained"):
         tokenizer.save_pretrained(str(adapter_out_path))
 
-    # Prune older checkpoints to keep only the 5 most recent
-    pruned = prune_checkpoints(out_dir_path, keep=5)
+    # Prune older checkpoints to keep only the save_total_limit most recent
+    save_limit = 5
+    if isinstance(train_args, dict):
+        save_limit = int(train_args.get("save_total_limit", 5))
+    elif hasattr(train_args, "save_total_limit"):
+        save_limit = int(getattr(train_args, "save_total_limit", 5))
+
+    pruned = prune_checkpoints(out_dir_path, keep=save_limit)
     if pruned:
         logger.info(f"Pruned {len(pruned)} older checkpoints.")
 
     # 7. Record Provenance (Design Rule 5)
+    saved_ckpts = [str(c) for c in get_checkpoints(out_dir_path, complete_only=True)]
     config_snapshot = {
         "model_name_or_path": str(model_name_or_path),
         "curated_data_path": str(c_path),
         "total_examples": len(sft_examples),
+        "learning_rate": learning_rate,
         "lora_config": lora_cfg.to_dict() if hasattr(lora_cfg, "to_dict") else lora_cfg,
         "train_result": train_result,
+        "resumed_from": str(latest_checkpoint) if latest_checkpoint else None,
+        "checkpoints_saved": saved_ckpts,
     }
     run_record = collect_run_info(stage="sft", config=config_snapshot, description="sft_training_run")
     save_run_info(stage="sft", output_dir=adapter_out_path, config=config_snapshot, description="sft_training_run")
