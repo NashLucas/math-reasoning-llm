@@ -1,0 +1,22 @@
+{
+  "total_curated_traces": 200,
+  "unique_problems_covered": 100,
+  "target_problems": 100,
+  "problem_coverage_percent": 100.0,
+  "synthetic_trace_count": 200,
+  "gold_fallback_count": 0,
+  "by_prompt_type": {
+    "alternative_method": 100,
+    "chain_of_thought": 100
+  },
+  "traces_per_problem_dist": {
+    "2_traces": 100
+  },
+  "near_duplicates_pruned": 0,
+  "overlength_pruned": 0,
+  "looping_pruned": 0,
+  "mean_token_count": 46.4,
+  "mean_word_count": 46.4,
+  "mean_judge_score": 0.885,
+  "contamination_check_passed": true
+}

@@ -10,16 +10,22 @@ import unittest
 from pathlib import Path
 
 from src.data.curation import (
+    ContaminationError,
     CorrectnessFilter,
     ProblemPassRate,
     YieldAnalysisReport,
     analyze_reasoning_yield,
+    assert_no_contamination,
+    build_gold_fallback_trace,
     classify_difficulty,
     compute_problem_pass_rates,
+    curate_reasoning_dataset,
     detect_repeated_ngrams,
     evaluate_trace_correctness,
     filter_problems_by_pass_rate,
     get_solved_problem_ids,
+    is_near_duplicate,
+    load_curated_dataset,
     load_problem_pass_rates,
     save_problem_pass_rates,
 )
@@ -410,6 +416,163 @@ class TestCurationAndYieldAnalysis(unittest.TestCase):
             self.assertTrue((reports_dir / "test_day20_multi.md").exists())
             self.assertTrue((reports_dir / "test_day20_multi_report.json").exists())
 
+
+
+    def test_is_near_duplicate(self) -> None:
+        """Near-duplicate detector flags identical or high-Jaccard texts."""
+        text_a = "First calculate 5 * 10 = 50. Next, add the tax of 10% which is 50 * 0.10 = 5. Finally, the total cost is 50 + 5 = 55.\n#### 55"
+        text_b = "First calculate 5 * 10 = 50. Next, add the tax of 10% which is 50 * 0.10 = 5. Finally, the total cost is 50 + 5 = 55.\n#### 55"
+        self.assertTrue(is_near_duplicate(text_a, text_b))
+
+        # Minor variation in realistic trace (> 0.85 Jaccard)
+        text_c = "First, calculate 5 * 10 = 50. Next, add the tax of 10% which is 50 * 0.10 = 5. Finally, total cost is 50 + 5 = 55.\n#### 55"
+        self.assertTrue(is_near_duplicate(text_a, text_c, threshold=0.85))
+
+        # Completely different derivation
+        text_d = "Let x be the unknown. Direct algebraic formulation gives x = 55.\n#### 55"
+        self.assertFalse(is_near_duplicate(text_a, text_d, threshold=0.85))
+
+    def test_build_gold_fallback_trace(self) -> None:
+        """Gold fallback generator produces canonical format from cleaned_solution."""
+        problem = {
+            "problem_id": "prob_gold_01",
+            "question": "Janet has 3 apples and gets 2 more. How many?",
+            "gold_answer": "5",
+            "cleaned_solution": "Janet starts with 3 and gets 2, so 3 + 2 = 5.\n#### 5",
+        }
+        trace = build_gold_fallback_trace(problem)
+        self.assertEqual(trace["problem_id"], "prob_gold_01")
+        self.assertEqual(trace["gold_answer"], "5")
+        self.assertTrue(trace["is_gold_fallback"])
+        self.assertEqual(trace["source"], "gold_clean")
+        self.assertTrue(trace["completion"].endswith("#### 5"))
+        self.assertEqual(trace["rank_within_problem"], 1)
+
+    def test_assert_no_contamination(self) -> None:
+        """Contamination assertion passes clean training IDs and flags test/val IDs."""
+        # Clean synthetic IDs from training split
+        synthetic_ids = ["gsm8k_4b291b0c6a0ca2da", "gsm8k_0001"]
+        assert_no_contamination(synthetic_ids)
+
+        # Contaminated ID matching a known val ID
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            (tmp_path / "val_ids.json").write_text(json.dumps(["leaked_val_id"]), encoding="utf-8")
+            (tmp_path / "test_ids.json").write_text(json.dumps(["leaked_test_id"]), encoding="utf-8")
+
+            with self.assertRaises(ContaminationError):
+                assert_no_contamination(["clean_id", "leaked_val_id"], splits_dir=tmp_path)
+
+            with self.assertRaises(ContaminationError):
+                assert_no_contamination(["clean_id", "leaked_test_id"], splits_dir=tmp_path)
+
+    def test_curate_reasoning_dataset_at_most_2_and_strategy_diversity(self) -> None:
+        """Dataset curation keeps at most 2 traces per problem preferring strategy diversity."""
+        problems = [
+            {
+                "problem_id": "p1",
+                "question": "Q1",
+                "gold_answer": "10",
+                "cleaned_solution": "5 + 5 = 10.\n#### 10",
+            },
+            {
+                "problem_id": "p2",
+                "question": "Q2",
+                "gold_answer": "20",
+                "cleaned_solution": "10 * 2 = 20.\n#### 20",
+            },
+        ]
+        # For p1: 2 CoT traces (one high score, one low score) + 1 alternative_method trace
+        # For p2: 0 candidate traces (should trigger gold fallback)
+        traces = [
+            {
+                "trace_id": "p1_cot_high",
+                "problem_id": "p1",
+                "prompt_type": "chain_of_thought",
+                "gold_answer": "10",
+                "completion": "5 * 2 = 10.\n#### 10",
+                "score": {"overall_score": 0.85},
+                "completion_tokens": 15,
+                "finish_reason": "stop",
+            },
+            {
+                "trace_id": "p1_cot_low",
+                "problem_id": "p1",
+                "prompt_type": "chain_of_thought",
+                "gold_answer": "10",
+                "completion": "5 + 5 = 10.\n#### 10",
+                "score": {"overall_score": 0.70},
+                "completion_tokens": 15,
+                "finish_reason": "stop",
+            },
+            {
+                "trace_id": "p1_alt",
+                "problem_id": "p1",
+                "prompt_type": "alternative_method",
+                "gold_answer": "10",
+                "completion": "Let x = 10. Direct algebraic check confirms x = 10.\n#### 10",
+                "score": {"overall_score": 0.92},
+                "completion_tokens": 20,
+                "finish_reason": "stop",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            (tmp_path / "val_ids.json").write_text("[]", encoding="utf-8")
+            (tmp_path / "test_ids.json").write_text("[]", encoding="utf-8")
+
+            curated, stats = curate_reasoning_dataset(
+                traces=traces,
+                problems=problems,
+                max_traces_per_problem=2,
+                splits_dir=tmp_path,
+            )
+
+            # p1 should have 2 traces: p1_alt (rank 1, 0.92) and p1_cot_high (rank 2, 0.85)
+            # p2 should have 1 trace: gold fallback
+            self.assertEqual(len(curated), 3)
+            p1_curated = [t for t in curated if t["problem_id"] == "p1"]
+            self.assertEqual(len(p1_curated), 2)
+            types = {t["prompt_type"] for t in p1_curated}
+            self.assertEqual(types, {"alternative_method", "chain_of_thought"})
+            self.assertEqual(p1_curated[0]["trace_id"], "p1_alt")
+            self.assertEqual(p1_curated[0]["rank_within_problem"], 1)
+
+            p2_curated = [t for t in curated if t["problem_id"] == "p2"]
+            self.assertEqual(len(p2_curated), 1)
+            self.assertTrue(p2_curated[0]["is_gold_fallback"])
+
+            self.assertEqual(stats.unique_problems_covered, 2)
+            self.assertEqual(stats.synthetic_trace_count, 2)
+            self.assertEqual(stats.gold_fallback_count, 1)
+
+    def test_cli_curate_data_script_execution(self) -> None:
+        """CLI script curate_data.py runs end-to-end and creates curated dataset & report."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            out_file = tmp_path / "traces_curated_sft.jsonl"
+            reports_dir = tmp_path / "reports"
+
+            cmd = [
+                sys.executable,
+                "scripts/curate_data.py",
+                "--output_file",
+                str(out_file),
+                "--reports_dir",
+                str(reports_dir),
+                "--report_name",
+                "test_curation_cli",
+                "--limit",
+                "5",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"Curate CLI failed:\n{res.stderr}")
+            self.assertTrue(out_file.exists())
+            self.assertTrue((reports_dir / "test_curation_cli.md").exists())
+            self.assertTrue((reports_dir / "test_curation_cli_report.json").exists())
+
+            loaded = load_curated_dataset(out_file)
+            self.assertGreater(len(loaded), 0)
 
 if __name__ == "__main__":
     unittest.main()

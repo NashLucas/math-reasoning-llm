@@ -642,3 +642,436 @@ def filter_problems_by_pass_rate(
     """
     solved_ids = get_solved_problem_ids(pass_rates, min_correct=min_correct)
     return [p for p in problems if str(p.get("problem_id", "")) in solved_ids]
+
+# ==============================================================================
+# Phase 3 Day 23: Final SFT Dataset Curation, Deduplication, & Contamination Gate
+# ==============================================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+class ContaminationError(ValueError):
+    """Raised when validation or test set problem IDs are found in training/curated data."""
+    pass
+
+
+@dataclass
+class CuratedTrace:
+    """A final curated reasoning trace prepared for SFT training (Phase 3 Day 23)."""
+
+    trace_id: str
+    problem_id: str
+    prompt_type: str
+    question: str
+    gold_answer: str
+    completion: str
+    source: str = "synthetic"  # "synthetic" or "gold_clean"
+    is_gold_fallback: bool = False
+    rank_within_problem: int = 1
+    score: Optional[Dict[str, Any]] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "trace_id": self.trace_id,
+            "problem_id": self.problem_id,
+            "prompt_type": self.prompt_type,
+            "question": self.question,
+            "gold_answer": self.gold_answer,
+            "completion": self.completion,
+            "source": self.source,
+            "is_gold_fallback": self.is_gold_fallback,
+            "rank_within_problem": self.rank_within_problem,
+            "score": self.score,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class CuratedDatasetStats:
+    """Aggregate statistics for the curated SFT reasoning dataset."""
+
+    total_curated_traces: int = 0
+    unique_problems_covered: int = 0
+    target_problems: int = 3000
+    problem_coverage_percent: float = 0.0
+    synthetic_trace_count: int = 0
+    gold_fallback_count: int = 0
+    by_prompt_type: Dict[str, int] = field(default_factory=dict)
+    traces_per_problem_dist: Dict[str, int] = field(default_factory=dict)
+    near_duplicates_pruned: int = 0
+    overlength_pruned: int = 0
+    looping_pruned: int = 0
+    mean_token_count: float = 0.0
+    mean_word_count: float = 0.0
+    mean_judge_score: float = 0.0
+    contamination_check_passed: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_curated_traces": self.total_curated_traces,
+            "unique_problems_covered": self.unique_problems_covered,
+            "target_problems": self.target_problems,
+            "problem_coverage_percent": round(self.problem_coverage_percent, 2),
+            "synthetic_trace_count": self.synthetic_trace_count,
+            "gold_fallback_count": self.gold_fallback_count,
+            "by_prompt_type": self.by_prompt_type,
+            "traces_per_problem_dist": self.traces_per_problem_dist,
+            "near_duplicates_pruned": self.near_duplicates_pruned,
+            "overlength_pruned": self.overlength_pruned,
+            "looping_pruned": self.looping_pruned,
+            "mean_token_count": round(self.mean_token_count, 1),
+            "mean_word_count": round(self.mean_word_count, 1),
+            "mean_judge_score": round(self.mean_judge_score, 4),
+            "contamination_check_passed": self.contamination_check_passed,
+        }
+
+
+def assert_no_contamination(
+    problem_ids: Sequence[str],
+    splits_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """Assert that none of the provided problem IDs belong to validation or test splits.
+
+    Raises:
+        ContaminationError: If any problem ID belongs to val_ids.json or test_ids.json.
+    """
+    s_dir = Path(splits_dir) if splits_dir else (PROJECT_ROOT / "data" / "splits")
+    val_file = s_dir / "val_ids.json"
+    test_file = s_dir / "test_ids.json"
+
+    val_ids: set[str] = set()
+    test_ids: set[str] = set()
+
+    if val_file.exists():
+        val_ids = set(json.loads(val_file.read_text(encoding="utf-8")))
+    if test_file.exists():
+        test_ids = set(json.loads(test_file.read_text(encoding="utf-8")))
+
+    input_ids = set(str(pid) for pid in problem_ids)
+    val_overlap = input_ids & val_ids
+    test_overlap = input_ids & test_ids
+
+    if val_overlap:
+        raise ContaminationError(
+            f"TEST-SET WALL CONTAMINATION: {len(val_overlap)} problem IDs belong to validation split: "
+            f"{list(val_overlap)[:5]}"
+        )
+    if test_overlap:
+        raise ContaminationError(
+            f"TEST-SET WALL CONTAMINATION: {len(test_overlap)} problem IDs belong to test split: "
+            f"{list(test_overlap)[:5]}"
+        )
+
+
+def compute_text_jaccard_similarity(
+    text_a: str,
+    text_b: str,
+    ngram_size: int = 4,
+) -> float:
+    """Compute character n-gram Jaccard similarity between two texts."""
+    clean_a = re.sub(r"\s+", " ", text_a.strip().lower())
+    clean_b = re.sub(r"\s+", " ", text_b.strip().lower())
+    if clean_a == clean_b:
+        return 1.0
+    if len(clean_a) < ngram_size or len(clean_b) < ngram_size:
+        return 1.0 if clean_a == clean_b else 0.0
+
+    grams_a = set(clean_a[i : i + ngram_size] for i in range(len(clean_a) - ngram_size + 1))
+    grams_b = set(clean_b[i : i + ngram_size] for i in range(len(clean_b) - ngram_size + 1))
+    union = grams_a | grams_b
+    if not union:
+        return 0.0
+    return len(grams_a & grams_b) / len(union)
+
+
+def is_near_duplicate(
+    text_a: str,
+    text_b: str,
+    threshold: float = 0.85,
+    ngram_size: int = 4,
+) -> bool:
+    """Determine whether two reasoning completions are near-duplicates."""
+    if text_a.strip() == text_b.strip():
+        return True
+    return compute_text_jaccard_similarity(text_a, text_b, ngram_size) >= threshold
+
+
+def build_gold_fallback_trace(
+    problem: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build a canonical reasoning trace from a clean human gold solution.
+
+    Used when a problem has no correct synthetic reasoning traces generated.
+    """
+    pid = str(problem.get("problem_id", ""))
+    question = str(problem.get("question", "")).strip()
+    gold_answer = str(problem.get("gold_answer", "")).strip()
+    cleaned = str(problem.get("cleaned_solution", "")).strip()
+
+    if not cleaned:
+        raw_ans = str(problem.get("answer", problem.get("solution", "")))
+        from src.data.preprocessing import clean_solution
+        cleaned, extracted_ans = clean_solution(raw_ans)
+        if not gold_answer and extracted_ans:
+            gold_answer = extracted_ans
+
+    # Ensure canonical #### line is present
+    canonical_suffix = f"#### {gold_answer}"
+    if canonical_suffix not in cleaned:
+        cleaned = f"{cleaned}\n#### {gold_answer}"
+
+    words = cleaned.split()
+    return {
+        "trace_id": f"{pid}_gold_fallback",
+        "problem_id": pid,
+        "prompt_type": "chain_of_thought",
+        "question": question,
+        "gold_answer": gold_answer,
+        "completion": cleaned,
+        "source": "gold_clean",
+        "is_gold_fallback": True,
+        "rank_within_problem": 1,
+        "score": {
+            "completeness": 1.0,
+            "verification_quality": None,
+            "novelty": None,
+            "overall_score": 1.0,
+            "rationale": "Cleaned human gold reference solution (no synthetic solution available).",
+            "parsing_status": "gold",
+        },
+        "metadata": {
+            "is_gold_fallback": True,
+            "completion_tokens": len(words),
+            "finish_reason": "stop",
+        },
+    }
+
+
+def curate_reasoning_dataset(
+    traces: Sequence[Union[Dict[str, Any], ReasoningTrace]],
+    problems: Sequence[Dict[str, Any]],
+    max_traces_per_problem: int = 2,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    min_tokens: int = DEFAULT_MIN_TOKENS,
+    near_dup_threshold: float = 0.85,
+    splits_dir: Optional[Union[str, Path]] = None,
+) -> Tuple[List[Dict[str, Any]], CuratedDatasetStats]:
+    """Execute end-to-end reasoning dataset curation for SFT post-training (Day 23).
+
+    Selection & Quality Rules:
+    1. Correctness: Enforces Design Rule 4 (only traces reaching gold answer).
+    2. Quality filters: Prunes traces exceeding max_tokens, below min_tokens, or with looping n-grams.
+    3. At most 2 traces per problem:
+       - Trace 1: Highest judge overall_score among all valid candidates.
+       - Trace 2: Highest judge overall_score with a DIFFERENT prompt strategy, skipping near-duplicates.
+         If no different strategy exists, takes top non-duplicate of the same strategy.
+    4. Clean Gold Fallback: For problems with zero correct synthetic traces, uses the cleaned human gold solution.
+    5. Contamination Gate: Asserts that zero validation or test problem IDs appear in the curated dataset.
+
+    Returns:
+        (curated_traces, CuratedDatasetStats)
+    """
+    filter_engine = CorrectnessFilter(
+        min_tokens=min_tokens,
+        max_tokens=max_tokens,
+    )
+
+    overlength_pruned = 0
+    looping_pruned = 0
+    near_duplicates_pruned = 0
+
+    # Step 1: Filter and group candidate traces by problem_id
+    valid_candidates_by_pid: Dict[str, List[Dict[str, Any]]] = {}
+
+    for item in traces:
+        raw = dict(item.to_dict() if isinstance(item, ReasoningTrace) else item)
+        is_correct, reason = filter_engine.filter_trace(raw)
+        if not is_correct:
+            if reason == "too_long":
+                overlength_pruned += 1
+            elif reason == "repeated_ngrams":
+                looping_pruned += 1
+            continue
+
+        pid = str(raw.get("problem_id", ""))
+        if not pid:
+            continue
+        valid_candidates_by_pid.setdefault(pid, []).append(raw)
+
+    # Step 2: Index problems
+    problem_lookup: Dict[str, Dict[str, Any]] = {
+        str(p.get("problem_id", "")): p for p in problems if str(p.get("problem_id", ""))
+    }
+    target_count = len(problem_lookup)
+
+    curated_traces: List[Dict[str, Any]] = []
+    synthetic_count = 0
+    gold_count = 0
+    by_ptype: Dict[str, int] = {}
+    traces_per_prob_dist: Dict[str, int] = {}
+    total_tokens = 0
+    total_words = 0
+    total_scores = 0.0
+
+    # Step 3: Iterate through all target problems
+    for pid, prob in problem_lookup.items():
+        candidates = valid_candidates_by_pid.get(pid, [])
+
+        if not candidates:
+            # Unsolved problem: Fallback to cleaned human gold solution
+            gold_trace = build_gold_fallback_trace(prob)
+            curated_traces.append(gold_trace)
+            gold_count += 1
+            ptype = gold_trace["prompt_type"]
+            by_ptype[ptype] = by_ptype.get(ptype, 0) + 1
+            traces_per_prob_dist["1_trace"] = traces_per_prob_dist.get("1_trace", 0) + 1
+
+            total_tokens += int(gold_trace.get("metadata", {}).get("completion_tokens", len(gold_trace["completion"].split())))
+            total_words += len(gold_trace["completion"].split())
+            total_scores += 1.0
+            continue
+
+        # Sort candidates: highest judge score first, then longer length
+        def _trace_sort_key(t: Dict[str, Any]) -> Tuple[float, int]:
+            score_dict = t.get("score")
+            score_val = 0.0
+            if isinstance(score_dict, dict):
+                score_val = float(score_dict.get("overall_score", 0.0))
+            elif isinstance(score_dict, (int, float)):
+                score_val = float(score_dict)
+            return (score_val, len(t.get("completion", "")))
+
+        sorted_candidates = sorted(candidates, key=_trace_sort_key, reverse=True)
+
+        selected_for_problem: List[Dict[str, Any]] = []
+
+        # Trace 1: Best overall candidate
+        trace_1 = dict(sorted_candidates[0])
+        trace_1["rank_within_problem"] = 1
+        trace_1["is_gold_fallback"] = False
+        trace_1["source"] = "synthetic"
+        selected_for_problem.append(trace_1)
+
+        # Trace 2: Best candidate preferring DIFFERENT prompt strategy, skipping near-duplicates
+        if max_traces_per_problem > 1 and len(sorted_candidates) > 1:
+            t1_comp = trace_1.get("completion", "")
+            t1_type = trace_1.get("prompt_type", "")
+
+            # Tier A: Candidates with different prompt strategy
+            diff_type_candidates = [
+                c for c in sorted_candidates[1:] if c.get("prompt_type") != t1_type
+            ]
+            chosen_t2: Optional[Dict[str, Any]] = None
+
+            for cand in diff_type_candidates:
+                cand_comp = cand.get("completion", "")
+                if is_near_duplicate(cand_comp, t1_comp, threshold=near_dup_threshold):
+                    near_duplicates_pruned += 1
+                    continue
+                chosen_t2 = dict(cand)
+                break
+
+            # Tier B: If no different strategy candidate accepted, check same strategy non-duplicates
+            if chosen_t2 is None:
+                same_type_candidates = [
+                    c for c in sorted_candidates[1:] if c.get("prompt_type") == t1_type
+                ]
+                for cand in same_type_candidates:
+                    cand_comp = cand.get("completion", "")
+                    if is_near_duplicate(cand_comp, t1_comp, threshold=near_dup_threshold):
+                        near_duplicates_pruned += 1
+                        continue
+                    chosen_t2 = dict(cand)
+                    break
+
+            if chosen_t2 is not None:
+                chosen_t2["rank_within_problem"] = 2
+                chosen_t2["is_gold_fallback"] = False
+                chosen_t2["source"] = "synthetic"
+                selected_for_problem.append(chosen_t2)
+
+        # Accumulate metrics for selected traces
+        num_selected = len(selected_for_problem)
+        dist_key = f"{num_selected}_trace" if num_selected == 1 else f"{num_selected}_traces"
+        traces_per_prob_dist[dist_key] = traces_per_prob_dist.get(dist_key, 0) + 1
+
+        for st in selected_for_problem:
+            curated_traces.append(st)
+            synthetic_count += 1
+            ptype = st.get("prompt_type", "unknown")
+            by_ptype[ptype] = by_ptype.get(ptype, 0) + 1
+
+            comp = st.get("completion", "")
+            words = comp.split()
+            tok_count = int(st.get("metadata", {}).get("completion_tokens", len(words)))
+            total_tokens += tok_count
+            total_words += len(words)
+
+            s_dict = st.get("score")
+            s_val = float(s_dict.get("overall_score", 0.85)) if isinstance(s_dict, dict) else 0.85
+            total_scores += s_val
+
+    # Step 4: Strict Zero-Contamination Assertion
+    curated_pids = [t["problem_id"] for t in curated_traces]
+    assert_no_contamination(curated_pids, splits_dir=splits_dir)
+
+    # Step 5: Compile Statistics
+    total_curated = len(curated_traces)
+    unique_problems = len({t["problem_id"] for t in curated_traces})
+    cov_pct = (unique_problems / target_count * 100.0) if target_count > 0 else 0.0
+
+    mean_tokens = total_tokens / total_curated if total_curated > 0 else 0.0
+    mean_words = total_words / total_curated if total_curated > 0 else 0.0
+    mean_score = total_scores / total_curated if total_curated > 0 else 0.0
+
+    stats = CuratedDatasetStats(
+        total_curated_traces=total_curated,
+        unique_problems_covered=unique_problems,
+        target_problems=target_count,
+        problem_coverage_percent=cov_pct,
+        synthetic_trace_count=synthetic_count,
+        gold_fallback_count=gold_count,
+        by_prompt_type=by_ptype,
+        traces_per_problem_dist=traces_per_prob_dist,
+        near_duplicates_pruned=near_duplicates_pruned,
+        overlength_pruned=overlength_pruned,
+        looping_pruned=looping_pruned,
+        mean_token_count=mean_tokens,
+        mean_word_count=mean_words,
+        mean_judge_score=mean_score,
+        contamination_check_passed=True,
+    )
+
+    return curated_traces, stats
+
+
+def save_curated_dataset(
+    traces: Sequence[Union[Dict[str, Any], CuratedTrace]],
+    output_path: Union[str, Path],
+) -> Path:
+    """Save curated reasoning dataset to JSONL format."""
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        for t in traces:
+            d = t.to_dict() if isinstance(t, CuratedTrace) else dict(t)
+            f.write(json.dumps(d) + "\n")
+    logger.info(f"Saved {len(traces)} curated traces to: {p}")
+    return p
+
+
+def load_curated_dataset(
+    file_path: Union[str, Path],
+) -> List[Dict[str, Any]]:
+    """Load curated reasoning dataset from JSONL format."""
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Curated dataset file not found: {p}")
+    records = []
+    with open(p, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                records.append(json.loads(line))
+    return records
+

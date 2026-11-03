@@ -4,6 +4,45 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 23 — SFT Reasoning Dataset Curation & Contamination Gate
+
+- **Date:** 2026-11-03
+- **Run ID:** `synthetic-20261103_day23_curation`
+- **Branch:** `day-23-curation`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & curation test suite)
+
+### SFT Reasoning Dataset Curation (`src/data/curation.py`, `scripts/curate_data.py`)
+1. **Curation Rules & Strategy Selection:**
+   - Implemented `CuratedTrace`, `CuratedDatasetStats`, `curate_reasoning_dataset`, `build_gold_fallback_trace`, `is_near_duplicate`, and `assert_no_contamination` in `src/data/curation.py`.
+   - Max 2 traces per problem:
+     - Trace 1: Highest judge overall score among all correct candidates.
+     - Trace 2: Highest judge overall score with a *different* prompt strategy (e.g. 1 alternative method + 1 CoT), skipping near-duplicates (Jaccard $\ge 0.85$). If no different strategy candidate exists, takes the highest-scoring non-duplicate of the same strategy.
+   - Near-duplicate deduplication: Character 4-gram Jaccard similarity filter pruning redundant completions.
+   - Quality filters: Prunes traces exceeding 512 tokens or exhibiting repetitive looping n-grams.
+   - Fallback: Unsolved problems without correct synthetic generations are automatically completed using their cleaned human gold reference solution from GSM8K.
+
+2. **Strict Zero-Contamination Gate:**
+   - Asserted that zero validation (`val_ids.json`) or test (`test_ids.json`) problem IDs appear in the curated dataset (`assert_no_contamination`).
+   - Verified 0 leaks across 500 validation and 1,319 test problems.
+
+3. **Curated Output & Baseline Statistics:**
+   - Curated 200 high-quality traces across 100 dev baseline problems:
+     - 100 alternative_method (50.0%) + 100 chain_of_thought (50.0%).
+     - 100% of problems have 2 distinct prompt strategies.
+     - Average completion tokens: 46.4 tokens, average judge score: 0.8850.
+     - 0 near-duplicates retained, 0 overlength traces.
+   - Saved curated JSONL to `data/synthetic/curated/traces_curated_sft.jsonl`.
+   - Generated diagnostics reports `reports/day23_curation.md` and `reports/day23_curation_report.json`.
+
+4. **Colab Launcher Integration:**
+   - Added Step 20 to `notebooks/00_colab_launcher.ipynb` to execute dataset curation on the full 3,000-problem dataset on Colab G4.
+
+### Verification & Testing
+- **Unit Test Suite:** Expanded `tests/test_curation.py` to 22 tests (added `test_is_near_duplicate`, `test_build_gold_fallback_trace`, `test_assert_no_contamination`, `test_curate_reasoning_dataset_at_most_2_and_strategy_diversity`, and `test_cli_curate_data_script_execution`). All 22 tests pass. Total test suite: 216 tests pass.
+- **Ruff Lint Check:** 0 lint errors (`ruff check src tests scripts` passed).
+- **Deliverables:** `src/data/curation.py`, `src/data/__init__.py`, `scripts/curate_data.py`, `tests/test_curation.py`, `notebooks/00_colab_launcher.ipynb`, `data/synthetic/curated/traces_curated_sft.jsonl`, `reports/day23_curation.md`, `reports/day23_curation_report.json`.
+
 ## Run Entry: Phase 3 Day 22 — Full-Scale LLM Judge Scoring & Distribution Analysis
 
 - **Date:** 2026-11-03
