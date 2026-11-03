@@ -4,6 +4,54 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 3 Day 24 — Reasoning Trace Inspection, Qualitative Audit & Diagnostics
+
+- **Date:** 2026-11-03
+- **Run ID:** `synthetic-20261103_day24_inspection`
+- **Branch:** `day-24-inspection`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic sample verification & inspection test suite)
+
+### Reasoning Trace Inspection & Systematic Audit (`scripts/inspect_reasoning_traces.py`, `notebooks/02_inspect_reasoning_traces.ipynb`)
+1. **100-Trace Systematic Qualitative Review:**
+   - Sampled and audited 50 representative kept traces from `traces_curated_sft.jsonl` (balanced across `chain_of_thought` and `alternative_method` strategies, covering high/median score bands).
+   - Sampled and audited 50 representative rejected traces across canonical failure categories:
+     - `incorrect_final_answer`: Arithmetic calculation errors in intermediate steps leading to wrong final answer.
+     - `missing_canonical_format`: Omission of standard `#### <number>` final line delimiter.
+     - `truncated_completion`: Incomplete thoughts truncated by max token limit (512 tokens).
+     - `repetitive_ngram_loop`: Degenerate repeating 4-gram loops identified by loop detector.
+     - `near_duplicate_pruned`: Redundant derivations with character 4-gram Jaccard similarity $\ge 0.85$.
+     - `unselected_lower_rank`: Correct solutions with lower judge score or redundant strategy within problem.
+   - Identified zero systematic format deviations or reasoning pathologies in the kept traces.
+
+2. **Yield & Problem-Level Difficulty Distribution:**
+   - Analyzed 100 dev baseline problems across difficulty bins:
+     - Easy ($pass\_rate = 1.0$): 100.0% (100 problems).
+     - Full 3,000-problem target distribution indexed for Phase 6 GRPO student learning variance.
+   - 100% problem coverage achieved with 2 traces per problem (200 total curated traces).
+
+3. **Response Length Distribution Percentiles:**
+   - Overall curated word counts: Mean = 36.6 words, Std = 6.2 words, Median = 35 words.
+   - Percentiles: P25 = 32 words, P50 = 35 words, P75 = 41 words, P95 = 47 words, P99 = 52 words.
+   - Token lengths: Mean = 46.4 tokens, Max = 73 tokens (well within the 512-token ceiling).
+   - Strategy breakdown:
+     - `chain_of_thought`: Mean = 35.3 words, Median = 34 words.
+     - `alternative_method`: Mean = 37.9 words, Median = 37 words.
+
+4. **Judge Score Spread & Calibration:**
+   - Curated traces judge scores: Mean = 0.8850, Median = 0.8850, Min = 0.8250, Max = 0.9400.
+   - Healthy dispersion across prompt strategies without extreme top-clustering (<60% above 0.90).
+   - Relative within-problem ranking successfully paired distinct derivation strategies for every problem.
+
+5. **Deliverables & Artifacts:**
+   - Interactive inspection notebook: `notebooks/02_inspect_reasoning_traces.ipynb` with 7 structured sections.
+   - Diagnostics reports: `reports/day24_inspection_report.md`, `reports/day24_inspection_report.json`.
+   - Sample audit traces: `reports/day24_inspection_samples.json` (50 kept + 50 rejected).
+   - Colab Launcher: Added Step 21 to `notebooks/00_colab_launcher.ipynb`.
+   - Unit tests: Created `tests/test_inspection.py` with 9 passing tests. Full project test suite: 225 tests passing.
+
+---
+
 ## Run Entry: Phase 3 Day 23 — SFT Reasoning Dataset Curation & Contamination Gate
 
 - **Date:** 2026-11-03
