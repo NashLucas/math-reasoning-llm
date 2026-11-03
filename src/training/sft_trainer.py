@@ -36,10 +36,15 @@ except ImportError:
 
 try:
     from transformers import Trainer, TrainingArguments
+    from transformers.utils import is_accelerate_available
     HAS_TRANSFORMERS = True
 except ImportError:
     Trainer = None
     TrainingArguments = None
+
+    def is_accelerate_available() -> bool:
+        return False
+
     HAS_TRANSFORMERS = False
 
 try:
@@ -321,10 +326,20 @@ def build_sft_trainer(
     output_dir: Optional[Union[str, Path]] = None,
     max_steps: Optional[int] = None,
 ) -> Any:
-    """Build and return an SFTTrainer instance, or MockSFTTrainer in non-torch environments."""
+    """Build and return an SFTTrainer instance, or MockSFTTrainer in non-torch / mock environments."""
     collator = CompletionOnlyDataCollator(tokenizer=tokenizer)
 
-    if not HAS_TORCH or not HAS_TRANSFORMERS or Trainer is None:
+    is_mock = (
+        isinstance(model, MockModel)
+        or getattr(model, "__class__", None).__name__ == "MockModel"
+        or not HAS_TORCH
+        or not HAS_TRANSFORMERS
+        or Trainer is None
+        or (HAS_TORCH and torch is not None and not isinstance(model, torch.nn.Module))
+        or not is_accelerate_available()
+    )
+
+    if is_mock:
         logger.info("Building MockSFTTrainer for testing/dry-run environment.")
         return MockSFTTrainer(
             model=model,
@@ -399,23 +414,27 @@ def run_sft_training(
 
     # 1. Load Model and Tokenizer
     logger.info(f"Initializing model and tokenizer: {model_name_or_path}")
-    try:
-        from src.model import load_tokenizer
-        tokenizer = load_tokenizer(model_name_or_path, padding_side="right")
-    except Exception as exc:
-        logger.warning(f"Could not load real tokenizer ({exc}). Using mock tokenizer.")
+    if model_name_or_path.startswith("mock"):
         tokenizer = MockTokenizer()
-
-    try:
-        from src.model import load_model
-        model = load_model(
-            model_name_or_path,
-            torch_dtype="bfloat16" if device != "cpu" else "float32",
-            device_map="auto" if device != "cpu" else "cpu",
-        )
-    except Exception as exc:
-        logger.warning(f"Could not load real model ({exc}). Using mock model.")
         model = MockModel()
+    else:
+        try:
+            from src.model import load_tokenizer
+            tokenizer = load_tokenizer(model_name_or_path, padding_side="right")
+        except Exception as exc:
+            logger.warning(f"Could not load real tokenizer ({exc}). Using mock tokenizer.")
+            tokenizer = MockTokenizer()
+
+        try:
+            from src.model import load_model
+            model = load_model(
+                model_name_or_path,
+                torch_dtype="bfloat16" if device != "cpu" else "float32",
+                device_map="auto" if device != "cpu" else "cpu",
+            )
+        except Exception as exc:
+            logger.warning(f"Could not load real model ({exc}). Using mock model.")
+            model = MockModel()
 
     eos_str = getattr(tokenizer, "eos_token", "<|eos|>") or "<|eos|>"
 
