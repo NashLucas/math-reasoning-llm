@@ -709,6 +709,8 @@ def run_grpo_training(
         "checkpoints_saved": [p.name for p in get_checkpoints(out_dir)],
         "adapter_dir": str(adapter_out),
         "plot_saved": has_plot,
+        "train_history": train_history,
+        "val_history": val_history,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     }
 
