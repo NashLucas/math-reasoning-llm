@@ -38,6 +38,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 class TestSetWallError(Exception):
     """Raised when validation or test problems leak into training data."""
 
+    __test__ = False
+
 
 @dataclass
 class Round2Example:
