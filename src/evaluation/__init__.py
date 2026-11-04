@@ -40,6 +40,12 @@ from src.evaluation.phase5_verifier import (
     save_phase5_summary_json,
     verify_all_phase5_gates,
 )
+from src.evaluation.phase7_verifier import (
+    Phase7GateSummary,
+    generate_phase7_wrapup_report,
+    run_phase7_wrapup,
+    verify_all_phase7_gates,
+)
 from src.evaluation.round_comparator import (
     ComparisonDecision,
     ProblemComparisonRecord,
@@ -74,6 +80,10 @@ __all__ = [
     "generate_phase5_wrapup_report",
     "save_phase5_summary_json",
     "run_phase5_wrapup",
+    "Phase7GateSummary",
+    "verify_all_phase7_gates",
+    "generate_phase7_wrapup_report",
+    "run_phase7_wrapup",
     "FinalBenchmarkEvaluator",
     "TestUnfreezeManifest",
     "verify_and_unfreeze_test_set",
