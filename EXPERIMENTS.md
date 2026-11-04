@@ -4,6 +4,50 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 6 Day 43 — GRPO Rollout Generation & Policy Update Engine
+
+- **Date:** 2026-11-04
+- **Run ID:** `grpo_engine-20261104_day43_engine`
+- **Branch:** `day-43-grpo-engine`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (CPU loss formula benchmarks & mock trajectory engine verification)
+
+### Objectives & Loss Formulation (DeepSeekMath GRPO Policy Engine)
+- Implemented and verified the complete Group Relative Policy Optimization (GRPO) rollout generation and policy update engine:
+  - Eliminates the critic/value network $V_\phi(s)$ entirely, cutting memory overhead by ~50% to fit within Colab 15-16GB VRAM bounds.
+  - Samples $G = 4$ candidate rollouts per prompt with sampling temperature $T = 0.7$ and nucleus top-$p = 0.95$.
+  - Normalizes candidate rewards group-relatively into scalar advantages:
+    $$A_i = \frac{R_i - \text{mean}(\{R_j\}_{j=1}^G)}{\text{std}(\{R_j\}_{j=1}^G) + \epsilon}$$
+  - Computes completion-only, length-normalized clipped surrogate policy gradient loss (DeepSeekMath formulation):
+    $$\mathcal{L}_{\text{PG}}(\theta) = -\frac{1}{G}\sum_{i=1}^G \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \min\left( r_{i,t}(\theta)A_i, \text{clip}(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon)A_i \right)$$
+    where $r_{i,t}(\theta) = \frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\text{old}}(o_{i,t} \mid q, o_{i,<t})}$.
+  - Integrates reference policy divergence penalty via Schulman $k_3$ estimator ($\beta = 0.04$):
+    $$\mathcal{L}_{\text{GRPO}}(\theta) = \mathcal{L}_{\text{PG}}(\theta) + \beta \cdot D_{\text{KL}}^{\text{k3}}(\pi_\theta \parallel \pi_{\text{ref}})$$
+- Validated core mathematical invariants:
+  - **Zero-Advantage Invariance:** If all rollouts receive identical rewards, $A_i = 0$ for all $i$, yielding identically zero policy gradient loss ($\mathcal{L}_{\text{PG}} = 0.0$).
+  - **Pessimistic Clipping:** Conservative clipping prevents policy collapse from outlier probability ratios.
+  - **Completion-Only Length Normalization:** Per-completion normalization prevents long rambling solutions from dominating the policy update gradient.
+
+### Deliverables & Reports (`src/training/`, `scripts/`, `reports/`)
+- **Engine Module (`src/training/grpo_engine.py`):**
+  - Dataclasses: `GRPORolloutGroup`, `GRPOLossMetrics`.
+  - Loss Functions: `compute_grpo_loss` (math / pure Python/NumPy), `compute_grpo_loss_torch` (PyTorch completion-masked loss).
+  - Orchestrators: `GRPORolloutSampler` (vLLM / HuggingFace batch candidate sampling), `GRPOTrainerEngine` (training step, validation, checkpointing, optimizer management).
+  - Exported all symbols in `src/training/__init__.py`.
+- **CLI Verification Runner (`scripts/verify_grpo_engine.py`):**
+  - Evaluates mathematical loss formulas, gradient clipping, zero-advantage invariance, KL divergence integration, simulated mini-batch updates, checkpoint serialization, and validation tracking.
+- **Audit Reports:**
+  - Emitted `reports/day43_grpo_engine_report.md` and `reports/day43_grpo_engine_report.json`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 40: "Phase 6 Day 43 — GRPO Rollout Generation & Policy Update Engine".
+- **Unit Testing Suite (`tests/test_grpo_engine.py`):**
+  - Implemented 11 unit tests verifying loss formulas, clipping boundaries, zero-advantage invariance, KL penalty scaling, PyTorch tensor compatibility, rollout sampler group structures, advantage normalization, trainer step updates, validation loss tracking, and checkpoint saving.
+  - All 11 tests passed in 9.0s. Full repository test suite passing (398 tests).
+
+---
+
 ## Run Entry: Phase 6 Day 42 — Reference Model Management & KL Divergence Tracking
 
 - **Date:** 2026-11-04

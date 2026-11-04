@@ -1,0 +1,95 @@
+{
+  "timestamp_utc": "2026-11-04T09:47:01.759139+00:00",
+  "rollout_benchmark": {
+    "prompt_id": "test_p1",
+    "group_size": 4,
+    "rewards": [
+      1.7,
+      1.7,
+      0.7,
+      1.5
+    ],
+    "advantages": [
+      0.7276,
+      0.7276,
+      -1.6977,
+      0.2425
+    ],
+    "mean_reward": 1.4,
+    "std_reward": 0.412310562561766,
+    "mean_advantage": 1.457167719820518e-16,
+    "std_advantage": 0.9999999757464382,
+    "all_completions": [
+      "Let's think step by step.\nStep 1: 10 + 5 = 15.\nStep 2: 15 * 2 = 30.\n#### 30",
+      "Step 1: First, compute 50 - 20 = 30.\n#### 30",
+      "Step 1: Incorrect calculation yields 999.\n#### 999",
+      "#### 30"
+    ]
+  },
+  "clipped_loss": {
+    "exact_ratio_loss": 0.0,
+    "mild_shift_loss": 0.0,
+    "clipped_shift_loss": 0.15000000000000002,
+    "clipped_fraction": 1.0,
+    "zero_advantage_loss": 0.0,
+    "clipping_functional": true,
+    "zero_advantage_produces_zero_loss": true
+  },
+  "trajectory_simulation": {
+    "trajectory": [
+      {
+        "step": 1,
+        "prompt_id": "gsm8k_train_001",
+        "total_loss": -0.0001,
+        "policy_loss": -0.0017,
+        "kl_penalty": 0.0017,
+        "mean_reward": 1.4,
+        "mean_advantage": 0.0,
+        "clip_fraction": 0.0
+      },
+      {
+        "step": 2,
+        "prompt_id": "gsm8k_train_002",
+        "total_loss": 0.0043,
+        "policy_loss": 0.0026,
+        "kl_penalty": 0.0017,
+        "mean_reward": 1.4,
+        "mean_advantage": 0.0,
+        "clip_fraction": 0.0
+      },
+      {
+        "step": 3,
+        "prompt_id": "gsm8k_train_003",
+        "total_loss": 0.0011,
+        "policy_loss": -0.0006,
+        "kl_penalty": 0.0017,
+        "mean_reward": 1.4,
+        "mean_advantage": 0.0,
+        "clip_fraction": 0.0
+      },
+      {
+        "step": 4,
+        "prompt_id": "gsm8k_train_004",
+        "total_loss": -0.0009,
+        "policy_loss": -0.0026,
+        "kl_penalty": 0.0017,
+        "mean_reward": 1.4,
+        "mean_advantage": 0.0,
+        "clip_fraction": 0.0
+      },
+      {
+        "step": 5,
+        "prompt_id": "gsm8k_train_005",
+        "total_loss": 0.0004,
+        "policy_loss": -0.0013,
+        "kl_penalty": 0.0017,
+        "mean_reward": 1.4,
+        "mean_advantage": 0.0,
+        "clip_fraction": 0.0
+      }
+    ],
+    "final_step": 5,
+    "mean_loss": 0.0009600000000000001,
+    "mean_reward": 1.4
+  }
+}

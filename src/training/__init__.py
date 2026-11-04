@@ -13,6 +13,15 @@ from src.training.checkpointing import (
     parse_checkpoint_step,
     prune_checkpoints,
 )
+from src.training.grpo_engine import (
+    GRPOLossMetrics,
+    GRPORolloutGroup,
+    GRPORolloutSampler,
+    GRPOTrainerEngine,
+    compute_grpo_loss,
+    compute_grpo_loss_torch,
+    load_grpo_engine_config,
+)
 from src.training.sft_trainer import (
     CompletionOnlyDataCollator,
     MockSFTTrainer,
@@ -36,4 +45,11 @@ __all__ = [
     "parse_checkpoint_step",
     "prune_checkpoints",
     "run_sft_training",
+    "GRPOLossMetrics",
+    "GRPORolloutGroup",
+    "GRPORolloutSampler",
+    "GRPOTrainerEngine",
+    "compute_grpo_loss",
+    "compute_grpo_loss_torch",
+    "load_grpo_engine_config",
 ]
