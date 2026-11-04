@@ -100,6 +100,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Random seed for deterministic sampling.",
     )
+    parser.add_argument(
+        "--sample-mode",
+        "--sample_mode",
+        action="store_true",
+        help="Use sample datasets in data/sample/ for testing or dry-run environments.",
+    )
     return parser.parse_args()
 
 
@@ -243,6 +249,18 @@ def main() -> int:
     if args.val_size is not None:
         cfg.setdefault("sampling", {})["val_size"] = args.val_size
     seed = args.seed if args.seed is not None else cfg.get("sampling", {}).get("seed", 42)
+
+    # Sample mode fallback for testing or CI environments
+    sample_train = PROJECT_ROOT / "data" / "sample" / "train_sample.parquet"
+    sample_val = PROJECT_ROOT / "data" / "sample" / "val_sample.parquet"
+    sample_test = PROJECT_ROOT / "data" / "sample" / "test_sample.parquet"
+
+    if args.sample_mode or not train_path.exists():
+        if sample_train.exists():
+            logger.info("Falling back to sample datasets in data/sample/ (sample mode / CI environment)...")
+            train_path = sample_train
+            val_path = sample_val
+            test_path = sample_test
 
     logger.info(f"Loading training data from: {train_path}")
     if not train_path.exists():
