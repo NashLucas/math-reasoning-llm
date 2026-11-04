@@ -1143,27 +1143,40 @@ class QuestionEmbedder:
                     e,
                 )
 
-        # Fallback via sklearn TfidfVectorizer
-        from sklearn.feature_extraction.text import TfidfVectorizer
-
-        vec = TfidfVectorizer(max_features=384, stop_words="english", ngram_range=(1, 2))
+        # Fallback via sklearn TfidfVectorizer (or pure-python term frequency if sklearn missing)
         try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+
+            vec = TfidfVectorizer(max_features=384, stop_words="english", ngram_range=(1, 2))
             raw = vec.fit_transform(texts).toarray()
             norms = np.linalg.norm(raw, axis=1, keepdims=True)
             norms[norms == 0.0] = 1.0
             return (raw / norms).astype(np.float32), "tfidf_fallback"
-        except Exception as e:
-            logger.warning("TF-IDF vectorizer failed (%s); using deterministic hash fallback.", e)
-            vecs = []
+        except (ImportError, Exception) as e:
+            logger.info("sklearn unavailable (%s); using pure-python term-frequency vectorizer.", e)
+            stop_words = {
+                "the", "a", "an", "is", "and", "or", "to", "in", "of", "how", "many",
+                "what", "does", "did", "he", "she", "they", "his", "her", "their",
+                "with", "has", "had", "have", "for", "are", "each", "was", "were",
+            }
+            vocab: Dict[str, int] = {}
+            doc_tokens: List[List[str]] = []
             for t in texts:
-                h = np.zeros(64, dtype=np.float32)
-                for c in t.lower():
-                    h[ord(c) % 64] += 1.0
-                norm = np.linalg.norm(h)
-                if norm > 0:
-                    h /= norm
-                vecs.append(h)
-            return np.array(vecs, dtype=np.float32), "hash_fallback"
+                tokens = [w for w in re.findall(r"\b[a-zA-Z]{2,}\b", t.lower()) if w not in stop_words]
+                doc_tokens.append(tokens)
+                for w in tokens:
+                    if w not in vocab and len(vocab) < 384:
+                        vocab[w] = len(vocab)
+
+            dim = max(1, len(vocab))
+            matrix = np.zeros((len(texts), dim), dtype=np.float32)
+            for i, tokens in enumerate(doc_tokens):
+                for w in tokens:
+                    if w in vocab:
+                        matrix[i, vocab[w]] += 1.0
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            norms[norms == 0.0] = 1.0
+            return (matrix / norms).astype(np.float32), "term_frequency_fallback"
 
 
 class ErrorClusterer:
@@ -1237,9 +1250,24 @@ class ErrorClusterer:
 
                 kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=10)
                 labels = kmeans.fit_predict(embeddings)
-            except Exception as e:
-                logger.warning("KMeans failed (%s); assigning round-robin clusters.", e)
-                labels = np.array([i % k for i in range(n_samples)])
+            except (ImportError, Exception) as e:
+                logger.info("sklearn KMeans unavailable (%s); executing deterministic cosine k-means.", e)
+                rng = np.random.default_rng(self.random_state)
+                init_idx = rng.choice(n_samples, size=k, replace=False)
+                centers = embeddings[init_idx].copy()
+                labels = np.zeros(n_samples, dtype=int)
+                for _ in range(15):
+                    sims = np.dot(embeddings, centers.T)
+                    new_labels = np.argmax(sims, axis=1)
+                    if np.array_equal(labels, new_labels):
+                        break
+                    labels = new_labels
+                    for c_i in range(k):
+                        mask = (labels == c_i)
+                        if np.any(mask):
+                            c_new = np.mean(embeddings[mask], axis=0)
+                            norm = np.linalg.norm(c_new)
+                            centers[c_i] = c_new / (norm if norm > 0 else 1.0)
 
         # Group indices by cluster
         clusters_dict: Dict[int, List[int]] = {c: [] for c in range(k)}
