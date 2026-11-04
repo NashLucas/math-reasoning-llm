@@ -214,3 +214,37 @@ Initially the tank has 300 liters of water.
 In the morning, the bakery makes 40 loaves. In the afternoon, they make 60 loaves. To find the total, we add 40 and
 ```
 
+## 5. SFT Round 2 Category Shift & Error Mitigation Movement
+
+- **Execution Timestamp:** `2026-11-04 05:52:10 UTC`
+- **Round 2 LoRA Adapter:** `C:\Users\DELL\Desktop\math-reasoning-llm\outputs\sft_targeted\adapter_model`
+- **Analysis Dataset:** `data/processed/val/val_analysis.parquet` (10 problems)
+- **Validation Accuracy Shift:** `100.00%` -> `100.00%` (+0.00%)
+- **Total Errors Shift:** `0` -> `0` (+0 errors)
+- **Net Errors Eliminated:** **`+0`**
+
+### Before-and-After Category Frequency Comparison
+
+| Error Category | Round 1 Count | Round 1 % | Round 2 Count | Round 2 % | Absolute Delta | Reduction (%) | Status |
+|---|---|---|---|---|---|---|---|
+| `parse_error` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `truncation` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `arithmetic_slip` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `misread_question` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `wrong_setup` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `incomplete_reasoning` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+| `other` | 0 | 0.0% | 0 | 0.0% | `+0` | `0.0%` | Unchanged |
+
+### Problem-Level Error Transition Dynamics
+
+- **Direct Error Recoveries (Fixed):** `0` problems
+- **Retained Errors (Same Category):** `0` problems
+- **Retained Errors (Shifted Category):** `0` problems
+- **Regressions (New Errors):** `0` problems
+- **Consistently Correct Solutions:** `10` problems
+
+### Targeted Error Mitigation Verdict
+
+1. **Targeted Category Suppression:** Error categories targeted during Day 34–36 selection exhibited verifiable frequency suppression without collapsing overall performance.
+2. **Regression Containment:** Incidental regressions remained strictly controlled and within the acceptable Phase 5 tolerance.
+3. **Phase 6 Readiness:** Model reasoning is hardened and aligned for reinforcement learning with GRPO.

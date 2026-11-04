@@ -1,0 +1,270 @@
+{
+  "timestamp": "2026-11-04T05:52:10.913771+00:00",
+  "stage": "category_shift_analysis",
+  "phase": 5,
+  "day": 38,
+  "base_model": "deepseek-ai/deepseek-math-7b-base",
+  "round2_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+  "val_analysis_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\val\\val_analysis.parquet",
+  "summary": {
+    "total_evaluated": 10,
+    "round1_accuracy": 100.0,
+    "round2_accuracy": 100.0,
+    "accuracy_delta": 0.0,
+    "round1_error_count": 0,
+    "round2_error_count": 0,
+    "error_count_delta": 0,
+    "net_errors_eliminated": 0,
+    "category_metrics": [
+      {
+        "category": "parse_error",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "truncation",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "arithmetic_slip",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "misread_question",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "wrong_setup",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "incomplete_reasoning",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      },
+      {
+        "category": "other",
+        "round1_count": 0,
+        "round1_percentage": 0.0,
+        "round2_count": 0,
+        "round2_percentage": 0.0,
+        "absolute_change": 0,
+        "relative_change": 0.0,
+        "percent_reduction": 0.0,
+        "status": "Unchanged"
+      }
+    ],
+    "transition_counts": {
+      "fixed": 0,
+      "retained_same": 0,
+      "retained_shifted": 0,
+      "regressed": 0,
+      "consistently_correct": 10
+    },
+    "transitions_sample": [
+      {
+        "problem_id": "gsm8k_2e0ade69589fa376",
+        "question": "Steve wanted to make a total of $100 within four days, so he took on a berry-picking job in Sweden. The job paid $2 for every pound of lingonberries picked. On Monday he picked 8 pounds. Tuesday\u2019s harvest was triple what he had picked the previous day. On Wednesday he felt very tired and decided to rest. How many pounds of lingonberries did Steve have to pick on Thursday?",
+        "gold_answer": "18",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_148db5b4cd90eeb8",
+        "question": "Grady has 20 red numbered cubes and 15 blue numbered cubes. He gives his friend Gage 2/5 of his red numbered cubes and 1/3 of the blue numbered cubes. If Gage had 10 red numbered cubes and 12 blue numbered cubes, find the total number of cubes Gage has?",
+        "gold_answer": "35",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_bc7fb141d5a98912",
+        "question": "Mark has an egg farm. His farm supplies one store with 5 dozen eggs and another store with 30 eggs each day. How many eggs does he supply these two stores in a week?",
+        "gold_answer": "630",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_942394c590922956",
+        "question": "Thomas is 6 years old. His older sister, Shay, is 13 years older than him and 5 years younger than their older brother, James. How old will James be by the time Thomas reaches his current age?",
+        "gold_answer": "42",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_f3f6eed664e61a36",
+        "question": "Last week, a farmer shipped 10 boxes of pomelos which had 240 pomelos in all. This week, the farmer shipped 20 boxes. How many dozens of pomelos did the farmer ship in all?",
+        "gold_answer": "60",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_ea7e4a321247fafc",
+        "question": "Justice has 3 ferns, 5 palms, and 7 succulent plants in her house. If she wants a total of 24 plants in her home, how many more plants does she need?",
+        "gold_answer": "9",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_96817dd03351f2e4",
+        "question": "If a tarantula has eight legs, and one tarantula egg sac can contain 1000 tarantulas, how many baby tarantula legs would be in one less than 5 egg sacs?",
+        "gold_answer": "32000",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_3a16324c1f7df387",
+        "question": "Ray has 175 cents in nickels. Ray gives 30 cents to Peter, and he gives twice as many cents to Randi as he gave to Peter. How many more nickels does Randi have than Peter?",
+        "gold_answer": "6",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_cc82c81c82bf907e",
+        "question": "Preston has a sandwich shop. He charges $5 for each sandwich. He also charges $20 for a delivery fee. Abra Company orders 18 sandwiches from Preston and also tips him 10%. How much total, in dollars, did Preston receive?",
+        "gold_answer": "121",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      },
+      {
+        "problem_id": "gsm8k_da9a9eb03cb6bd99",
+        "question": "Yolanda leaves home for work at 7:00 AM, riding her bike at 20 miles per hour. 15 minutes after she leaves, her husband realizes that she forgot her lunch, and jumps in the car to bring it to her. If he drives at 40 miles per hour and follows the exact same route as Yolanda, how many minutes will it take him to catch her?",
+        "gold_answer": "15",
+        "r1_correct": true,
+        "r1_category": null,
+        "r2_correct": true,
+        "r2_category": null,
+        "transition_type": "consistently_correct"
+      }
+    ]
+  },
+  "round1_summary": {
+    "total_evaluated": 250,
+    "correct_count": 238,
+    "error_count": 12,
+    "accuracy": 95.2,
+    "error_rate": 4.8,
+    "category_counts": {
+      "parse_error": 0,
+      "truncation": 0,
+      "arithmetic_slip": 0,
+      "misread_question": 0,
+      "wrong_setup": 0,
+      "incomplete_reasoning": 12,
+      "other": 0
+    },
+    "category_percentages": {
+      "parse_error": 0.0,
+      "truncation": 0.0,
+      "arithmetic_slip": 0.0,
+      "misread_question": 0.0,
+      "wrong_setup": 0.0,
+      "incomplete_reasoning": 100.0,
+      "other": 0.0
+    },
+    "rule_based_count": 0,
+    "rule_based_percentage": 0.0,
+    "semantic_count": 12,
+    "semantic_percentage": 100.0,
+    "sources": {
+      "heuristic_fallback": 12
+    }
+  },
+  "round2_summary": {
+    "total_evaluated": 10,
+    "correct_count": 10,
+    "error_count": 0,
+    "accuracy": 100.0,
+    "error_rate": 0.0,
+    "category_counts": {
+      "parse_error": 0,
+      "truncation": 0,
+      "arithmetic_slip": 0,
+      "misread_question": 0,
+      "wrong_setup": 0,
+      "incomplete_reasoning": 0,
+      "other": 0
+    },
+    "category_percentages": {
+      "parse_error": 0.0,
+      "truncation": 0.0,
+      "arithmetic_slip": 0.0,
+      "misread_question": 0.0,
+      "wrong_setup": 0.0,
+      "incomplete_reasoning": 0.0,
+      "other": 0.0
+    },
+    "rule_based_count": 0,
+    "rule_based_percentage": 0.0,
+    "semantic_count": 0,
+    "semantic_percentage": 0.0,
+    "sources": {}
+  },
+  "plot_path": null
+}
