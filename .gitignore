@@ -57,6 +57,7 @@ data/raw/
 data/processed/
 data/synthetic/
 !data/synthetic/curated/traces_curated_sft_manifest.json
+!data/processed/sft_round2/manifest.json
 data/targeted/
 data/safety/
 

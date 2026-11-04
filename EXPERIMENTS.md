@@ -4,6 +4,59 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 35 — Round-2 SFT Combined Dataset Freeze
+
+- **Date:** 2026-11-04
+- **Run ID:** `data_preparation-20261104_day35_round2_dataset`
+- **Branch:** `day-35-round2-dataset`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (deterministic merge, token statistics, hashing, and safety checks)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Combined Phase 3 curated reasoning traces (`data/synthetic/curated/traces_curated_sft.jsonl`) with Phase 5 Day 34 error-targeted training examples (`data/targeted/targeted_examples.jsonl`) into a unified Round-2 SFT training corpus.
+- **Targeted Weighting (`duplicate_targeted: true`):**
+  - Included error-targeted training examples twice to provide 2x gradient exposure during Round-2 SFT, preventing targeted examples from being diluted by the broader curated pool.
+- **Design Rule 1 (The Answer Contract) Verification:**
+  - 100.0% of completions normalized and verified to end in canonical `#### <number>` followed by `<|eos|>`.
+- **Design Rule 2 (The Test-Set Wall) Verification:**
+  - Validated against all 1,819 forbidden IDs (`val_ids.json` [500], `val_analysis_ids.json` [250], `val_gating_ids.json` [250], `test_ids.json` [1,319]).
+  - Leaked IDs detected: 0.
+  - Test contamination check: 0 exact matches, 0 unreviewed 13-gram overlaps with test questions.
+
+### Dataset Composition & Cryptographic Checksums (`data/processed/sft_round2/`)
+- **Total Examples:** 440
+- **Unique Problem IDs:** 120
+- **Curated Traces:** 400 (400 examples)
+- **Targeted Raw Problems:** 20 (40 effective examples with 2x duplication)
+- **Targeted Category Distribution:**
+  - `incomplete_reasoning`: 40 examples (20 raw * 2)
+- **Completion Token Statistics:**
+  - Min: 23 tokens | Median: 57 tokens | Mean: 57.2 tokens | P95: 60 tokens | Max: 115 tokens
+- **Frozen Artifacts:**
+  - `data/processed/sft_round2/train_round2.jsonl` (SHA-256: `c59e69b35b364a6dce208b72cc328f7e76fc8ecf7d4fdae18fc0a9f5fa9f31d0`)
+  - `data/processed/sft_round2/train_round2.parquet` (SHA-256: `20b2a469800854519b924f25b39a2530209ab754820ba9d4b6b89b08bead08a9`)
+  - `data/processed/sft_round2/manifest.json`
+  - `data/processed/sft_round2/run_info.json`
+
+### CLI Runners, Scripts & Colab Integration
+- **CLI Runner (`scripts/freeze_round2_dataset.py`):**
+  - Supports `--curated_file`, `--targeted_file`, `--output_dir`, `--duplicate_targeted`, `--no_duplicate_targeted`, `--seed`, and `--sample_mode`.
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 32: "Phase 5 Day 35 — Prepare & Freeze Round-2 SFT Dataset".
+
+### Unit Testing Suite (`tests/test_round2_dataset.py`)
+- Created comprehensive test suite verifying:
+  - Dataset construction with and without duplication.
+  - Trace ID naming conventions and `is_duplicate` flag tracking.
+  - Canonical format compliance (`#### <number>`).
+  - Test-Set Wall forbidden ID violation rejection (`TestSetWallError`).
+  - Test contamination detection.
+  - Parquet, JSONL, and manifest integrity with SHA-256 match.
+  - CLI runner sample mode execution.
+- All 6 unit tests passed in 28.5s. Full test suite passing.
+
+---
+
 ## Run Entry: Phase 5 Day 34 — Targeted Training Example Selection for Round-2 SFT
 
 - **Date:** 2026-11-04

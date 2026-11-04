@@ -48,6 +48,16 @@ from src.data.sft_dataset import (
     tokenize_sft_example,
     verify_sft_loss_masking,
 )
+from src.data.round2_dataset import (
+    Round2DatasetManifest,
+    Round2Example,
+    TestSetWallError,
+    build_round2_dataset,
+    freeze_round2_dataset,
+    load_curated_examples,
+    load_targeted_examples,
+    verify_round2_dataset_safety,
+)
 from src.data.synthetic import (
     ReasoningTrace,
     TraceSampler,
@@ -60,6 +70,11 @@ from src.data.synthetic import (
 )
 
 __all__ = [
+    "Round2DatasetManifest",
+    "Round2Example",
+    "TestSetWallError",
+    "build_round2_dataset",
+    "freeze_round2_dataset",
     "ANSWER_FORMAT_INSTRUCTION",
     "ContaminationError",
     "CorrectnessFilter",
