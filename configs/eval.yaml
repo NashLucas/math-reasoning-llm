@@ -1,0 +1,94 @@
+# configs/eval.yaml
+# Phase 7: Final Benchmark Evaluation & Serving Configuration
+
+test_data:
+  split: "test"
+  parquet_path: "data/processed/test/test.parquet"
+  manifest_path: "data/splits/manifest.json"
+  expected_count: 1319
+  expected_ids_sha256: "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe"
+  expected_content_sha256: "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488"
+
+benchmark_lineup:
+  - id: "base_7b"
+    name: "DeepSeekMath-7B-Base"
+    type: "base"
+    model_name: "deepseek-ai/deepseek-math-7b-base"
+    adapter_path: null
+    prompt_format: "few_shot"
+    role: "Base Foundation Model (8-shot CoT)"
+  
+  - id: "instruct_7b"
+    name: "DeepSeekMath-7B-Instruct"
+    type: "reference"
+    model_name: "deepseek-ai/deepseek-math-7b-instruct"
+    adapter_path: null
+    prompt_format: "chat"
+    role: "Official Distillation Reference"
+    
+  - id: "rl_7b"
+    name: "DeepSeekMath-7B-RL"
+    type: "reference"
+    model_name: "deepseek-ai/deepseek-math-7b-rl"
+    adapter_path: null
+    prompt_format: "chat"
+    role: "Official RL Reference"
+
+  - id: "sft_round1"
+    name: "Ours: SFT Round 1"
+    type: "adapter"
+    model_name: "deepseek-ai/deepseek-math-7b-base"
+    adapter_path: "outputs/sft/adapter_model"
+    prompt_format: "chat"
+    role: "Phase 4 Post-Trained SFT Model"
+
+  - id: "sft_targeted"
+    name: "Ours: Targeted SFT (Round 2)"
+    type: "adapter"
+    model_name: "deepseek-ai/deepseek-math-7b-base"
+    adapter_path: "outputs/sft_targeted/adapter_model"
+    prompt_format: "chat"
+    role: "Phase 5 Error-Targeted SFT Model"
+
+  - id: "grpo_policy"
+    name: "Ours: Post-GRPO Policy"
+    type: "adapter"
+    model_name: "deepseek-ai/deepseek-math-7b-base"
+    adapter_path: "outputs/grpo/adapter_model"
+    prompt_format: "chat"
+    role: "Phase 6 RL Policy (Advancing Final Model)"
+
+eval_regimes:
+  greedy:
+    description: "Deterministic greedy decoding (T=0.0)"
+    preset: "greedy"
+  sampled:
+    description: "Temperature-sampled generation (T=0.7, top_p=0.95, N=8)"
+    preset: "sampled"
+    num_samples: 8
+    k_values: [1, 4, 8]
+  self_consistency:
+    description: "Majority voting across 8 samples (maj@8)"
+    preset: "self_consistency"
+    num_samples: 8
+
+bootstrap:
+  n_resamples: 1000
+  confidence_level: 0.95
+  random_state: 42
+  metrics:
+    - "accuracy"
+    - "pass_at_1"
+    - "pass_at_4"
+    - "pass_at_8"
+    - "maj_at_8"
+    - "format_compliance"
+
+safety:
+  model_name: "meta-llama/Llama-Guard-3-8B"
+  enabled: true
+  assert_zero_refusals: true
+
+output:
+  results_dir: "outputs/final_eval"
+  reports_dir: "reports"

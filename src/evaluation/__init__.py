@@ -9,6 +9,16 @@ from src.evaluation.category_shift import (
     run_category_shift_analysis,
 )
 from src.evaluation.evaluator import MathEvaluator, TestSetWallError
+from src.evaluation.final_evaluator import (
+    BenchmarkModelSpec,
+    FinalBenchmarkEvaluator,
+    RegimeEvalResult,
+    TestUnfreezeManifest,
+    compute_bootstrap_ci,
+    compute_bootstrap_delta_ci,
+    unbiased_pass_at_k,
+    verify_and_unfreeze_test_set,
+)
 from src.evaluation.phase5_verifier import (
     GateCriterionStatus,
     Phase5GateSummary,
@@ -51,4 +61,12 @@ __all__ = [
     "generate_phase5_wrapup_report",
     "save_phase5_summary_json",
     "run_phase5_wrapup",
+    "FinalBenchmarkEvaluator",
+    "TestUnfreezeManifest",
+    "verify_and_unfreeze_test_set",
+    "compute_bootstrap_ci",
+    "compute_bootstrap_delta_ci",
+    "unbiased_pass_at_k",
+    "BenchmarkModelSpec",
+    "RegimeEvalResult",
 ]

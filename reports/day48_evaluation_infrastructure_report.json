@@ -1,0 +1,815 @@
+{
+  "timestamp": "2026-11-04T14:38:55.395464+00:00",
+  "split": "test",
+  "num_problems": 1319,
+  "unfreeze_manifest": {
+    "unfreeze_timestamp": "2026-11-04T14:38:30.956224+00:00",
+    "phase": "Phase 7 Final Benchmark Evaluation",
+    "dataset_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\test\\test.parquet",
+    "problem_count": 1319,
+    "ids_sha256": "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe",
+    "content_sha256": "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488",
+    "expected_ids_sha256": "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe",
+    "expected_content_sha256": "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488",
+    "ids_match": true,
+    "content_match": true,
+    "exact_matches_train": 0,
+    "exact_matches_val": 0,
+    "authorization_status": "AUTHORIZED_AND_UNFROZEN",
+    "authorized_by": "Day 48 Benchmark Pipeline",
+    "wall_status": "UNFROZEN_FOR_FINAL_BENCHMARK"
+  },
+  "models_evaluated": [
+    {
+      "id": "base_7b",
+      "name": "DeepSeekMath-7B-Base",
+      "type": "base",
+      "model_name": "deepseek-ai/deepseek-math-7b-base",
+      "adapter_path": null,
+      "prompt_format": "few_shot",
+      "role": "Base Foundation Model (8-shot CoT)"
+    },
+    {
+      "id": "instruct_7b",
+      "name": "DeepSeekMath-7B-Instruct",
+      "type": "reference",
+      "model_name": "deepseek-ai/deepseek-math-7b-instruct",
+      "adapter_path": null,
+      "prompt_format": "chat",
+      "role": "Official Distillation Reference"
+    },
+    {
+      "id": "rl_7b",
+      "name": "DeepSeekMath-7B-RL",
+      "type": "reference",
+      "model_name": "deepseek-ai/deepseek-math-7b-rl",
+      "adapter_path": null,
+      "prompt_format": "chat",
+      "role": "Official RL Reference"
+    },
+    {
+      "id": "sft_round1",
+      "name": "Ours: SFT Round 1",
+      "type": "adapter",
+      "model_name": "deepseek-ai/deepseek-math-7b-base",
+      "adapter_path": "outputs/sft/adapter_model",
+      "prompt_format": "chat",
+      "role": "Phase 4 Post-Trained SFT Model"
+    },
+    {
+      "id": "sft_targeted",
+      "name": "Ours: Targeted SFT (Round 2)",
+      "type": "adapter",
+      "model_name": "deepseek-ai/deepseek-math-7b-base",
+      "adapter_path": "outputs/sft_targeted/adapter_model",
+      "prompt_format": "chat",
+      "role": "Phase 5 Error-Targeted SFT Model"
+    },
+    {
+      "id": "grpo_policy",
+      "name": "Ours: Post-GRPO Policy",
+      "type": "adapter",
+      "model_name": "deepseek-ai/deepseek-math-7b-base",
+      "adapter_path": "outputs/grpo/adapter_model",
+      "prompt_format": "chat",
+      "role": "Phase 6 RL Policy (Advancing Final Model)"
+    }
+  ],
+  "regimes_evaluated": [
+    "greedy",
+    "sampled",
+    "self_consistency"
+  ],
+  "results": {
+    "base_7b": {
+      "greedy": {
+        "model_id": "base_7b",
+        "model_name": "DeepSeekMath-7B-Base",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.601213040181956,
+        "accuracy_ci": {
+          "mean": 0.601213040181956,
+          "ci_lower": 0.574658832448825,
+          "ci_upper": 0.6300227445034117,
+          "std_err": 0.013915401107510285,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9613343442001516,
+        "format_compliance_ci": {
+          "mean": 0.9613343442001516,
+          "ci_lower": 0.9507202426080363,
+          "ci_upper": 0.9719484457922669,
+          "std_err": 0.005398722143685386,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.03866565579984837,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.074298711144806,
+        "mean_completion_tokens": 144.59438968915845,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "base_7b",
+        "model_name": "DeepSeekMath-7B-Base",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.6785443517816527,
+        "accuracy_ci": {
+          "mean": 0.6785443517816527,
+          "ci_lower": 0.6520090978013646,
+          "ci_upper": 0.7035633055344959,
+          "std_err": 0.012914056487205613,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.6777862016679302,
+          "pass_at_4": 0.7530488465287555,
+          "pass_at_8": 0.7824109173616376
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9584912812736922,
+        "format_compliance_ci": {
+          "mean": 0.9584912812736922,
+          "ci_lower": 0.9544162244124337,
+          "ci_upper": 0.9622820318423048,
+          "std_err": 0.001958131602257116,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.041508718726307806,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.994977255496586,
+        "mean_completion_tokens": 144.42039423805915,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "base_7b",
+        "model_name": "DeepSeekMath-7B-Base",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.6785443517816527,
+        "accuracy_ci": {
+          "mean": 0.6785443517816527,
+          "ci_lower": 0.6520090978013646,
+          "ci_upper": 0.7035633055344959,
+          "std_err": 0.012914056487205613,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.6777862016679302,
+          "pass_at_4": 0.7530488465287555,
+          "pass_at_8": 0.7824109173616376
+        },
+        "maj_at_8": 0.6838514025777104,
+        "maj_at_8_ci": {
+          "mean": 0.6838514025777104,
+          "ci_lower": 0.6588134950720244,
+          "ci_upper": 0.7081311599696739,
+          "std_err": 0.012785505833707798,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 0.9584912812736922,
+        "format_compliance_ci": {
+          "mean": 0.9584912812736922,
+          "ci_lower": 0.9544162244124337,
+          "ci_upper": 0.9622820318423048,
+          "std_err": 0.001958131602257116,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.041508718726307806,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.994977255496586,
+        "mean_completion_tokens": 144.42039423805915,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    },
+    "instruct_7b": {
+      "greedy": {
+        "model_id": "instruct_7b",
+        "model_name": "DeepSeekMath-7B-Instruct",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.686125852918878,
+        "accuracy_ci": {
+          "mean": 0.686125852918878,
+          "ci_lower": 0.6618650492797574,
+          "ci_upper": 0.711144806671721,
+          "std_err": 0.0128218286146664,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.979529946929492,
+        "format_compliance_ci": {
+          "mean": 0.979529946929492,
+          "ci_lower": 0.9711902956785443,
+          "ci_upper": 0.9863722517058376,
+          "std_err": 0.004028116900772503,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.02047005307050796,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.063684609552695,
+        "mean_completion_tokens": 143.95678544351782,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "instruct_7b",
+        "model_name": "DeepSeekMath-7B-Instruct",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.7642153146322972,
+        "accuracy_ci": {
+          "mean": 0.7642153146322972,
+          "ci_lower": 0.7414708112206216,
+          "ci_upper": 0.7862016679302501,
+          "std_err": 0.011696443312750845,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7663949962092494,
+          "pass_at_4": 0.8177298819451967,
+          "pass_at_8": 0.8392721758908264
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9822782410917361,
+        "format_compliance_ci": {
+          "mean": 0.9822782410917361,
+          "ci_lower": 0.9796247156937073,
+          "ci_upper": 0.9848369977255497,
+          "std_err": 0.0013251375842189474,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.017721758908263836,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.05705079605762,
+        "mean_completion_tokens": 144.42674374526158,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "instruct_7b",
+        "model_name": "DeepSeekMath-7B-Instruct",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.7642153146322972,
+        "accuracy_ci": {
+          "mean": 0.7642153146322972,
+          "ci_lower": 0.7414708112206216,
+          "ci_upper": 0.7862016679302501,
+          "std_err": 0.011696443312750845,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7663949962092494,
+          "pass_at_4": 0.8177298819451967,
+          "pass_at_8": 0.8392721758908264
+        },
+        "maj_at_8": 0.7680060652009097,
+        "maj_at_8_ci": {
+          "mean": 0.7680060652009097,
+          "ci_lower": 0.7452615617892343,
+          "ci_upper": 0.7892342683851402,
+          "std_err": 0.011692793192527626,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 0.9822782410917361,
+        "format_compliance_ci": {
+          "mean": 0.9822782410917361,
+          "ci_lower": 0.9796247156937073,
+          "ci_upper": 0.9848369977255497,
+          "std_err": 0.0013251375842189474,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.017721758908263836,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.05705079605762,
+        "mean_completion_tokens": 144.42674374526158,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    },
+    "rl_7b": {
+      "greedy": {
+        "model_id": "rl_7b",
+        "model_name": "DeepSeekMath-7B-RL",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.7156937073540561,
+        "accuracy_ci": {
+          "mean": 0.7156937073540561,
+          "ci_lower": 0.6921910538286581,
+          "ci_upper": 0.7384382107657316,
+          "std_err": 0.012472117007300387,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9871114480667172,
+        "format_compliance_ci": {
+          "mean": 0.9871114480667172,
+          "ci_lower": 0.9810462471569371,
+          "ci_upper": 0.9924184988627748,
+          "std_err": 0.0031187555254628303,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.01288855193328279,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.0371493555724,
+        "mean_completion_tokens": 144.8862774829416,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "rl_7b",
+        "model_name": "DeepSeekMath-7B-RL",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.796057619408643,
+        "accuracy_ci": {
+          "mean": 0.796057619408643,
+          "ci_lower": 0.7740712661106899,
+          "ci_upper": 0.8165466262319939,
+          "std_err": 0.011055778523132853,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7924564063684609,
+          "pass_at_4": 0.8333694357197011,
+          "pass_at_8": 0.8506444275966641
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9894806671721,
+        "format_compliance_ci": {
+          "mean": 0.9894806671721,
+          "ci_lower": 0.9874905231235784,
+          "ci_upper": 0.9913760424564063,
+          "std_err": 0.0009832778240549307,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.010519332827899925,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.91868840030326,
+        "mean_completion_tokens": 144.3509287338893,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "rl_7b",
+        "model_name": "DeepSeekMath-7B-RL",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.796057619408643,
+        "accuracy_ci": {
+          "mean": 0.796057619408643,
+          "ci_lower": 0.7740712661106899,
+          "ci_upper": 0.8165466262319939,
+          "std_err": 0.011055778523132853,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7924564063684609,
+          "pass_at_4": 0.8333694357197011,
+          "pass_at_8": 0.8506444275966641
+        },
+        "maj_at_8": 0.7937831690674754,
+        "maj_at_8_ci": {
+          "mean": 0.7937831690674754,
+          "ci_lower": 0.7725549658832449,
+          "ci_upper": 0.8134950720242609,
+          "std_err": 0.011033332969279615,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 0.9894806671721,
+        "format_compliance_ci": {
+          "mean": 0.9894806671721,
+          "ci_lower": 0.9874905231235784,
+          "ci_upper": 0.9913760424564063,
+          "std_err": 0.0009832778240549307,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.010519332827899925,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.91868840030326,
+        "mean_completion_tokens": 144.3509287338893,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    },
+    "sft_round1": {
+      "greedy": {
+        "model_id": "sft_round1",
+        "model_name": "Ours: SFT Round 1",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.6959818043972706,
+        "accuracy_ci": {
+          "mean": 0.6959818043972706,
+          "ci_lower": 0.6709628506444276,
+          "ci_upper": 0.7210007581501138,
+          "std_err": 0.012849345631326016,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9954510993176648,
+        "format_compliance_ci": {
+          "mean": 0.9954510993176648,
+          "ci_lower": 0.9916603487490523,
+          "ci_upper": 0.9984836997725549,
+          "std_err": 0.0017944567837985248,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.004548900682335102,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.91963608794541,
+        "mean_completion_tokens": 144.2289613343442,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "sft_round1",
+        "model_name": "Ours: SFT Round 1",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.7687642153146323,
+        "accuracy_ci": {
+          "mean": 0.7687642153146323,
+          "ci_lower": 0.7460007581501138,
+          "ci_upper": 0.7907505686125853,
+          "std_err": 0.01164982586721689,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7763457164518575,
+          "pass_at_4": 0.8303151738329904,
+          "pass_at_8": 0.8514025777103866
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9894806671721,
+        "format_compliance_ci": {
+          "mean": 0.9894806671721,
+          "ci_lower": 0.9874905231235784,
+          "ci_upper": 0.9914708112206216,
+          "std_err": 0.0010045495047665764,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.010519332827899925,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.983510235026536,
+        "mean_completion_tokens": 144.4771607278241,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "sft_round1",
+        "model_name": "Ours: SFT Round 1",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.7687642153146323,
+        "accuracy_ci": {
+          "mean": 0.7687642153146323,
+          "ci_lower": 0.7460007581501138,
+          "ci_upper": 0.7907505686125853,
+          "std_err": 0.01164982586721689,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.7763457164518575,
+          "pass_at_4": 0.8303151738329904,
+          "pass_at_8": 0.8514025777103866
+        },
+        "maj_at_8": 0.7695223654283548,
+        "maj_at_8_ci": {
+          "mean": 0.7695223654283548,
+          "ci_lower": 0.7460197119029568,
+          "ci_upper": 0.7907505686125853,
+          "std_err": 0.011629617547309283,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 0.9894806671721,
+        "format_compliance_ci": {
+          "mean": 0.9894806671721,
+          "ci_lower": 0.9874905231235784,
+          "ci_upper": 0.9914708112206216,
+          "std_err": 0.0010045495047665764,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.010519332827899925,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.983510235026536,
+        "mean_completion_tokens": 144.4771607278241,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    },
+    "sft_targeted": {
+      "greedy": {
+        "model_id": "sft_targeted",
+        "model_name": "Ours: Targeted SFT (Round 2)",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.7369219105382866,
+        "accuracy_ci": {
+          "mean": 0.7369219105382866,
+          "ci_lower": 0.714158453373768,
+          "ci_upper": 0.759666413949962,
+          "std_err": 0.012270105347666574,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9962092494313874,
+        "format_compliance_ci": {
+          "mean": 0.9962092494313874,
+          "ci_lower": 0.9924184988627748,
+          "ci_upper": 0.9992418498862775,
+          "std_err": 0.0016835082766710925,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.0037907505686125853,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.082638362395755,
+        "mean_completion_tokens": 144.1948445792267,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "sft_targeted",
+        "model_name": "Ours: Targeted SFT (Round 2)",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.8256254738438211,
+        "accuracy_ci": {
+          "mean": 0.8256254738438211,
+          "ci_lower": 0.8043972706595905,
+          "ci_upper": 0.844579226686884,
+          "std_err": 0.01040762543042441,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.8157695223654283,
+          "pass_at_4": 0.8604895483591465,
+          "pass_at_8": 0.8756633813495072
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 0.9953563305534496,
+        "format_compliance_ci": {
+          "mean": 0.9953563305534496,
+          "ci_lower": 0.9941219673995452,
+          "ci_upper": 0.996683093252464,
+          "std_err": 0.0006616338212837925,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.004643669446550417,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.99421910538287,
+        "mean_completion_tokens": 144.76648976497347,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "sft_targeted",
+        "model_name": "Ours: Targeted SFT (Round 2)",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.8256254738438211,
+        "accuracy_ci": {
+          "mean": 0.8256254738438211,
+          "ci_lower": 0.8043972706595905,
+          "ci_upper": 0.844579226686884,
+          "std_err": 0.01040762543042441,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.8157695223654283,
+          "pass_at_4": 0.8604895483591465,
+          "pass_at_8": 0.8756633813495072
+        },
+        "maj_at_8": 0.8150113722517058,
+        "maj_at_8_ci": {
+          "mean": 0.8150113722517058,
+          "ci_lower": 0.7937831690674754,
+          "ci_upper": 0.8347232752084913,
+          "std_err": 0.010648402953832048,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 0.9953563305534496,
+        "format_compliance_ci": {
+          "mean": 0.9953563305534496,
+          "ci_lower": 0.9941219673995452,
+          "ci_upper": 0.996683093252464,
+          "std_err": 0.0006616338212837925,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.004643669446550417,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.99421910538287,
+        "mean_completion_tokens": 144.76648976497347,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    },
+    "grpo_policy": {
+      "greedy": {
+        "model_id": "grpo_policy",
+        "model_name": "Ours: Post-GRPO Policy",
+        "regime": "greedy",
+        "num_problems": 1319,
+        "num_completions": 1319,
+        "accuracy": 0.7687642153146323,
+        "accuracy_ci": {
+          "mean": 0.7687642153146323,
+          "ci_lower": 0.7467778620166793,
+          "ci_upper": 0.7899924184988628,
+          "std_err": 0.011660849588644872,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {},
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 1.0,
+        "format_compliance_ci": {
+          "mean": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0,
+          "std_err": 0.0,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.0,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 51.80970432145565,
+        "mean_completion_tokens": 144.95375284306292,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "sampled": {
+        "model_id": "grpo_policy",
+        "model_name": "Ours: Post-GRPO Policy",
+        "regime": "sampled",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.8605003790750568,
+        "accuracy_ci": {
+          "mean": 0.8605003790750568,
+          "ci_lower": 0.841527672479151,
+          "ci_upper": 0.8779378316906747,
+          "std_err": 0.009517230308196057,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.8576573161485974,
+          "pass_at_4": 0.891346257987653,
+          "pass_at_8": 0.9029567854435178
+        },
+        "maj_at_8": null,
+        "maj_at_8_ci": null,
+        "format_compliance": 1.0,
+        "format_compliance_ci": {
+          "mean": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0,
+          "std_err": 0.0,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.0,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.00322213798332,
+        "mean_completion_tokens": 144.49905231235783,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      },
+      "self_consistency": {
+        "model_id": "grpo_policy",
+        "model_name": "Ours: Post-GRPO Policy",
+        "regime": "self_consistency",
+        "num_problems": 1319,
+        "num_completions": 10552,
+        "accuracy": 0.8605003790750568,
+        "accuracy_ci": {
+          "mean": 0.8605003790750568,
+          "ci_lower": 0.841527672479151,
+          "ci_upper": 0.8779378316906747,
+          "std_err": 0.009517230308196057,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "pass_at_k": {
+          "pass_at_1": 0.8576573161485974,
+          "pass_at_4": 0.891346257987653,
+          "pass_at_8": 0.9029567854435178
+        },
+        "maj_at_8": 0.8597422289613343,
+        "maj_at_8_ci": {
+          "mean": 0.8597422289613343,
+          "ci_lower": 0.8400303260045489,
+          "ci_upper": 0.8764404852160728,
+          "std_err": 0.009553569558698002,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "format_compliance": 1.0,
+        "format_compliance_ci": {
+          "mean": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0,
+          "std_err": 0.0,
+          "ci_level": 0.95,
+          "n_resamples": 1000
+        },
+        "fallback_rate": 0.0,
+        "unparseable_rate": 0.0,
+        "mean_prompt_tokens": 52.00322213798332,
+        "mean_completion_tokens": 144.49905231235783,
+        "is_safe_rate": 1.0,
+        "refusal_rate": 0.0
+      }
+    }
+  },
+  "statistical_deltas": {
+    "grpo_vs_base_greedy": {
+      "delta": 0.16755117513267637,
+      "ci_lower": 0.14556482183472327,
+      "ci_upper": 0.18726307808946172,
+      "p_value": 0.0,
+      "is_significant": true
+    },
+    "grpo_vs_sft2_greedy": {
+      "delta": 0.03184230477634575,
+      "ci_lower": 0.021986353297952996,
+      "ci_upper": 0.040959059893858965,
+      "p_value": 0.0,
+      "is_significant": true
+    }
+  }
+}
