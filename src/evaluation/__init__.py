@@ -9,6 +9,14 @@ from src.evaluation.category_shift import (
     run_category_shift_analysis,
 )
 from src.evaluation.evaluator import MathEvaluator, TestSetWallError
+from src.evaluation.phase5_verifier import (
+    GateCriterionStatus,
+    Phase5GateSummary,
+    generate_phase5_wrapup_report,
+    run_phase5_wrapup,
+    save_phase5_summary_json,
+    verify_all_phase5_gates,
+)
 from src.evaluation.round_comparator import (
     ComparisonDecision,
     ProblemComparisonRecord,
@@ -37,4 +45,10 @@ __all__ = [
     "compute_category_shift",
     "generate_category_shift_table",
     "run_category_shift_analysis",
+    "GateCriterionStatus",
+    "Phase5GateSummary",
+    "verify_all_phase5_gates",
+    "generate_phase5_wrapup_report",
+    "save_phase5_summary_json",
+    "run_phase5_wrapup",
 ]

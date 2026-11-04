@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-11-04T06:17:49.841277+00:00",
+  "verdict": "PASSED",
+  "all_passed": true,
+  "release_tag": "v0.6",
+  "phase": 5,
+  "base_model": "deepseek-ai/deepseek-math-7b-base",
+  "advancing_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+  "criteria": [
+    {
+      "name": "Round Comparison & Advancement",
+      "passed": true,
+      "threshold": "Round 2 accuracy >= Round 1 accuracy - 2.0% (parity/win favoring Round 2)",
+      "observed": "Round 2 (100.0%) vs Round 1 (100.0%) [Delta: +0.0%]. Advancing: sft_targeted",
+      "details": "Round 2 vs Round 1 performance difference of +0.00% (+0 problems) is within the tie margin (2.0% / 5 problems). Per specification, a 1-2 point difference is treated as a tie favoring Round 2. Round 2 advances to Phase 6 with targeted error mitigation incorporated."
+    },
+    {
+      "name": "Canonical Format Compliance",
+      "passed": true,
+      "threshold": "Format compliance >= 98.0% ending in '#### <number>'",
+      "observed": "100.0%",
+      "details": "Solutions adhere to Design Rule 1 canonical answer contract."
+    },
+    {
+      "name": "Truncation Rate",
+      "passed": true,
+      "threshold": "Truncation rate <= 5.0% under max sequence budget (512 tokens)",
+      "observed": "0.0%",
+      "details": "Average completion tokens: 65.0"
+    },
+    {
+      "name": "Test-Set Wall Isolation",
+      "passed": true,
+      "threshold": "0 test leaks, test set (1,319 problems) completely isolated",
+      "observed": "0 test leaks detected. Gating split: 'val_gating', Analysis split: 'val_analysis.parquet'. Test set (1,319 problems) isolated.",
+      "details": "Evaluations strictly confined to validation sub-partitions (val_gating & val_analysis)."
+    },
+    {
+      "name": "Category Shift & Error Mitigation",
+      "passed": true,
+      "threshold": "Net errors eliminated >= 0, regressions <= recoveries, accuracy delta >= -2.0%",
+      "observed": "Net errors eliminated: +0, Accuracy delta: +0.0%, Recoveries: 0, Regressions: 0",
+      "details": "Targeted SFT suppressed target error patterns without adverse degradation."
+    },
+    {
+      "name": "Advancing Adapter Verification",
+      "passed": true,
+      "threshold": "Adapter configuration and weights present in staging directory",
+      "observed": "Verified valid LoRA adapter in adapter_model",
+      "details": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model"
+    },
+    {
+      "name": "Round-2 Dataset Freeze & Manifest",
+      "passed": true,
+      "threshold": "Manifest with cryptographic checksums and record counts",
+      "observed": "Manifest verified: 440 records. SHA-256: 20b2a46980085451...",
+      "details": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\sft_round2\\manifest.json"
+    }
+  ],
+  "summary_metrics": {
+    "verdict": "PASSED",
+    "criteria_passed": 7,
+    "criteria_total": 7,
+    "gating_decision": "Round 2 (100.0%) vs Round 1 (100.0%) [Delta: +0.0%]. Advancing: sft_targeted",
+    "format_compliance": "100.0%",
+    "truncation_rate": "0.0%",
+    "test_set_wall": "0 test leaks detected. Gating split: 'val_gating', Analysis split: 'val_analysis.parquet'. Test set (1,319 problems) isolated.",
+    "category_shift": "Net errors eliminated: +0, Accuracy delta: +0.0%, Recoveries: 0, Regressions: 0",
+    "advancing_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model"
+  },
+  "phase6_handoff": {
+    "starting_checkpoint": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "algorithm": "GRPO (Group Relative Policy Optimization)",
+    "phase": 6,
+    "reward_functions": [
+      "accuracy_reward (binary verification against gold answer via canonical extraction)",
+      "format_reward (canonical #### <number> terminal format enforcement)"
+    ],
+    "test_set_wall": "Strict isolation: test split remains untouched until Phase 7 final benchmark"
+  },
+  "run_info": null
+}

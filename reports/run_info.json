@@ -1,12 +1,12 @@
 {
-  "run_id": "category_shift_analysis-20261104_055210-phase_5_day_38:_sft_round_2_category_shift_analysis_on_val_analysis",
-  "stage": "category_shift_analysis",
-  "timestamp_utc": "2026-11-04T05:52:10.921921+00:00",
-  "description": "Phase 5 Day 38: SFT Round 2 category shift analysis on val_analysis",
+  "run_id": "phase5_wrapup-20261104_061749-phase_5_gate_verification_&_release_v0.6_wrap-up",
+  "stage": "phase5_wrapup",
+  "timestamp_utc": "2026-11-04T06:17:49.866624+00:00",
+  "description": "Phase 5 Gate Verification & Release v0.6 Wrap-Up",
   "git": {
-    "commit_hash": "9b07e6c061870ae4b45f58bea7c33db10ccc73d6",
-    "commit_short": "9b07e6c",
-    "branch": "day-38-category-shift",
+    "commit_hash": "e2f64fbdcd05db749e9883bfac5f5e4e5e12fef6",
+    "commit_short": "e2f64fb",
+    "branch": "day-39-phase5-wrapup",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
@@ -39,13 +39,14 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
+    "phase": 5,
+    "day": 39,
     "base_model": "deepseek-ai/deepseek-math-7b-base",
-    "round2_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
-    "val_analysis_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\val\\val_analysis.parquet",
-    "limit": 10,
-    "backend": "auto",
-    "use_mock": true,
-    "net_errors_eliminated": 0,
-    "accuracy_delta": 0.0
+    "verdict": "PASSED",
+    "all_passed": true,
+    "release_tag": "v0.6",
+    "advancing_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase5_wrapup_report.md",
+    "summary_json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase5_summary.json"
   }
 }
