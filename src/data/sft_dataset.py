@@ -121,13 +121,25 @@ def load_sft_dataset(
         raise FileNotFoundError(f"Curated SFT file not found: {p}")
 
     records: List[Dict[str, Any]] = []
-    with open(p, "r", encoding="utf-8") as f:
-        for line in f:
-            line_str = line.strip()
-            if line_str:
-                records.append(json.loads(line_str))
-                if limit and len(records) >= limit:
-                    break
+    if p.suffix == ".parquet":
+        import pandas as pd
+
+        df = pd.read_parquet(p)
+        if limit and len(df) > limit:
+            df = df.iloc[:limit]
+        for row in df.to_dict(orient="records"):
+            rec = dict(row)
+            if "completion" not in rec and "cleaned_solution" in rec:
+                rec["completion"] = rec["cleaned_solution"]
+            records.append(rec)
+    else:
+        with open(p, "r", encoding="utf-8") as f:
+            for line in f:
+                line_str = line.strip()
+                if line_str:
+                    records.append(json.loads(line_str))
+                    if limit and len(records) >= limit:
+                        break
 
     return prepare_sft_examples_from_curated(records, eos_token=eos_token)
 

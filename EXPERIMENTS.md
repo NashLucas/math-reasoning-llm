@@ -4,6 +4,42 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 36 — Round-2 SFT Base Model Retraining & Resumption
+
+- **Date:** 2026-11-04
+- **Run ID:** `sft_targeted_training-20261104_day36_round2_sft`
+- **Branch:** `day-36-round2-training`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (dry-run & pipeline verification; ~2.0 G4 hours for full 7B base model retrain on G4)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Post-trained base model (`deepseek-ai/deepseek-math-7b-base` or dev model) on the frozen Round-2 dataset (`data/processed/sft_round2/train_round2.jsonl`, 440 examples) incorporating 2x error-targeted examples alongside curated reasoning traces.
+- Retained identical hyperparameters to Round 1 (Day 28 optimal lr $1 \times 10^{-4}$, effective batch size 16, LoRA rank $r=16, \alpha=32$, dropout $0.05$, max sequence length 512, completion-only loss masking).
+- **Design Rule 2 Verification:** Training exclusively operates on the frozen Round-2 training split. Periodic validation callback evaluates on `data/splits/val.parquet` (or `val_analysis.parquet`). The test set (`test.parquet`) was strictly isolated and never accessed.
+
+### Training Architecture & Resumption Pipeline (`scripts/train_round2_sft.py`)
+1. **Pipeline & Checkpointing Architecture:**
+   - Dedicated runner configured for `sft_targeted` stage with Google Drive persistence under the `colab` profile.
+   - Checkpoints saved to `checkpoints/sft_targeted/checkpoint-<step>` every 50 steps with automatic pruning (`save_total_limit = 5`).
+   - Fault-tolerant resumption: automatically detects newest completed checkpoint in `checkpoints/sft_targeted/` and resumes seamlessly across Colab runtime drops.
+2. **Periodic Validation Callback (`ValidationEvalCallback`):**
+   - At every 50 steps, runs greedy decoding on validation problems, computing accuracy and canonical format compliance (`#### <number>`).
+   - Emits step summaries to `logs/training/sft_targeted/generations/step_<N>_summary.json`.
+3. **Artifacts & Audit Reports (`outputs/sft_targeted/`, `reports/`):**
+   - Emitted trained LoRA adapter to `outputs/sft_targeted/adapter_model/`.
+   - Recorded run provenance via `save_run_info(stage='sft_targeted')` in `outputs/sft_targeted/adapter_model/run_info.json`.
+   - Generated audit reports `reports/day36_round2_sft_report.md` and `reports/day36_round2_sft_report.json`.
+   - Emitted loss and validation trajectory curves to `reports/day36_round2_sft_curves.png`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 33: "Phase 5 Day 36 — SFT Round 2: Retrain Base Model on Combined Targeted Dataset" supporting G4/A100 GPU training and CPU dry-runs.
+- **Unit Testing Suite (`tests/test_round2_training.py`):**
+  - Added 4 unit tests verifying `sft_targeted` stage path resolution, mock training execution, automatic checkpoint resumption, and CLI execution in sample mode.
+  - All 4 tests passed in 7.0s. Full test suite passing (327 tests).
+
+---
+
 ## Run Entry: Phase 5 Day 35 — Round-2 SFT Combined Dataset Freeze
 
 - **Date:** 2026-11-04
