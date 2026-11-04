@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-11-03T20:53:48.730690+00:00",
+  "stage": "sft_7b_training",
+  "day": 29,
+  "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
+  "learning_rate": 0.0001,
+  "runtime_profile": "local",
+  "curated_dataset": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\curated\\traces_curated_sft.jsonl",
+  "checkpoints_directory": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft",
+  "adapter_directory": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model",
+  "resumed_from": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4",
+  "total_checkpoints_saved": 4,
+  "saved_checkpoints": [
+    "checkpoint-1",
+    "checkpoint-2",
+    "checkpoint-3",
+    "checkpoint-4"
+  ],
+  "initial_loss": 2.5,
+  "final_loss": 0.2,
+  "loss_reduction_pct": 92.0,
+  "final_validation_accuracy": 0.0,
+  "final_format_compliance": 1.0,
+  "validation_steps_evaluated": [],
+  "has_plot": false,
+  "run_info": {
+    "run_id": "sft-20261103_205340-sft_training_run",
+    "stage": "sft",
+    "timestamp_utc": "2026-11-03T20:53:40.954925+00:00",
+    "description": "sft_training_run",
+    "git": {
+      "commit_hash": "574d31f8f09acce8529be5f93556150e3dce575c",
+      "commit_short": "574d31f",
+      "branch": "day-29-7b-sft",
+      "is_dirty": true,
+      "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+    },
+    "hardware": {
+      "device": "cpu",
+      "cuda_available": false,
+      "gpu_count": 0,
+      "gpu_names": [],
+      "cuda_version": null
+    },
+    "system": {
+      "python_version": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "machine": "AMD64"
+    },
+    "library_versions": {
+      "torch": "not_installed",
+      "transformers": "5.22.1",
+      "trl": "not_installed",
+      "peft": "not_installed",
+      "accelerate": "not_installed",
+      "datasets": "5.1.0",
+      "vllm": "not_installed",
+      "sentence_transformers": "not_installed",
+      "sklearn": "1.8.0",
+      "pandas": "2.3.3",
+      "numpy": "2.4.0",
+      "yaml": "6.0.3",
+      "gradio": "not_installed",
+      "pytest": "not_installed"
+    },
+    "config_snapshot": {
+      "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
+      "curated_data_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\curated\\traces_curated_sft.jsonl",
+      "total_examples": 20,
+      "learning_rate": 0.0001,
+      "lora_config": {
+        "r": 16,
+        "lora_alpha": 32,
+        "lora_dropout": 0.05,
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+        "target_modules": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ]
+      },
+      "train_result": {
+        "global_step": 4,
+        "training_loss": 0.2288,
+        "loss_history": [],
+        "resumed_from": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4"
+      },
+      "resumed_from": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4",
+      "checkpoints_saved": [
+        "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1",
+        "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-2",
+        "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-3",
+        "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4"
+      ]
+    }
+  }
+}

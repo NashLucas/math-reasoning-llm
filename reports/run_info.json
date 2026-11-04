@@ -1,0 +1,52 @@
+{
+  "run_id": "phase5_wrapup-20261104_061749-phase_5_gate_verification_&_release_v0.6_wrap-up",
+  "stage": "phase5_wrapup",
+  "timestamp_utc": "2026-11-04T06:17:49.866624+00:00",
+  "description": "Phase 5 Gate Verification & Release v0.6 Wrap-Up",
+  "git": {
+    "commit_hash": "e2f64fbdcd05db749e9883bfac5f5e4e5e12fef6",
+    "commit_short": "e2f64fb",
+    "branch": "day-39-phase5-wrapup",
+    "is_dirty": true,
+    "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+  },
+  "hardware": {
+    "device": "cpu",
+    "cuda_available": false,
+    "gpu_count": 0,
+    "gpu_names": [],
+    "cuda_version": null
+  },
+  "system": {
+    "python_version": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64"
+  },
+  "library_versions": {
+    "torch": "not_installed",
+    "transformers": "5.22.1",
+    "trl": "not_installed",
+    "peft": "not_installed",
+    "accelerate": "not_installed",
+    "datasets": "5.1.0",
+    "vllm": "not_installed",
+    "sentence_transformers": "not_installed",
+    "sklearn": "1.8.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.0",
+    "yaml": "6.0.3",
+    "gradio": "not_installed",
+    "pytest": "not_installed"
+  },
+  "config_snapshot": {
+    "phase": 5,
+    "day": 39,
+    "base_model": "deepseek-ai/deepseek-math-7b-base",
+    "verdict": "PASSED",
+    "all_passed": true,
+    "release_tag": "v0.6",
+    "advancing_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase5_wrapup_report.md",
+    "summary_json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase5_summary.json"
+  }
+}

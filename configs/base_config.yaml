@@ -29,6 +29,16 @@ models:
   # Safety evaluation model (Phase 2 & 7)
   safety: "meta-llama/Llama-Guard-3-8B"
 
+# Prompt format per model, used when --prompt_format is 'auto'. Explicit on purpose: guessing
+# from the name ("instruct", "rl" in the path) is fragile. Base models have no chat template and
+# get the 8-shot prompt; instruct/rl models must use their own chat template (plan, Phase 2).
+# A model not listed here uses its chat template if its tokenizer has one, else 'few_shot'.
+prompt_formats:
+  deepseek-ai/deepseek-math-7b-base: few_shot
+  deepseek-ai/deepseek-math-7b-instruct: chat
+  deepseek-ai/deepseek-math-7b-rl: chat
+  Qwen/Qwen2.5-1.5B-Instruct: chat
+
 answer_contract:
   # The exact answer contract enforced across data, rewards, and evaluation
   prefix: "####"

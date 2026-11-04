@@ -15,7 +15,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-RAW_GSM8K_DIR = PROJECT_ROOT / "data" / "raw" / "gsm8k"
+from src.config import ConfigManager  # noqa: E402
+
+# Profile data directory: the repo's data/ locally, Google Drive under the colab profile
+RAW_GSM8K_DIR = ConfigManager().data_path("raw", "gsm8k")
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +43,10 @@ def download_and_save_raw_gsm8k(
     target_dir = Path(output_dir) if output_dir else RAW_GSM8K_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Loading openai/gsm8k (configuration: main) from Hugging Face Hub...")
-    raw_dataset = load_dataset("openai/gsm8k", "main")
+    source = ConfigManager().load_config("data.yaml")["source"]
+    name, config, revision = source["dataset_name"], source["config_name"], source["revision"]
+    print(f"Loading {name} (configuration: {config}, revision: {revision[:12]}) from Hugging Face Hub...")
+    raw_dataset = load_dataset(name, config, revision=revision)
 
     # Process Train Split
     train_records: List[dict] = []

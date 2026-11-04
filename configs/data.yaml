@@ -3,7 +3,14 @@
 source:
   dataset_name: "openai/gsm8k"
   config_name: "main"
+  # Hugging Face dataset revision (commit). Verified 2026-11-01: a download at this revision
+  # is identical (IDs, questions, answers) to the raw files the splits were built from.
+  revision: "740312add88f781978c0658806c59bc2815b9866"
   seed: 42
+
+# Committed problem-ID lists + fingerprints (in the repo, not on Drive). prepare_data.py
+# refuses to write splits that differ from them; regenerate only with --freeze, deliberately.
+frozen_splits_dir: "data/splits"
 
 raw_counts:
   train: 7473
@@ -19,16 +26,36 @@ splits:
   # Frozen test set: strictly isolated until Phase 7 final evaluation
   test: 1319
 
+contamination:
+  ngram_size: 13
+  # Test problems that share a 13-word phrase with a train/val problem, reviewed 2026-11-01.
+  # Each is the same question template with different numbers and a different answer, not a
+  # leaked problem. Any test problem with an overlap that is NOT listed here fails data prep.
+  reviewed_template_overlaps:
+    gsm8k_12ba917704bbc51c: "stamps template; train gsm8k_e04a6ba1b453a05d (answer 38 vs 45)"
+    gsm8k_bd78679a4c491b79: "two-movies template; train gsm8k_41061160a62df06f (answer 4 vs 215)"
+    gsm8k_849c7cd3b8acb6ff: "travel-rate template; train gsm8k_c6a6ab29fe58e79c, gsm8k_c5900d035b866a96 (answer 2 vs 5)"
+
 samples:
   smoke_test_count: 20
 
 synthetic:
   # Phase 3 subset selected from training pool (excluding val/test)
   subset_size: 3000
+  seed: 42
+  subset_file: "data/splits/synthetic_subset_ids.json"
   samples_per_problem: 4
   target_curated_traces: 4000
   target_problems_covered: 2500
   max_traces_per_problem: 2
+
+sft_round2:
+  # Phase 5 Day 35: Combined curated and error-targeted SFT dataset
+  curated_file: "data/synthetic/curated/traces_curated_sft.jsonl"
+  targeted_file: "data/targeted/targeted_examples.jsonl"
+  output_dir: "data/processed/sft_round2"
+  duplicate_targeted: true
+  seed: 42
 
 grpo:
   # Phase 6 difficulty filter window (solvable between 20% and 80%)

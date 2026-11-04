@@ -93,6 +93,26 @@ class TestConfig(unittest.TestCase):
         str_path = str(sft_paths["checkpoints"]).replace("\\", "/")
         self.assertIn("drive/MyDrive/math-reasoning-llm", str_path)
 
+    def test_data_and_outputs_paths_follow_profile(self):
+        """Generated data and outputs resolve to the repo locally and to Drive under colab."""
+        cfg = ConfigManager()
+        self.assertEqual(
+            cfg.data_path("processed", "val", profile_name="local"),
+            (PROJECT_ROOT / "data" / "processed" / "val").resolve(),
+        )
+        self.assertEqual(
+            cfg.outputs_path("baseline", profile_name="local"),
+            (PROJECT_ROOT / "outputs" / "baseline").resolve(),
+        )
+        for path in (
+            cfg.data_path("processed", profile_name="colab"),
+            cfg.data_path("safety", profile_name="colab"),
+            cfg.outputs_path("baseline", profile_name="colab"),
+        ):
+            self.assertIn("/content/drive/MyDrive/math-reasoning-llm", str(path).replace("\\", "/"))
+        with self.assertRaises(KeyError):
+            cfg.get_profile_dir("not_a_dir", profile_name="local")
+
     def test_all_stages_have_resolved_paths(self):
         cfg = ConfigManager()
         for profile in ["local", "colab"]:

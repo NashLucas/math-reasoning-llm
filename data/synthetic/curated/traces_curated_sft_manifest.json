@@ -1,0 +1,26 @@
+{
+  "dataset_file": "traces_curated_sft.jsonl",
+  "sha256": "b195a5578844fdef80567c8039bbeeb317ed51efa5e2a4e9d5439c7ad1f78cb5",
+  "total_traces": 3100,
+  "unique_problems": 3000,
+  "target_problems": 3000,
+  "problem_coverage_percent": 100.0,
+  "by_prompt_type": {
+    "alternative_method": 100,
+    "chain_of_thought": 3000
+  },
+  "traces_per_problem_dist": {
+    "1_traces": 2900,
+    "2_traces": 100
+  },
+  "token_statistics": {
+    "min": 4,
+    "max": 203,
+    "mean": 51.5,
+    "median": 47,
+    "p95": 101
+  },
+  "contamination_check_passed": true,
+  "frozen_timestamp_utc": "2026-11-03 01:15:10 UTC",
+  "gate_met": true
+}

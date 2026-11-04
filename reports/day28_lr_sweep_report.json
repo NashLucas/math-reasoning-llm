@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-11-03T20:33:41.137929+00:00",
+  "model_name_or_path": "mock-model",
+  "best_learning_rate": 0.0001,
+  "best_run": {
+    "learning_rate": 0.0001,
+    "learning_rate_str": "1e-04",
+    "max_steps": 4,
+    "initial_train_loss": 1.375,
+    "final_train_loss": 0.2288,
+    "loss_reduction_pct": 83.36,
+    "val_accuracy": 1.0,
+    "val_format_compliance": 1.0,
+    "val_total": 5,
+    "val_correct": 5,
+    "adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\lr_sweep\\lr_1e-04\\adapter_model"
+  },
+  "all_runs": [
+    {
+      "learning_rate": 5e-05,
+      "learning_rate_str": "5e-05",
+      "max_steps": 4,
+      "initial_train_loss": 1.8,
+      "final_train_loss": 0.6718,
+      "loss_reduction_pct": 62.68,
+      "val_accuracy": 1.0,
+      "val_format_compliance": 1.0,
+      "val_total": 5,
+      "val_correct": 5,
+      "adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\lr_sweep\\lr_5e-05\\adapter_model"
+    },
+    {
+      "learning_rate": 0.0001,
+      "learning_rate_str": "1e-04",
+      "max_steps": 4,
+      "initial_train_loss": 1.375,
+      "final_train_loss": 0.2288,
+      "loss_reduction_pct": 83.36,
+      "val_accuracy": 1.0,
+      "val_format_compliance": 1.0,
+      "val_total": 5,
+      "val_correct": 5,
+      "adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\lr_sweep\\lr_1e-04\\adapter_model"
+    },
+    {
+      "learning_rate": 0.0002,
+      "learning_rate_str": "2e-04",
+      "max_steps": 4,
+      "initial_train_loss": 1.55,
+      "final_train_loss": 0.3694,
+      "loss_reduction_pct": 76.17,
+      "val_accuracy": 1.0,
+      "val_format_compliance": 1.0,
+      "val_total": 5,
+      "val_correct": 5,
+      "adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\lr_sweep\\lr_2e-04\\adapter_model"
+    }
+  ],
+  "has_plot": false,
+  "best_adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model_dev"
+}

@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-11-04T05:33:34.361171+00:00",
+  "stage": "round_comparison",
+  "phase": 5,
+  "day": 37,
+  "base_model": "deepseek-ai/deepseek-math-7b-base",
+  "split": "val_gating",
+  "runtime_profile": "local",
+  "round1": {
+    "stage": "sft",
+    "round_name": "Round 1 (Curated SFT)",
+    "adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model",
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "correct_count": 10,
+    "total_problems": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "truncation_rate": 0.0,
+    "truncation_percent": 0.0,
+    "average_completion_tokens": 65.0,
+    "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\eval_round1_gating\\generations_val_gating_greedy.jsonl",
+    "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\eval_round1_gating\\eval_results.json"
+  },
+  "round2": {
+    "stage": "sft_targeted",
+    "round_name": "Round 2 (Targeted SFT)",
+    "adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "correct_count": 10,
+    "total_problems": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "truncation_rate": 0.0,
+    "truncation_percent": 0.0,
+    "average_completion_tokens": 65.0,
+    "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\eval_round2_gating\\generations_val_gating_greedy.jsonl",
+    "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\eval_round2_gating\\eval_results.json"
+  },
+  "comparison_delta": {
+    "accuracy_difference_percent": 0.0,
+    "correct_difference_count": 0,
+    "format_compliance_difference_percent": 0.0,
+    "truncation_difference_percent": 0.0
+  },
+  "problem_breakdown": {
+    "total_compared": 10,
+    "both_correct_count": 10,
+    "both_incorrect_count": 0,
+    "r2_recoveries_count": 0,
+    "r1_regressions_count": 0,
+    "net_recovery": 0
+  },
+  "decision": {
+    "winner": "tie",
+    "decision": "tie_round_2_advances",
+    "advancing_stage": "sft_targeted",
+    "advancing_adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "difference_accuracy_percent": 0.0,
+    "difference_correct": 0,
+    "tie_margin_pct": 2.0,
+    "tie_margin_count": 5,
+    "is_tie": true,
+    "rationale": "Round 2 vs Round 1 performance difference of +0.00% (+0 problems) is within the tie margin (2.0% / 5 problems). Per specification, a 1-2 point difference is treated as a tie favoring Round 2. Round 2 advances to Phase 6 with targeted error mitigation incorporated."
+  },
+  "plot_path": null,
+  "run_info": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\run_info.json"
+}

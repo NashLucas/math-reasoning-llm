@@ -1,0 +1,81 @@
+{
+  "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
+  "mode": "mock",
+  "verdict": "MOCK",
+  "prompt_types": [
+    "solve_then_verify",
+    "alternative_method"
+  ],
+  "samples_per_problem": 1,
+  "only_solved": true,
+  "output_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\generated\\traces_Qwen2.5-1.5B-Instruct_solve_then_verify_alternative_method.jsonl",
+  "yield_metrics": {
+    "total_traces": 200,
+    "total_problems": 100,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "correct_traces": 200,
+    "trace_accuracy": 1.0,
+    "trace_accuracy_percent": 100.0,
+    "problems_with_at_least_one_correct": 100,
+    "problem_coverage_rate": 1.0,
+    "pass_rate_distribution": {
+      "0%": 0,
+      "(0, 25%]": 0,
+      "(25, 50%]": 0,
+      "(50, 75%]": 0,
+      "(75, 100%)": 0,
+      "100%": 100
+    }
+  },
+  "curation_filter": {
+    "total_evaluated": 200,
+    "kept_count": 200,
+    "rejected_count": 0,
+    "retention_rate": 1.0,
+    "retention_percent": 100.0,
+    "rejection_breakdown": {}
+  },
+  "per_strategy_breakdown": {
+    "solve_then_verify": {
+      "total_traces": 100,
+      "total_problems": 100,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "correct_traces": 100,
+      "trace_accuracy": 1.0,
+      "trace_accuracy_percent": 100.0,
+      "problems_with_at_least_one_correct": 100,
+      "problem_coverage_rate": 1.0,
+      "pass_rate_distribution": {
+        "0%": 0,
+        "(0, 25%]": 0,
+        "(25, 50%]": 0,
+        "(50, 75%]": 0,
+        "(75, 100%)": 0,
+        "100%": 100
+      },
+      "kept_count": 100
+    },
+    "alternative_method": {
+      "total_traces": 100,
+      "total_problems": 100,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "correct_traces": 100,
+      "trace_accuracy": 1.0,
+      "trace_accuracy_percent": 100.0,
+      "problems_with_at_least_one_correct": 100,
+      "problem_coverage_rate": 1.0,
+      "pass_rate_distribution": {
+        "0%": 0,
+        "(0, 25%]": 0,
+        "(25, 50%]": 0,
+        "(50, 75%]": 0,
+        "(75, 100%)": 0,
+        "100%": 100
+      },
+      "kept_count": 100
+    }
+  }
+}

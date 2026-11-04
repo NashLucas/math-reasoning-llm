@@ -1,0 +1,32 @@
+[
+  {
+    "problem_id": "gsm8k_c18c25c25949c705",
+    "prompt_type": "chain_of_thought",
+    "prompt_len": 83,
+    "completion_len": 85,
+    "total_tokens": 168,
+    "all_checks_passed": true,
+    "eos_unmasked": true,
+    "last_label": 151645
+  },
+  {
+    "problem_id": "gsm8k_c18c25c25949c705",
+    "prompt_type": "chain_of_thought",
+    "prompt_len": 83,
+    "completion_len": 85,
+    "total_tokens": 168,
+    "all_checks_passed": true,
+    "eos_unmasked": true,
+    "last_label": 151645
+  },
+  {
+    "problem_id": "gsm8k_c18c25c25949c705",
+    "prompt_type": "chain_of_thought",
+    "prompt_len": 83,
+    "completion_len": 85,
+    "total_tokens": 168,
+    "all_checks_passed": true,
+    "eos_unmasked": true,
+    "last_label": 151645
+  }
+]

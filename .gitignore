@@ -51,11 +51,14 @@ env/
 checkpoints/
 outputs/
 logs/
+reports/eval_*/
 
 # Data: Keep small sample data tracked if needed, ignore large datasets
 data/raw/
 data/processed/
 data/synthetic/
+!data/synthetic/curated/traces_curated_sft_manifest.json
+!data/processed/sft_round2/manifest.json
 data/targeted/
 data/safety/
 

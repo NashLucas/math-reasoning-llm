@@ -1,0 +1,26 @@
+{
+  "total": 8792,
+  "gold_format_failures": 0,
+  "parser_failures": 0,
+  "gate_passed": true,
+  "no_hash_benchmark": {
+    "correct": 8584,
+    "total": 8792,
+    "accuracy": 0.9763,
+    "floor": 0.97,
+    "by_method": {
+      "answer_is": {
+        "correct": 861,
+        "total": 867
+      },
+      "last_number": {
+        "correct": 7723,
+        "total": 7925
+      }
+    }
+  },
+  "examples": {
+    "gold_format": [],
+    "parser": []
+  }
+}

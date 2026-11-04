@@ -1,0 +1,176 @@
+{
+  "timestamp": "2026-11-03T20:19:06.867667+00:00",
+  "model": "mock-model",
+  "num_examples": 20,
+  "max_steps": 30,
+  "initial_loss": 1.5,
+  "final_loss": 0.005,
+  "loss_reduction_pct": 99.67,
+  "reproduced_count": 20,
+  "reproduce_accuracy": 1.0,
+  "format_compliant_count": 20,
+  "format_compliance_rate": 1.0,
+  "test_passed": true,
+  "results": [
+    {
+      "problem_id": "gsm8k_c18c25c25949c705",
+      "gold_answer": "21",
+      "extracted_answer": "21",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_c18c25c25949c705",
+      "gold_answer": "21",
+      "extracted_answer": "21",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_c18c25c25949c705",
+      "gold_answer": "21",
+      "extracted_answer": "21",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_c18c25c25949c705",
+      "gold_answer": "21",
+      "extracted_answer": "21",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_22c6bc07f5d6c1eb",
+      "gold_answer": "200",
+      "extracted_answer": "200",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_22c6bc07f5d6c1eb",
+      "gold_answer": "200",
+      "extracted_answer": "200",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_22c6bc07f5d6c1eb",
+      "gold_answer": "200",
+      "extracted_answer": "200",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_22c6bc07f5d6c1eb",
+      "gold_answer": "200",
+      "extracted_answer": "200",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_08288de6a3c3f770",
+      "gold_answer": "240",
+      "extracted_answer": "240",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_08288de6a3c3f770",
+      "gold_answer": "240",
+      "extracted_answer": "240",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_08288de6a3c3f770",
+      "gold_answer": "240",
+      "extracted_answer": "240",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_08288de6a3c3f770",
+      "gold_answer": "240",
+      "extracted_answer": "240",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_e0b9d6d609fcd66c",
+      "gold_answer": "7",
+      "extracted_answer": "7",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_e0b9d6d609fcd66c",
+      "gold_answer": "7",
+      "extracted_answer": "7",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_e0b9d6d609fcd66c",
+      "gold_answer": "7",
+      "extracted_answer": "7",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_e0b9d6d609fcd66c",
+      "gold_answer": "7",
+      "extracted_answer": "7",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_53ce3d7f73a00b00",
+      "gold_answer": "4",
+      "extracted_answer": "4",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_53ce3d7f73a00b00",
+      "gold_answer": "4",
+      "extracted_answer": "4",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_53ce3d7f73a00b00",
+      "gold_answer": "4",
+      "extracted_answer": "4",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    },
+    {
+      "problem_id": "gsm8k_53ce3d7f73a00b00",
+      "gold_answer": "4",
+      "extracted_answer": "4",
+      "extraction_method": "hash",
+      "is_correct": true,
+      "format_compliant": true
+    }
+  ]
+}

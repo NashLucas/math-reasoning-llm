@@ -29,6 +29,38 @@ COMMON_UNITS = [
 ]
 
 
+# LaTeX fractions: \frac{3}{4}, \dfrac{3}{4}, \tfrac{3}{4} -> 3/4
+LATEX_FRAC_PATTERN = re.compile(r"\\[dt]?frac\s*\{\s*(-?[\d.]+)\s*\}\s*\{\s*([\d.]+)\s*\}")
+
+# Mixed numbers at the start of an answer: '1 1/2' -> 1.5
+MIXED_NUMBER_PATTERN = re.compile(r"^(-?)(\d+)\s+(\d+)/(\d+)(?=\s|$)")
+
+
+def final_equation_side(text: str) -> str:
+    """Return the right-hand side of the last '=' that contains a number.
+
+    Answer lines often show the working: '60 + 25 = 85 trees'. The result is after the
+    last '=', not the first number of the line.
+    """
+    if "=" not in text:
+        return text
+    for segment in reversed(text.split("=")):
+        if re.search(r"\d", segment):
+            return segment.strip()
+    return text
+
+
+def _mixed_number_to_decimal(text: str) -> str:
+    match = MIXED_NUMBER_PATTERN.match(text)
+    if not match:
+        return text
+    sign, whole, num, den = match.groups()
+    if int(den) == 0:
+        return text
+    value = int(whole) + int(num) / int(den)
+    return f"{sign}{value:g}" + text[match.end():]
+
+
 def normalize_minus(text: str) -> str:
     """Normalize various unicode minus signs to standard ASCII hyphen-minus."""
     for sym in MINUS_SYMBOLS:
@@ -53,6 +85,24 @@ def strip_formatting(text: str) -> str:
     # Also strip loose commas at end or between digits
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
     text = text.replace(",", "")
+
+    # Strip markdown bold/italic formatting
+    text = text.replace("*", "").replace("_", "")
+
+    # Strip LaTeX \text{...} annotations
+    text = re.sub(r"\\text\{[^}]*\}", "", text)
+
+    # LaTeX fractions -> plain fractions ('\frac{3}{4}' -> '3/4')
+    text = LATEX_FRAC_PATTERN.sub(r"\1/\2", text)
+
+    # Strip trailing parenthetical commentary, e.g. '100 (one hundred)' -> '100'
+    text = re.sub(r"\s*\([^)]*\)$", "", text)
+
+    # Keep the result of the working: '60 + 25 = 85' -> '85'
+    text = final_equation_side(text)
+
+    # Mixed numbers: '1 1/2' -> '1.5' (before the unit stripping below keeps only '1')
+    text = _mixed_number_to_decimal(text)
 
     # Strip percentage signs
     text = text.replace("%", "").strip()
@@ -110,11 +160,13 @@ def is_equivalent(
     pred: Union[str, int, float, None],
     target: Union[str, int, float, None],
     tolerance: float = 1e-4,
+    rel_tolerance: float = 1e-6,
 ) -> bool:
     """Compare a predicted answer to a ground truth target value.
 
-    Applies numeric tolerance comparison when both parse to numbers,
-    or normalized string equality as fallback.
+    Applies numeric comparison when both parse to numbers (equal within `tolerance`
+    absolute or `rel_tolerance` relative, so rounding like 0.3333 vs 1/3 passes but
+    99999.5 vs 100000 does not), or normalized string equality as fallback.
     """
     if pred is None or target is None:
         return False
@@ -127,10 +179,7 @@ def is_equivalent(
         if pred_num.is_integer() and target_num.is_integer():
             return int(pred_num) == int(target_num)
 
-        # Floating point tolerance comparison: absolute or relative
-        diff = abs(pred_num - target_num)
-        denom = max(1.0, abs(target_num))
-        return (diff <= tolerance) or (diff / denom <= tolerance)
+        return math.isclose(pred_num, target_num, rel_tol=rel_tolerance, abs_tol=tolerance)
 
     # Fallback: normalized string comparison
     norm_pred = strip_formatting(str(pred)).lower()

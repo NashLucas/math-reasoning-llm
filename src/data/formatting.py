@@ -143,10 +143,18 @@ def format_few_shot_prompt(question: str, num_shots: int = 8) -> str:
     return "\n\n".join(blocks)
 
 
+# The answer contract, stated in every template without worked examples
+ANSWER_FORMAT_INSTRUCTION = (
+    "Solve the problem step by step. On the last line, write the final numeric answer "
+    "as '#### <number>'."
+)
+
+
 def format_zero_shot_prompt(question: str) -> str:
-    """Format a standard zero-shot prompt with chain-of-thought elicitation."""
+    """Format a zero-shot chain-of-thought prompt that states the '#### <number>' answer contract."""
     return (
         f"Question: {question.strip()}\n"
+        f"{ANSWER_FORMAT_INSTRUCTION}\n"
         "Answer: Let's think step by step.\n"
     )
 
@@ -171,20 +179,33 @@ def format_chat_messages(
     return messages
 
 
-def apply_chat_template(
-    messages: List[Dict[str, str]], tokenizer: Optional[Any] = None
-) -> str:
-    """Render chat messages using tokenizer.apply_chat_template if available, or fallback."""
-    if tokenizer and hasattr(tokenizer, "apply_chat_template"):
-        return tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
+def tokenizer_adds_bos(tokenizer: Any) -> bool:
+    """True if encoding text with special tokens prepends the BOS token."""
+    bos_id = getattr(tokenizer, "bos_token_id", None)
+    if bos_id is None:
+        return False
+    ids = tokenizer("a", add_special_tokens=True)["input_ids"]
+    return len(ids) > 0 and ids[0] == bos_id
 
-    # Fallback chat format
-    rendered_parts: List[str] = []
-    for msg in messages:
-        role = msg["role"].capitalize()
-        content = msg["content"]
-        rendered_parts.append(f"<|{role}|>\n{content}")
-    rendered_parts.append("<|Assistant|>\n")
-    return "\n\n".join(rendered_parts)
+
+def apply_chat_template(messages: List[Dict[str, str]], tokenizer: Any) -> str:
+    """Render chat messages with the model's own chat template.
+
+    There is deliberately no generic fallback: an instruct model evaluated on a template it was
+    not trained on is understated without any error. A tokenizer without a chat template is an
+    error; use the few-shot or zero-shot prompt for base models instead.
+
+    Templates such as DeepSeek's start with the BOS token, and the generation backends encode
+    the prompt with special tokens, which adds BOS again. If the tokenizer adds BOS itself, the
+    rendered BOS is stripped so the model sees exactly one.
+    """
+    if tokenizer is None or not getattr(tokenizer, "chat_template", None):
+        name = getattr(tokenizer, "name_or_path", None)
+        raise ValueError(
+            f"Tokenizer {name!r} has no chat template. Use prompt_format 'few_shot' or 'zero_shot' for base models."
+        )
+    rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    bos = getattr(tokenizer, "bos_token", None)
+    if bos and rendered.startswith(bos) and tokenizer_adds_bos(tokenizer):
+        rendered = rendered[len(bos):]
+    return rendered

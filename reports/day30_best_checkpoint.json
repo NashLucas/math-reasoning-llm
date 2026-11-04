@@ -1,0 +1,178 @@
+{
+  "timestamp": "2026-11-03T21:07:19.248155+00:00",
+  "stage": "sft",
+  "phase": 4,
+  "day": 30,
+  "release_tag": "v0.5",
+  "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
+  "best_checkpoint": "checkpoint-1",
+  "best_step": 1,
+  "adapter_model_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model",
+  "checkpoints_evaluated": [
+    {
+      "step": 1,
+      "checkpoint_name": "checkpoint-1",
+      "checkpoint_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1",
+      "accuracy": 1.0,
+      "accuracy_percent": 100.0,
+      "correct_count": 0,
+      "total_problems": 10,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "truncation_rate": 0.0,
+      "truncation_percent": 0.0,
+      "average_completion_tokens": 65.0,
+      "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1\\eval_val_greedy\\generations_val_greedy.jsonl",
+      "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1\\eval_val_greedy\\eval_results.json"
+    },
+    {
+      "step": 2,
+      "checkpoint_name": "checkpoint-2",
+      "checkpoint_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-2",
+      "accuracy": 1.0,
+      "accuracy_percent": 100.0,
+      "correct_count": 0,
+      "total_problems": 10,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "truncation_rate": 0.0,
+      "truncation_percent": 0.0,
+      "average_completion_tokens": 65.0,
+      "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-2\\eval_val_greedy\\generations_val_greedy.jsonl",
+      "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-2\\eval_val_greedy\\eval_results.json"
+    },
+    {
+      "step": 3,
+      "checkpoint_name": "checkpoint-3",
+      "checkpoint_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-3",
+      "accuracy": 1.0,
+      "accuracy_percent": 100.0,
+      "correct_count": 0,
+      "total_problems": 10,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "truncation_rate": 0.0,
+      "truncation_percent": 0.0,
+      "average_completion_tokens": 65.0,
+      "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-3\\eval_val_greedy\\generations_val_greedy.jsonl",
+      "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-3\\eval_val_greedy\\eval_results.json"
+    },
+    {
+      "step": 4,
+      "checkpoint_name": "checkpoint-4",
+      "checkpoint_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4",
+      "accuracy": 1.0,
+      "accuracy_percent": 100.0,
+      "correct_count": 0,
+      "total_problems": 10,
+      "format_compliance_rate": 1.0,
+      "format_compliance_percent": 100.0,
+      "truncation_rate": 0.0,
+      "truncation_percent": 0.0,
+      "average_completion_tokens": 65.0,
+      "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4\\eval_val_greedy\\generations_val_greedy.jsonl",
+      "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-4\\eval_val_greedy\\eval_results.json"
+    }
+  ],
+  "best_checkpoint_greedy": {
+    "step": 1,
+    "checkpoint_name": "checkpoint-1",
+    "checkpoint_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1",
+    "accuracy": 1.0,
+    "accuracy_percent": 100.0,
+    "correct_count": 0,
+    "total_problems": 10,
+    "format_compliance_rate": 1.0,
+    "format_compliance_percent": 100.0,
+    "truncation_rate": 0.0,
+    "truncation_percent": 0.0,
+    "average_completion_tokens": 65.0,
+    "generations_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1\\eval_val_greedy\\generations_val_greedy.jsonl",
+    "eval_results_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\checkpoints\\sft\\checkpoint-1\\eval_val_greedy\\eval_results.json"
+  },
+  "best_checkpoint_self_consistency": {
+    "maj_at_k": 1.0,
+    "maj_at_k_percent": 100.0,
+    "pass_at_k": 1.0,
+    "pass_at_k_percent": 100.0
+  },
+  "gate_assessment": {
+    "verdict": "PASSED (Phase 4 Gate Met)",
+    "gate_passed": true,
+    "accuracy_check": {
+      "greedy_accuracy": 100.0,
+      "base_reference": 20.0,
+      "passed": true
+    },
+    "format_compliance_check": {
+      "format_compliance": 100.0,
+      "threshold": 98.0,
+      "passed": true
+    },
+    "truncation_check": {
+      "truncation_rate": 0.0,
+      "threshold": 5.0,
+      "passed": true
+    }
+  },
+  "has_plot": false,
+  "run_info": {
+    "run_id": "sft-20261103_210718-day30_best_checkpoint_selection",
+    "stage": "sft",
+    "timestamp_utc": "2026-11-03T21:07:18.523699+00:00",
+    "description": "day30_best_checkpoint_selection",
+    "git": {
+      "commit_hash": "7847f90dae98ba5aff83d0a2d018f64dcd3df3c3",
+      "commit_short": "7847f90",
+      "branch": "day-30-best-checkpoint",
+      "is_dirty": true,
+      "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+    },
+    "hardware": {
+      "device": "cpu",
+      "cuda_available": false,
+      "gpu_count": 0,
+      "gpu_names": [],
+      "cuda_version": null
+    },
+    "system": {
+      "python_version": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "machine": "AMD64"
+    },
+    "library_versions": {
+      "torch": "not_installed",
+      "transformers": "5.22.1",
+      "trl": "not_installed",
+      "peft": "not_installed",
+      "accelerate": "not_installed",
+      "datasets": "5.1.0",
+      "vllm": "not_installed",
+      "sentence_transformers": "not_installed",
+      "sklearn": "1.8.0",
+      "pandas": "2.3.3",
+      "numpy": "2.4.0",
+      "yaml": "6.0.3",
+      "gradio": "not_installed",
+      "pytest": "not_installed"
+    },
+    "config_snapshot": {
+      "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
+      "selected_checkpoint": "checkpoint-1",
+      "selected_step": 1,
+      "greedy_accuracy": 1.0,
+      "greedy_format_compliance": 1.0,
+      "self_consistency_maj_at_k": 1.0,
+      "self_consistency_pass_at_k": 1.0,
+      "all_checkpoints_evaluated": [
+        "checkpoint-1",
+        "checkpoint-2",
+        "checkpoint-3",
+        "checkpoint-4"
+      ],
+      "gate_passed": true,
+      "gate_verdict": "PASSED (Phase 4 Gate Met)",
+      "release_tag": "v0.5"
+    }
+  }
+}

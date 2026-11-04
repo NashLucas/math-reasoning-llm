@@ -108,5 +108,84 @@ class TestAnswerExtraction(unittest.TestCase):
         self.assertEqual(method, "hash")
 
 
+    def test_day13_parser_misses_and_edge_cases(self):
+        """Day 13 parser hardening on real-world model generation edge cases."""
+        cases = [
+            ("The total amount is 42.", 42.0),
+            ("Calculated answer: **125**", 125.0),
+            ("So we get \boxed{\\$500}.", 500.0),
+            ("#### 1,234,567", 1234567.0),
+            ("#### 42\nNote that 42 is verified.", 42.0),
+            ("The answer is 100 (one hundred).", 100.0),
+            ("The final profit is -$50.", -50.0),
+            ("Result: \boxed{60\\text{ miles}}.", 60.0),
+        ]
+        for text, expected in cases:
+            raw, val, method = extract_and_normalize(text)
+            self.assertIsNotNone(val, f"Failed to extract numeric value from: {text!r}")
+            self.assertEqual(val, expected, f"Value mismatch for: {text!r}")
+            self.assertIn(method, ["hash", "boxed", "bold", "answer_is", "last_number"])
+
+    def test_phase1_review_regressions(self):
+        """Answer lines that show the working, LaTeX fractions and mixed numbers."""
+        cases = [
+            ("#### 60 + 25 = 85", 85.0, "hash"),
+            ("#### 85 (= 60 + 25)", 85.0, "hash"),
+            ("#### 1 1/2", 1.5, "hash"),
+            ("The answer is 3 x 4 = 12.", 12.0, "answer_is"),
+            ("So the total is 20 - 5 = 15 dollars.", 15.0, "answer_is"),
+            ("Therefore, Randy has 60 + 25 = 85 trees on his farm.", 85.0, "answer_is"),
+            (r"$\boxed{3 \times 4 = 12}$", 12.0, "boxed"),
+            (r"$\boxed{\frac{3}{4}}$", 0.75, "boxed"),
+        ]
+        for text, expected, expected_method in cases:
+            raw, val, method = extract_and_normalize(text)
+            self.assertEqual(method, expected_method, text)
+            self.assertEqual(val, expected, f"{text!r} -> {raw!r}")
+
+    def test_generic_phrase_mid_text_does_not_beat_final_line(self):
+        """'the total cost is ...' in the working must not override the result on the last line."""
+        text = (
+            "Each shirt costs $2500/5 = $500 so the total cost is $2500/5 = $500.\n"
+            "After buying the shirt he will have $1000-$200 = $800 left"
+        )
+        raw, val, _ = extract_and_normalize(text)
+        self.assertEqual(val, 800.0, raw)
+
+    def test_answer_phrase_counts_anywhere(self):
+        text = "The answer is 42.\nI hope this helps with 3 more questions."
+        raw, val, method = extract_and_normalize(text)
+        self.assertEqual((val, method), (42.0, "answer_is"))
+
+    def test_bold_final_answer_on_last_line(self):
+        """Day 13 review: Qwen2.5-1.5B-Instruct bolds its final answer inside a sentence that also
+        restates other numbers. Real endings from generations_val_greedy.jsonl."""
+        cases = [
+            # gsm8k_223f95b18a110864: was parsed as 40 (answer_is), model meant 10 (= gold)
+            ("Therefore, the number of bags weighing 40 kilograms each that can still be loaded in the truck is **10**.", 10.0),
+            # gsm8k_7c77360b1640def8: was parsed as 23 (last_number)
+            ("So, one level can fit **2102 more cars** if there are already 23 parked cars on that level.", 2102.0),
+            # gsm8k_0e10de9274faacfb: was parsed as 3 (answer_is)
+            ("Therefore, Marcus should expect to pick a card that's both red and has a number divisible by 3 **12 times**.", 12.0),
+            # gsm8k_88b29e3ac70540a2: was parsed as 98 (last_number)
+            ("Thus, Sanya will need **14 days** to wash all 98 bath towels.", 14.0),
+            ("Therefore, the percentage is **33.33%**.", 33.33),
+        ]
+        for last_line, expected in cases:
+            text = "1. **Step one:**\n   - 40 + 2 = 42\n\n" + last_line
+            raw, val, method = extract_and_normalize(text)
+            self.assertEqual((val, method), (expected, "bold"), last_line)
+
+    def test_bold_only_counts_on_last_line_and_after_hash_and_boxed(self):
+        # Bold numbers in the working (not the last line) do not count
+        text = "- Each bag holds **40 kg**.\nThe answer is 10."
+        self.assertEqual(extract_and_normalize(text)[1:], (10.0, "answer_is"))
+        # '####' and '\boxed' still win
+        self.assertEqual(extract_and_normalize("So **12 times**.\n#### 6")[1:], (6.0, "hash"))
+        self.assertEqual(extract_and_normalize(r"So $\boxed{6}$ and **12 times**.")[1:], (6.0, "boxed"))
+        # Bold step headers without a number are ignored
+        self.assertEqual(extract_and_normalize("**Final step:** add them: 5 + 3 = 8")[1:], (8.0, "last_number"))
+
+
 if __name__ == "__main__":
     unittest.main()

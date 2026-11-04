@@ -1,0 +1,124 @@
+{
+  "agreement": {
+    "total_samples": 30,
+    "agreed_count": 30,
+    "disagreed_count": 0,
+    "agreement_rate": 1.0,
+    "agreement_percent": 100.0,
+    "passed_calibration": true,
+    "per_category": {
+      "parse_error": {
+        "gold_count": 4,
+        "predicted_count": 4,
+        "true_positives": 4,
+        "agreement_rate": 100.0
+      },
+      "truncation": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "true_positives": 3,
+        "agreement_rate": 100.0
+      },
+      "arithmetic_slip": {
+        "gold_count": 5,
+        "predicted_count": 5,
+        "true_positives": 5,
+        "agreement_rate": 100.0
+      },
+      "misread_question": {
+        "gold_count": 5,
+        "predicted_count": 5,
+        "true_positives": 5,
+        "agreement_rate": 100.0
+      },
+      "wrong_setup": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "true_positives": 6,
+        "agreement_rate": 100.0
+      },
+      "incomplete_reasoning": {
+        "gold_count": 5,
+        "predicted_count": 5,
+        "true_positives": 5,
+        "agreement_rate": 100.0
+      },
+      "other": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "true_positives": 2,
+        "agreement_rate": 100.0
+      }
+    },
+    "disagreements": [],
+    "confusion_matrix": {
+      "parse_error": {
+        "parse_error": 4,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "truncation": {
+        "parse_error": 0,
+        "truncation": 3,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "arithmetic_slip": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 5,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "misread_question": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 5,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "wrong_setup": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 6,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "incomplete_reasoning": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 5,
+        "other": 0
+      },
+      "other": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 2
+      }
+    },
+    "metadata": {
+      "min_agreement_threshold": 0.8
+    }
+  },
+  "calibration_file": "data\\sample\\labeled_30_errors.jsonl"
+}

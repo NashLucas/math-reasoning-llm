@@ -16,15 +16,28 @@ logger = logging.getLogger(__name__)
 # Pattern 1: Canonical final line after '####'
 HASH_PATTERN = re.compile(r"####\s*([^\n\r]+)")
 
-# Pattern 3: Common answer phrasing
-PHRASE_PATTERNS = [
-    re.compile(r"(?:the\s+)?(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
-    re.compile(r"final\s+answer:\s*([^\n\r]+)", re.IGNORECASE),
-    re.compile(r"therefore,?\s*(?:the\s+answer\s+is\s*)?([^\n\r]+)", re.IGNORECASE),
+# Pattern 3: Answer phrasing.
+# "Answer" phrases state the final answer wherever they appear, so the last one in the text wins.
+ANSWER_PHRASE_PATTERNS = [
+    re.compile(r"(?:final\s+)?answer\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"(?:final\s+)?answer\s*:\s*([^\n\r]+)", re.IGNORECASE),
 ]
+# Generic phrases ("the total is", "therefore") also describe intermediate steps, so they only
+# count on the last non-empty line; otherwise "the total cost is 3" in the middle of the working
+# would beat the real result on the final line.
+FINAL_LINE_PHRASE_PATTERNS = [
+    re.compile(r"(?:result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"therefore,?\s*([^\n\r]+)", re.IGNORECASE),
+]
+PHRASE_PATTERNS = ANSWER_PHRASE_PATTERNS + FINAL_LINE_PHRASE_PATTERNS
 
-# Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives)
-NUMBER_PATTERN = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
+# Pattern 2b: a bold span containing a number, e.g. '**10**' or '**14 days**'. Chat models often
+# bold the final answer inside a sentence that also restates other numbers from the question
+# ("Sanya will need **14 days** to wash all 98 bath towels").
+BOLD_NUMBER_PATTERN = re.compile(r"\*\*([^*\n]*?\d[^*\n]*?)\*\*")
+
+# Pattern 4: Fallback to detect numeric tokens (integers, decimals, thousands commas, fractions, negatives, currency)
+NUMBER_PATTERN = re.compile(r"[-−–]?\s*[\$€£¥₹₩¢]?\s*[-−–]?\d+(?:,\d{3})*(?:\.\d+)?(?:/\d+)?")
 
 
 def extract_boxed_content(text: str) -> Optional[str]:
@@ -55,6 +68,7 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
 
     1. '####' line (canonical contract; takes the LAST occurrence)
     2. LaTeX \\boxed{...}
+    2b. A bold number on the last line ('**10**', '**14 days**')
     3. Natural language 'answer is' phrasing
     4. Fallback: the last number appearing in the response
 
@@ -79,9 +93,20 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
         if cleaned:
             return boxed, "boxed"
 
+    lines = [line for line in text.splitlines() if line.strip()]
+    last_line = lines[-1] if lines else ""
+
+    # Tier 2b: bold number on the last line (the model's highlighted final answer)
+    bold = BOLD_NUMBER_PATTERN.findall(last_line)
+    if bold:
+        candidate = bold[-1].strip()
+        if strip_formatting(candidate):
+            return candidate, "bold"
+
     # Tier 3: Natural language phrasing
-    for pattern in PHRASE_PATTERNS:
-        matches = pattern.findall(text)
+    searches = [(p, text) for p in ANSWER_PHRASE_PATTERNS] + [(p, last_line) for p in FINAL_LINE_PHRASE_PATTERNS]
+    for pattern, region in searches:
+        matches = pattern.findall(region)
         if matches:
             candidate = matches[-1].strip().rstrip(".")
             # Verify the candidate contains at least one numeric character
@@ -96,6 +121,12 @@ def extract_answer(text: str) -> Tuple[Optional[str], str]:
         return numbers[-1].strip(), "last_number"
 
     return None, "none"
+
+
+def extract_model_answer(text: str) -> Optional[str]:
+    """Convenience wrapper returning only the extracted answer string (or None)."""
+    ans, _ = extract_answer(text)
+    return ans
 
 
 def extract_and_normalize(text: str) -> Tuple[Optional[str], Optional[float], str]:
