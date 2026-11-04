@@ -1117,6 +1117,8 @@ class QuestionEmbedder:
         self.use_fallback = use_fallback
         self.backend = "sentence-transformers" if not use_fallback else "tfidf"
         self._st_model = None
+        self._fitted_vectorizer = None
+        self._fitted_vocab = None
 
     def embed(self, texts: Sequence[str]) -> Tuple[np.ndarray, str]:
         """Embed a sequence of texts into normalized embedding vectors."""
@@ -1147,8 +1149,13 @@ class QuestionEmbedder:
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
 
-            vec = TfidfVectorizer(max_features=384, stop_words="english", ngram_range=(1, 2))
-            raw = vec.fit_transform(texts).toarray()
+            if self._fitted_vectorizer is None:
+                vec = TfidfVectorizer(max_features=384, stop_words="english", ngram_range=(1, 2))
+                raw = vec.fit_transform(texts).toarray()
+                self._fitted_vectorizer = vec
+            else:
+                raw = self._fitted_vectorizer.transform(texts).toarray()
+
             norms = np.linalg.norm(raw, axis=1, keepdims=True)
             norms[norms == 0.0] = 1.0
             return (raw / norms).astype(np.float32), "tfidf_fallback"
@@ -1159,21 +1166,22 @@ class QuestionEmbedder:
                 "what", "does", "did", "he", "she", "they", "his", "her", "their",
                 "with", "has", "had", "have", "for", "are", "each", "was", "were",
             }
-            vocab: Dict[str, int] = {}
-            doc_tokens: List[List[str]] = []
-            for t in texts:
-                tokens = [w for w in re.findall(r"\b[a-zA-Z]{2,}\b", t.lower()) if w not in stop_words]
-                doc_tokens.append(tokens)
-                for w in tokens:
-                    if w not in vocab and len(vocab) < 384:
-                        vocab[w] = len(vocab)
+            if self._fitted_vocab is None:
+                vocab: Dict[str, int] = {}
+                for t in texts:
+                    tokens = [w for w in re.findall(r"\b[a-zA-Z]{2,}\b", t.lower()) if w not in stop_words]
+                    for w in tokens:
+                        if w not in vocab and len(vocab) < 384:
+                            vocab[w] = len(vocab)
+                self._fitted_vocab = vocab
 
-            dim = max(1, len(vocab))
+            dim = max(1, len(self._fitted_vocab))
             matrix = np.zeros((len(texts), dim), dtype=np.float32)
-            for i, tokens in enumerate(doc_tokens):
+            for i, t in enumerate(texts):
+                tokens = [w for w in re.findall(r"\b[a-zA-Z]{2,}\b", t.lower()) if w not in stop_words]
                 for w in tokens:
-                    if w in vocab:
-                        matrix[i, vocab[w]] += 1.0
+                    if w in self._fitted_vocab:
+                        matrix[i, self._fitted_vocab[w]] += 1.0
             norms = np.linalg.norm(matrix, axis=1, keepdims=True)
             norms[norms == 0.0] = 1.0
             return (matrix / norms).astype(np.float32), "term_frequency_fallback"

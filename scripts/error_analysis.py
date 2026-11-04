@@ -30,6 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import pandas as pd  # noqa: E402
 
 from src.config import ConfigManager  # noqa: E402
+from src.data.selection import TargetedSelector  # noqa: E402
 from src.evaluation.error_analysis import (  # noqa: E402
     ALL_ERROR_CATEGORIES,
     ErrorClassifier,
@@ -97,6 +98,9 @@ def run_error_analysis(
     profile: Optional[str] = None,
     cluster: bool = False,
     num_clusters: int = 5,
+    select_targeted: bool = False,
+    target_per_category: int = 30,
+    targeted_output_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Run full error classification pipeline over input generations."""
     logger.info("==================================================")
@@ -170,6 +174,32 @@ def run_error_analysis(
         f.write(md_content)
     logger.info("Saved error analysis Markdown report to: %s", report_file)
 
+    # Optional targeted example selection (Phase 5 Day 34)
+    if select_targeted:
+        targeted_dir = targeted_output_dir or (PROJECT_ROOT / "data" / "targeted")
+        logger.info("Executing targeted example selection (target_per_category=%d)...", target_per_category)
+        train_pool = PROJECT_ROOT / "data" / "processed" / "train" / "train.parquet"
+        if not train_pool.exists():
+            sample_train = PROJECT_ROOT / "data" / "sample" / "train_sample.parquet"
+            if sample_train.exists():
+                train_pool = sample_train
+
+        selector = TargetedSelector(
+            train_pool_path=train_pool,
+            default_per_category=target_per_category,
+            use_mock=use_mock,
+        )
+        targeted_examples = selector.select_for_errors(
+            error_records=classifications,
+            target_per_category=target_per_category,
+        )
+        if targeted_examples:
+            selector.export_targeted_dataset(targeted_examples, output_dir=targeted_dir)
+            full_payload["targeted_selection"] = {
+                "total_selected": len(targeted_examples),
+                "output_dir": str(targeted_dir),
+            }
+
     # Save run provenance
     run_info_dir = output_file.parent
     save_run_info(
@@ -239,6 +269,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of semantic topic clusters K (default: 5).",
     )
     parser.add_argument(
+        "--select_targeted",
+        action="store_true",
+        help="Select similar training examples for error mitigation (Phase 5 Day 34).",
+    )
+    parser.add_argument(
+        "--target_per_category",
+        type=int,
+        default=30,
+        help="Number of targeted training examples per category (20-50, default: 30).",
+    )
+    parser.add_argument(
+        "--targeted_output_dir",
+        type=str,
+        default="data/targeted",
+        help="Output directory where targeted dataset will be written.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -295,6 +342,11 @@ def main(args_list: Optional[List[str]] = None) -> int:
             limit=args.limit,
             stage_name=args.stage_name,
             profile=args.profile,
+            cluster=args.cluster,
+            num_clusters=args.num_clusters,
+            select_targeted=args.select_targeted,
+            target_per_category=args.target_per_category,
+            targeted_output_dir=Path(args.targeted_output_dir) if args.targeted_output_dir else None,
         )
         return 0
     except Exception as e:
