@@ -644,6 +644,39 @@ class ErrorClassifier:
         return classifications
 
 
+_default_classifier: Optional[ErrorClassifier] = None
+
+
+def classify_error(
+    problem_id: str,
+    question: str,
+    generated_text: str,
+    gold_answer: str,
+    extracted_answer: Optional[str] = None,
+    extraction_method: Optional[str] = None,
+    gold_solution: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    classifier: Optional[ErrorClassifier] = None,
+) -> ErrorClassification:
+    """Convenience helper to classify a single error attempt using rules and heuristics."""
+    global _default_classifier
+    if classifier is None:
+        if _default_classifier is None:
+            _default_classifier = ErrorClassifier(use_mock=True)
+        classifier = _default_classifier
+
+    return classifier.classify_single(
+        question=question,
+        gold_answer=gold_answer,
+        generated_text=generated_text,
+        extracted_answer=extracted_answer,
+        extraction_method=extraction_method,
+        gold_solution=gold_solution,
+        problem_id=problem_id,
+        metadata=metadata,
+    )
+
+
 # ==============================================================================
 # Summary & Statistics Aggregation
 # ==============================================================================

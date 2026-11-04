@@ -1,0 +1,598 @@
+{
+  "timestamp": "2026-11-04T15:38:15.533264+00:00",
+  "split": "test",
+  "num_problems": 1319,
+  "tier_counts": {
+    "Tier 1: Short (<=3 steps)": 697,
+    "Tier 2: Medium (4-5 steps)": 472,
+    "Tier 3: Complex (>=6 steps)": 150
+  },
+  "profiles": {
+    "base_7b": {
+      "model_id": "base_7b",
+      "model_name": "DeepSeekMath-7B-Base",
+      "role": "Base Foundation Model (8-shot CoT)",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.601213040181956,
+      "overall_greedy_ci": {
+        "mean": 0.601213040181956,
+        "ci_lower": 0.5739196360879454,
+        "ci_upper": 0.6262509476876421,
+        "std_err": 0.01375941351584653,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.7824109173616376,
+      "overall_maj_8": 0.6838514025777104,
+      "overall_format": 0.9613343442001516,
+      "mean_prompt_tokens": 52.074298711144806,
+      "mean_completion_tokens": 144.59438968915845,
+      "token_efficiency": 240.50441361916774,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.5810616929698709,
+          "greedy_accuracy_ci": {
+            "mean": 0.5810616929698709,
+            "ci_lower": 0.5437230989956958,
+            "ci_upper": 0.6169655667144907,
+            "std_err": 0.018977465781595333,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.7718794835007173,
+          "maj_at_8": 0.6599713055954088,
+          "format_compliance": 0.9512195121951219,
+          "mean_completion_tokens": 144.20086083213772
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.635593220338983,
+          "greedy_accuracy_ci": {
+            "mean": 0.635593220338983,
+            "ci_lower": 0.5932203389830508,
+            "ci_upper": 0.6779661016949152,
+            "std_err": 0.02212034555048218,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8050847457627118,
+          "maj_at_8": 0.722457627118644,
+          "format_compliance": 0.972457627118644,
+          "mean_completion_tokens": 145.63771186440678
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.5866666666666667,
+          "greedy_accuracy_ci": {
+            "mean": 0.5866666666666667,
+            "ci_lower": 0.5133333333333333,
+            "ci_upper": 0.66,
+            "std_err": 0.03934158083001275,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.76,
+          "maj_at_8": 0.6733333333333333,
+          "format_compliance": 0.9733333333333334,
+          "mean_completion_tokens": 143.14
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 524,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.61977186311786,
+        "wrong_setup": 0.38022813688212925,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 526
+    },
+    "instruct_7b": {
+      "model_id": "instruct_7b",
+      "model_name": "DeepSeekMath-7B-Instruct",
+      "role": "Official Distillation Reference",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.686125852918878,
+      "overall_greedy_ci": {
+        "mean": 0.686125852918878,
+        "ci_lower": 0.6588324488248674,
+        "ci_upper": 0.7119029567854435,
+        "std_err": 0.013269575075002418,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.8392721758908264,
+      "overall_maj_8": 0.7680060652009097,
+      "overall_format": 0.979529946929492,
+      "mean_prompt_tokens": 52.063684609552695,
+      "mean_completion_tokens": 143.95678544351782,
+      "token_efficiency": 209.8110497237569,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.6657101865136298,
+          "greedy_accuracy_ci": {
+            "mean": 0.6657101865136298,
+            "ci_lower": 0.6284074605451937,
+            "ci_upper": 0.7015781922525107,
+            "std_err": 0.018288707523740864,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8292682926829268,
+          "maj_at_8": 0.7446197991391679,
+          "format_compliance": 0.9827833572453372,
+          "mean_completion_tokens": 143.8020086083214
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.7266949152542372,
+          "greedy_accuracy_ci": {
+            "mean": 0.7266949152542372,
+            "ci_lower": 0.6864406779661016,
+            "ci_upper": 0.7669491525423728,
+            "std_err": 0.020648289799826972,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8516949152542372,
+          "maj_at_8": 0.8008474576271186,
+          "format_compliance": 0.9703389830508474,
+          "mean_completion_tokens": 144.114406779661
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.6533333333333333,
+          "greedy_accuracy_ci": {
+            "mean": 0.6533333333333333,
+            "ci_lower": 0.5733333333333334,
+            "ci_upper": 0.7268333333333332,
+            "std_err": 0.03850725715105845,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8466666666666667,
+          "maj_at_8": 0.7733333333333333,
+          "format_compliance": 0.9933333333333333,
+          "mean_completion_tokens": 144.18
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 412,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.51690821256038,
+        "wrong_setup": 0.4830917874396135,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 414
+    },
+    "rl_7b": {
+      "model_id": "rl_7b",
+      "model_name": "DeepSeekMath-7B-RL",
+      "role": "Official RL Reference",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.7156937073540561,
+      "overall_greedy_ci": {
+        "mean": 0.7156937073540561,
+        "ci_lower": 0.6883813495072025,
+        "ci_upper": 0.7391963608794542,
+        "std_err": 0.013047784625902514,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.8506444275966641,
+      "overall_maj_8": 0.7937831690674754,
+      "overall_format": 0.9871114480667172,
+      "mean_prompt_tokens": 52.0371493555724,
+      "mean_completion_tokens": 144.8862774829416,
+      "token_efficiency": 202.44173728813556,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.6958393113342898,
+          "greedy_accuracy_ci": {
+            "mean": 0.6958393113342898,
+            "ci_lower": 0.65993543758967,
+            "ci_upper": 0.7302725968436155,
+            "std_err": 0.018073729042645207,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8450502152080345,
+          "maj_at_8": 0.7733142037302726,
+          "format_compliance": 0.9842180774748924,
+          "mean_completion_tokens": 145.02152080344334
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.7563559322033898,
+          "greedy_accuracy_ci": {
+            "mean": 0.7563559322033898,
+            "ci_lower": 0.7182203389830508,
+            "ci_upper": 0.7923728813559322,
+            "std_err": 0.019700021973359357,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8601694915254238,
+          "maj_at_8": 0.8220338983050848,
+          "format_compliance": 0.9872881355932204,
+          "mean_completion_tokens": 144.59110169491527
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.68,
+          "greedy_accuracy_ci": {
+            "mean": 0.68,
+            "ci_lower": 0.6066666666666667,
+            "ci_upper": 0.7533333333333333,
+            "std_err": 0.03802498110554384,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8466666666666667,
+          "maj_at_8": 0.8,
+          "format_compliance": 1.0,
+          "mean_completion_tokens": 145.18666666666667
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 373,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.46666666666667,
+        "wrong_setup": 0.5333333333333333,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 375
+    },
+    "sft_round1": {
+      "model_id": "sft_round1",
+      "model_name": "Ours: SFT Round 1",
+      "role": "Phase 4 Post-Trained SFT Model",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.6959818043972706,
+      "overall_greedy_ci": {
+        "mean": 0.6959818043972706,
+        "ci_lower": 0.6694275966641395,
+        "ci_upper": 0.7202426080363912,
+        "std_err": 0.013143546021362425,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.8514025777103866,
+      "overall_maj_8": 0.7695223654283548,
+      "overall_format": 0.9954510993176648,
+      "mean_prompt_tokens": 51.91963608794541,
+      "mean_completion_tokens": 144.2289613343442,
+      "token_efficiency": 207.23093681917211,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.672883787661406,
+          "greedy_accuracy_ci": {
+            "mean": 0.672883787661406,
+            "ci_lower": 0.6370157819225251,
+            "ci_upper": 0.7087876614060258,
+            "std_err": 0.018158922087238055,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8421807747489239,
+          "maj_at_8": 0.7446197991391679,
+          "format_compliance": 0.9956958393113343,
+          "mean_completion_tokens": 144.37733142037303
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.739406779661017,
+          "greedy_accuracy_ci": {
+            "mean": 0.739406779661017,
+            "ci_lower": 0.701271186440678,
+            "ci_upper": 0.777542372881356,
+            "std_err": 0.020183222190138662,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8686440677966102,
+          "maj_at_8": 0.8114406779661016,
+          "format_compliance": 0.9957627118644068,
+          "mean_completion_tokens": 143.95550847457628
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.6666666666666666,
+          "greedy_accuracy_ci": {
+            "mean": 0.6666666666666666,
+            "ci_lower": 0.5866666666666667,
+            "ci_upper": 0.74,
+            "std_err": 0.03839068898256596,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.84,
+          "maj_at_8": 0.7533333333333333,
+          "format_compliance": 0.9933333333333333,
+          "mean_completion_tokens": 144.4
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 399,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.50124688279301,
+        "wrong_setup": 0.4987531172069825,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 401
+    },
+    "sft_targeted": {
+      "model_id": "sft_targeted",
+      "model_name": "Ours: Targeted SFT (Round 2)",
+      "role": "Phase 5 Error-Targeted SFT Model",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.7369219105382866,
+      "overall_greedy_ci": {
+        "mean": 0.7369219105382866,
+        "ci_lower": 0.711144806671721,
+        "ci_upper": 0.7604245640636846,
+        "std_err": 0.012779507706638247,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.8756633813495072,
+      "overall_maj_8": 0.8150113722517058,
+      "overall_format": 0.9962092494313874,
+      "mean_prompt_tokens": 52.082638362395755,
+      "mean_completion_tokens": 144.1948445792267,
+      "token_efficiency": 195.6718106995885,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.7187948350071736,
+          "greedy_accuracy_ci": {
+            "mean": 0.7187948350071736,
+            "ci_lower": 0.6829268292682927,
+            "ci_upper": 0.7517934002869441,
+            "std_err": 0.017724290536966707,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8751793400286944,
+          "maj_at_8": 0.8005738880918221,
+          "format_compliance": 0.994261119081779,
+          "mean_completion_tokens": 144.46341463414635
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.7711864406779662,
+          "greedy_accuracy_ci": {
+            "mean": 0.7711864406779662,
+            "ci_lower": 0.7330508474576272,
+            "ci_upper": 0.8072033898305084,
+            "std_err": 0.01885874391346388,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8771186440677966,
+          "maj_at_8": 0.8432203389830508,
+          "format_compliance": 0.9978813559322034,
+          "mean_completion_tokens": 144.0614406779661
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.7133333333333334,
+          "greedy_accuracy_ci": {
+            "mean": 0.7133333333333334,
+            "ci_lower": 0.6466666666666666,
+            "ci_upper": 0.7866666666666666,
+            "std_err": 0.03641674708643327,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.8733333333333333,
+          "maj_at_8": 0.7933333333333333,
+          "format_compliance": 1.0,
+          "mean_completion_tokens": 143.36666666666667
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 345,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.42363112391931,
+        "wrong_setup": 0.5763688760806917,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 347
+    },
+    "grpo_policy": {
+      "model_id": "grpo_policy",
+      "model_name": "Ours: Post-GRPO Policy",
+      "role": "Phase 6 RL Policy (Advancing Final Model)",
+      "num_problems": 1319,
+      "overall_greedy_acc": 0.7687642153146323,
+      "overall_greedy_ci": {
+        "mean": 0.7687642153146323,
+        "ci_lower": 0.7460007581501138,
+        "ci_upper": 0.7922668688400303,
+        "std_err": 0.01214634730667987,
+        "ci_level": 0.95,
+        "n_resamples": 1000
+      },
+      "overall_pass_8": 0.9029567854435178,
+      "overall_maj_8": 0.8597422289613343,
+      "overall_format": 1.0,
+      "mean_prompt_tokens": 51.80970432145565,
+      "mean_completion_tokens": 144.95375284306292,
+      "token_efficiency": 188.55424063116368,
+      "tier_performance": {
+        "Tier 1: Short (<=3 steps)": {
+          "tier": "Tier 1: Short (<=3 steps)",
+          "problem_count": 697,
+          "greedy_accuracy": 0.7517934002869441,
+          "greedy_accuracy_ci": {
+            "mean": 0.7517934002869441,
+            "ci_lower": 0.7187589670014347,
+            "ci_upper": 0.7848278335724533,
+            "std_err": 0.016956838566831837,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.9010043041606887,
+          "maj_at_8": 0.8522238163558106,
+          "format_compliance": 1.0,
+          "mean_completion_tokens": 144.52941176470588
+        },
+        "Tier 2: Medium (4-5 steps)": {
+          "tier": "Tier 2: Medium (4-5 steps)",
+          "problem_count": 472,
+          "greedy_accuracy": 0.7966101694915254,
+          "greedy_accuracy_ci": {
+            "mean": 0.7966101694915254,
+            "ci_lower": 0.760593220338983,
+            "ci_upper": 0.8305084745762712,
+            "std_err": 0.017947524193735603,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.902542372881356,
+          "maj_at_8": 0.8686440677966102,
+          "format_compliance": 1.0,
+          "mean_completion_tokens": 145.02542372881356
+        },
+        "Tier 3: Complex (>=6 steps)": {
+          "tier": "Tier 3: Complex (>=6 steps)",
+          "problem_count": 150,
+          "greedy_accuracy": 0.76,
+          "greedy_accuracy_ci": {
+            "mean": 0.76,
+            "ci_lower": 0.6933333333333334,
+            "ci_upper": 0.8266666666666667,
+            "std_err": 0.03466270799501634,
+            "ci_level": 0.95,
+            "n_resamples": 1000
+          },
+          "pass_at_8": 0.9133333333333333,
+          "maj_at_8": 0.8666666666666667,
+          "format_compliance": 1.0,
+          "mean_completion_tokens": 146.7
+        }
+      },
+      "error_counts": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 303,
+        "wrong_setup": 2,
+        "incomplete_reasoning": 0,
+        "other": 0
+      },
+      "error_percentages": {
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 99.34426229508196,
+        "wrong_setup": 0.6557377049180327,
+        "incomplete_reasoning": 0.0,
+        "other": 0.0
+      },
+      "total_errors": 305
+    }
+  },
+  "error_reductions": {
+    "grpo_vs_base": {
+      "total_errors_eliminated": 221,
+      "relative_error_reduction_pct": 42.01520912547528,
+      "by_category": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 221,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      }
+    },
+    "grpo_vs_sft_targeted": {
+      "total_errors_eliminated": 42,
+      "relative_error_reduction_pct": 12.103746397694524,
+      "by_category": {
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 42,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 0,
+        "other": 0
+      }
+    }
+  }
+}

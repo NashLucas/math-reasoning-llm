@@ -8,9 +8,22 @@ from src.evaluation.category_shift import (
     generate_category_shift_table,
     run_category_shift_analysis,
 )
+from src.evaluation.comparative_diagnostics import (
+    ALL_TIERS,
+    ComparativeDiagnosticsEngine,
+    ComplexityTier,
+    ModelDiagnosticProfile,
+    TierPerformance,
+    extract_reasoning_step_count,
+    generate_day49_markdown_report,
+    get_problem_complexity_tier,
+    plot_day49_final_benchmark_curves,
+)
 from src.evaluation.evaluator import MathEvaluator, TestSetWallError
 from src.evaluation.final_evaluator import (
+    DEFAULT_BENCHMARK_LINEUP,
     BenchmarkModelSpec,
+    DeterministicMockGenerator,
     FinalBenchmarkEvaluator,
     RegimeEvalResult,
     TestUnfreezeManifest,
@@ -69,4 +82,15 @@ __all__ = [
     "unbiased_pass_at_k",
     "BenchmarkModelSpec",
     "RegimeEvalResult",
+    "DEFAULT_BENCHMARK_LINEUP",
+    "DeterministicMockGenerator",
+    "ComparativeDiagnosticsEngine",
+    "ComplexityTier",
+    "ModelDiagnosticProfile",
+    "TierPerformance",
+    "extract_reasoning_step_count",
+    "get_problem_complexity_tier",
+    "plot_day49_final_benchmark_curves",
+    "generate_day49_markdown_report",
+    "ALL_TIERS",
 ]
