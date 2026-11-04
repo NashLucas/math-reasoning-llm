@@ -4,6 +4,47 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 6 Day 40 — GRPO Reward Functions & Design Architecture
+
+- **Date:** 2026-11-04
+- **Run ID:** `grpo_reward_design-20261104_day40_rewards`
+- **Branch:** `day-40-grpo-rewards`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (deterministic reward evaluation and advantage simulation)
+
+### Objectives & RL Reward Architecture (Design Rule 1 & DeepSeek GRPO)
+- Formulated and verified the mathematical reasoning reward architecture for Group Relative Policy Optimization (GRPO):
+  $$R(q, o, y^*) = w_{\text{acc}} \cdot R_{\text{acc}} + w_{\text{fmt}} \cdot R_{\text{fmt}} + w_{\text{struct}} \cdot R_{\text{struct}} - w_{\text{len}} \cdot \text{Penalty}_{\text{len}}$$
+- Implemented core reward components:
+  1. **Accuracy Reward ($R_{\text{acc}} \in \{0.0, 1.0\}$):** Verified extracted numeric value against ground truth target using tiered extractor and mathematical equivalence check.
+  2. **Format Reward ($R_{\text{fmt}} \in \{0.0, 1.0\}$):** Enforces Design Rule 1 (The Answer Contract) requiring canonical terminal line `\n#### <number>`.
+  3. **Reasoning Structure Reward ($R_{\text{struct}} \in \{0.0, 1.0\}$):** Anti-hacking safeguard requiring valid derivation steps preceding the answer, preventing reward hacking from unreasoned direct guessing.
+  4. **Length / Repetition Penalty:** Penalizes degenerate looping n-grams and excessive verbosity approaching context ceilings.
+- Implemented and verified Group-Relative Advantage Normalization:
+  $$A_i = \frac{r_i - \mu_g}{\sigma_g + \epsilon}$$
+  where $\mu_g = \frac{1}{G}\sum r_j$ and $\sigma_g = \sqrt{\frac{1}{G}\sum (r_j - \mu_g)^2}$, with safe zero-variance handling ($A_i = 0$ when $\sigma_g \le \epsilon$).
+
+### Deliverables & Reports (`configs/`, `src/rewards/`, `scripts/`, `reports/`)
+- **Configuration Files:**
+  - Emitted `configs/reward.yaml` setting $w_{\text{acc}}=1.0, w_{\text{fmt}}=0.5, w_{\text{struct}}=0.2, w_{\text{len}}=0.1$, group size $G=4$, and $\epsilon=1e-8$.
+  - Emitted `configs/grpo_args.json` configuring training hyperparameter specifications for Phase 6.
+- **Engine Module (`src/rewards/grpo_rewards.py`):**
+  - Implemented `accuracy_reward`, `format_reward`, `reasoning_structure_reward`, `length_penalty`, `compute_group_relative_advantages`, `RewardBreakdown`, `CompositeGRPOReward`, `load_reward_config`, and TRL-compatible callables (`trl_accuracy_reward_fn`, `trl_format_reward_fn`, `trl_reasoning_structure_reward_fn`).
+- **CLI Runner (`scripts/verify_reward_functions.py`):**
+  - Built standalone verification runner evaluating benchmark test cases and simulating heterogeneous and homogeneous candidate groups.
+- **Audit Reports:**
+  - Emitted `reports/day40_reward_design.md` and `reports/day40_reward_design.json`.
+  - Provenance tracked via `save_run_info(stage='grpo_reward_design')`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 37: "Phase 6 Day 40 — GRPO Reward Functions & Advantage Computation".
+- **Unit Testing Suite (`tests/test_grpo_rewards.py`):**
+  - Added 10 unit tests covering individual rewards, guess-hacking detection, repetition penalties, group advantage normalization across group sizes, zero-variance edge cases, composite weighting, TRL functions, config fallbacks, and CLI execution.
+  - All 10 tests passed in 6.4s. Full repository test suite passing (364 tests).
+
+---
+
 ## Run Entry: Phase 5 Day 39 — Phase 5 Gate Verification & Release v0.6 Wrap-Up
 
 - **Date:** 2026-11-04
