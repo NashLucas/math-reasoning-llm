@@ -1,4 +1,4 @@
-"""Root entrypoint and module re-export for error analysis (Phase 5 Day 31)."""
+"""Root entrypoint and module re-export for error analysis (Phase 5)."""
 
 import sys
 
@@ -6,6 +6,7 @@ from src.evaluation.error_analysis import (
     ALL_ERROR_CATEGORIES,
     RULE_BASED_CATEGORIES,
     SEMANTIC_CATEGORIES,
+    AgreementReport,
     ErrorCategory,
     ErrorClassification,
     ErrorClassifier,
@@ -13,7 +14,9 @@ from src.evaluation.error_analysis import (
     check_truncation,
     classify_semantic_heuristic,
     compute_error_distribution,
+    compute_label_agreement,
     format_error_classification_prompt,
+    generate_agreement_markdown,
     generate_error_markdown_report,
     parse_llm_classification,
 )
@@ -22,6 +25,7 @@ __all__ = [
     "ALL_ERROR_CATEGORIES",
     "RULE_BASED_CATEGORIES",
     "SEMANTIC_CATEGORIES",
+    "AgreementReport",
     "ErrorCategory",
     "ErrorClassification",
     "ErrorClassifier",
@@ -29,7 +33,9 @@ __all__ = [
     "check_truncation",
     "classify_semantic_heuristic",
     "compute_error_distribution",
+    "compute_label_agreement",
     "format_error_classification_prompt",
+    "generate_agreement_markdown",
     "generate_error_markdown_report",
     "parse_llm_classification",
 ]

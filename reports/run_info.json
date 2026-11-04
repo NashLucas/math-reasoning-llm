@@ -1,12 +1,12 @@
 {
-  "run_id": "error_analysis-20261103_214016-run",
+  "run_id": "error_analysis-20261104_030135-run",
   "stage": "error_analysis",
-  "timestamp_utc": "2026-11-03T21:40:16.219042+00:00",
+  "timestamp_utc": "2026-11-04T03:01:35.779325+00:00",
   "description": "",
   "git": {
-    "commit_hash": "39cd4365764cf932dd9eaa75d6f99f4ba5df87c0",
-    "commit_short": "39cd436",
-    "branch": "day-31-error-categories",
+    "commit_hash": "c56301d586ac9144015c85ba8e5b67aecad0a01c",
+    "commit_short": "c56301d",
+    "branch": "day-32-classify-sft-errors",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
@@ -39,44 +39,42 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "input_file": "data\\sample\\sample_errors.jsonl",
-    "output_file": "reports\\error_analysis_sft.json",
-    "report_file": "reports\\error_analysis_sft.md",
-    "model_name_or_path": "deepseek-ai/deepseek-math-7b-instruct",
-    "use_mock": true,
-    "stage_name": "SFT Round 1",
-    "summary": {
-      "total_evaluated": 11,
-      "correct_count": 2,
-      "error_count": 9,
-      "accuracy": 18.18,
-      "error_rate": 81.82,
+    "val_analysis_file": "data\\processed\\val\\val_analysis.parquet",
+    "adapter_dir": "outputs\\sft\\adapter_model",
+    "calibration_file": "data\\sample\\labeled_30_errors.jsonl",
+    "error_summary": {
+      "total_evaluated": 250,
+      "correct_count": 238,
+      "error_count": 12,
+      "accuracy": 95.2,
+      "error_rate": 4.8,
       "category_counts": {
-        "parse_error": 2,
-        "truncation": 1,
-        "arithmetic_slip": 2,
-        "misread_question": 1,
-        "wrong_setup": 1,
-        "incomplete_reasoning": 1,
-        "other": 1
+        "parse_error": 0,
+        "truncation": 0,
+        "arithmetic_slip": 0,
+        "misread_question": 0,
+        "wrong_setup": 0,
+        "incomplete_reasoning": 12,
+        "other": 0
       },
       "category_percentages": {
-        "parse_error": 22.22,
-        "truncation": 11.11,
-        "arithmetic_slip": 22.22,
-        "misread_question": 11.11,
-        "wrong_setup": 11.11,
-        "incomplete_reasoning": 11.11,
-        "other": 11.11
+        "parse_error": 0.0,
+        "truncation": 0.0,
+        "arithmetic_slip": 0.0,
+        "misread_question": 0.0,
+        "wrong_setup": 0.0,
+        "incomplete_reasoning": 100.0,
+        "other": 0.0
       },
-      "rule_based_count": 3,
-      "rule_based_percentage": 33.33,
-      "semantic_count": 6,
-      "semantic_percentage": 66.67,
+      "rule_based_count": 0,
+      "rule_based_percentage": 0.0,
+      "semantic_count": 12,
+      "semantic_percentage": 100.0,
       "sources": {
-        "rule_based": 3,
-        "heuristic_fallback": 6
+        "heuristic_fallback": 12
       }
-    }
+    },
+    "agreement_percent": 100.0,
+    "passed_calibration": true
   }
 }

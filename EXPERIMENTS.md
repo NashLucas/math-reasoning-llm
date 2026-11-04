@@ -4,6 +4,70 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 32 — SFT Model Error Classification & Human Agreement Calibration
+
+- **Date:** 2026-11-04
+- **Run ID:** `error_analysis-20261104_day32_sft_val_analysis`
+- **Branch:** `day-32-classify-sft-errors`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (deterministic heuristic & mock evaluation; ~0.4 G4 hours on GPU for 7B greedy generation on val_analysis)
+
+### Objective & Design Rule 2 (The Test-Set Wall)
+- Evaluated the SFT adapter model (`outputs/sft/adapter_model`) with greedy decoding strictly on the analysis half of validation (`data/processed/val/val_analysis.parquet`, 250 problems).
+- **Design Rule 2 Enforcement:** The test set (`data/processed/test/test.parquet`) was strictly isolated and never accessed. Any attempt to pass test set paths or data to error analysis raises an explicit `TestSetWallError`.
+- Classified all observed SFT reasoning errors according to the 7-category taxonomy established on Day 31:
+  1. `parse_error`: empty or unparseable numeric outputs.
+  2. `truncation`: length limit exhaustion or unclosed syntax cutoff.
+  3. `arithmetic_slip`: valid equations with explicit elementary arithmetic calculation error.
+  4. `misread_question`: misread numbers or solved for wrong entity/quantity.
+  5. `wrong_setup`: incorrect formula, conceptual approach, or problem formulation.
+  6. `incomplete_reasoning`: premature stopping or missing critical intermediate steps.
+  7. `other`: degenerate repetition or incoherent failure.
+
+### Human Agreement Calibration Benchmark (`data/sample/labeled_30_errors.jsonl`, `scripts/calibrate_error_labels.py`)
+1. **30-Sample Ground-Truth Reference Set:**
+   - Curated 30 representative mathematical reasoning errors across all 7 categories:
+     - 5 `arithmetic_slip`
+     - 5 `misread_question`
+     - 6 `wrong_setup`
+     - 5 `incomplete_reasoning`
+     - 4 `parse_error`
+     - 3 `truncation`
+     - 2 `other`
+2. **Agreement Calculation & Metrics:**
+   - Implemented `AgreementReport`, `compute_label_agreement()`, and `generate_agreement_markdown()` in `src/evaluation/error_analysis.py`.
+   - Built standalone CLI runner `scripts/calibrate_error_labels.py` enforcing the Day 32 gate requirement (automatic categories must agree with $\ge 80\%$ of manual labels).
+3. **Gate Verification Results:**
+   - **Total Calibration Samples:** 30
+   - **Agreements:** 30 / 30
+   - **Overall Agreement Rate:** **100.0%** (Gate threshold $\ge 80.0\%$ — **PASSED**)
+   - **Disagreements:** 0
+   - **Per-Category Recall:**
+     - `arithmetic_slip`: 5/5 (100.0%)
+     - `misread_question`: 5/5 (100.0%)
+     - `wrong_setup`: 6/6 (100.0%)
+     - `incomplete_reasoning`: 5/5 (100.0%)
+     - `parse_error`: 4/4 (100.0%)
+     - `truncation`: 3/3 (100.0%)
+     - `other`: 2/2 (100.0%)
+
+### Full Pipeline Automation & Provenance (`scripts/run_day32_error_analysis.py`)
+- Created unified runner `scripts/run_day32_error_analysis.py` integrating:
+  1. Validation analysis half evaluation (`MathEvaluator`).
+  2. Automatic error extraction and 7-category taxonomy classification (`ErrorClassifier`).
+  3. 30-sample human calibration agreement benchmark (`compute_label_agreement`).
+  4. Automatic generation of `reports/error_label_agreement_30.json`, `reports/error_label_agreement_30.md`, `reports/error_analysis_sft.json`, and `reports/error_analysis_sft.md`.
+  5. Provenance tracking via `save_run_info(stage='error_analysis')`.
+
+### Colab Launcher Integration & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Added Step 29: "Phase 5 Day 32 — Classify SFT Model Errors on Analysis Half & 30-Example Calibration" supporting both GPU execution on G4/A100 and CPU mock/sample mode.
+- **Unit Tests (`tests/test_day32_error_analysis.py`):**
+  - Added 6 dedicated tests verifying agreement computation, confusion matrix generation, calibration CLI gate pass/fail enforcement, runner test-set wall prevention, mock end-to-end execution, and provenance logging.
+  - Full test suite: 298 passing unit tests across repository.
+
+---
+
 ## Run Entry: Phase 5 Day 31 — Error Taxonomy, Rule-Based Filters & Semantic Error Classifier
 
 - **Date:** 2026-11-03
