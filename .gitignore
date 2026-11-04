@@ -51,6 +51,7 @@ env/
 checkpoints/
 outputs/
 logs/
+reports/eval_*/
 
 # Data: Keep small sample data tracked if needed, ignore large datasets
 data/raw/

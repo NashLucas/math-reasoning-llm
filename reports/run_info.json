@@ -1,12 +1,12 @@
 {
-  "run_id": "error_analysis-20261104_033234-run",
-  "stage": "error_analysis",
-  "timestamp_utc": "2026-11-04T03:32:34.503014+00:00",
-  "description": "",
+  "run_id": "round_comparison-20261104_053334-phase_5_day_37:_round_1_vs_round_2_sft_comparison_on_gating_split",
+  "stage": "round_comparison",
+  "timestamp_utc": "2026-11-04T05:33:34.020201+00:00",
+  "description": "Phase 5 Day 37: Round 1 vs Round 2 SFT comparison on gating split",
   "git": {
-    "commit_hash": "0759df8996ab1c0034459505fac8cdd07ebcfb56",
-    "commit_short": "0759df8",
-    "branch": "day-33-cluster-errors",
+    "commit_hash": "57999ac1c5305572900136e92bb808dd5ccace2c",
+    "commit_short": "57999ac",
+    "branch": "day-37-compare-rounds",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
@@ -39,80 +39,26 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "day": 33,
-    "task": "error_question_topic_clustering",
-    "input_file": "data\\sample\\labeled_30_errors.jsonl",
-    "output_clusters_file": "reports\\error_clusters.json",
-    "report_file": "reports\\error_analysis_sft.md",
-    "num_clusters": 5,
-    "total_errors": 30,
-    "embedding_model": "tfidf_fallback",
-    "clusters": [
-      {
-        "id": 1,
-        "name": "Multi-Step Counting, Inventory & Combinatorics",
-        "size": 10,
-        "percentage": 33.33333333333333,
-        "top_keywords": [
-          "apples",
-          "desks",
-          "books",
-          "cookies",
-          "calculate times"
-        ]
-      },
-      {
-        "id": 2,
-        "name": "Multi-Step Counting, Inventory & Combinatorics (Does)",
-        "size": 10,
-        "percentage": 33.33333333333333,
-        "top_keywords": [
-          "15",
-          "does",
-          "minus",
-          "15 minus",
-          "cups"
-        ]
-      },
-      {
-        "id": 3,
-        "name": "Multi-Step Counting, Inventory & Combinatorics (Divided)",
-        "size": 4,
-        "percentage": 13.333333333333334,
-        "top_keywords": [
-          "divided",
-          "100",
-          "100 divided",
-          "20 divided",
-          "solve 20"
-        ]
-      },
-      {
-        "id": 4,
-        "name": "Rates, Speed, Work & Motion",
-        "size": 3,
-        "percentage": 10.0,
-        "top_keywords": [
-          "hours",
-          "miles",
-          "workers",
-          "miles hour",
-          "hour"
-        ]
-      },
-      {
-        "id": 5,
-        "name": "Time, Durations & Scheduling",
-        "size": 3,
-        "percentage": 10.0,
-        "top_keywords": [
-          "liters",
-          "40",
-          "afternoon",
-          "morning",
-          "60"
-        ]
-      }
-    ]
+    "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
+    "round1_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model",
+    "round2_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "val_split": "val_gating",
+    "limit": 10,
+    "backend": "auto",
+    "use_mock": true,
+    "tie_margin_pct": 2.0,
+    "tie_margin_count": 5,
+    "decision": {
+      "winner": "tie",
+      "decision": "tie_round_2_advances",
+      "advancing_stage": "sft_targeted",
+      "advancing_adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+      "difference_accuracy_percent": 0.0,
+      "difference_correct": 0,
+      "tie_margin_pct": 2.0,
+      "tie_margin_count": 5,
+      "is_tie": true,
+      "rationale": "Round 2 vs Round 1 performance difference of +0.00% (+0 problems) is within the tie margin (2.0% / 5 problems). Per specification, a 1-2 point difference is treated as a tie favoring Round 2. Round 2 advances to Phase 6 with targeted error mitigation incorporated."
+    }
   }
 }
