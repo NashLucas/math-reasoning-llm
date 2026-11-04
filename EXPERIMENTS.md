@@ -4,6 +4,57 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 34 — Targeted Training Example Selection for Round-2 SFT
+
+- **Date:** 2026-11-04
+- **Run ID:** `selection-20261104_day34_targeted_selection`
+- **Branch:** `day-34-targeted-selection`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (CPU & dense question similarity retrieval; GPU compatible)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Retrieved 20–50 candidate training problems from the training pool (`data/processed/train/train.parquet`, 6,973 problems) semantically most similar to each classified error category to construct a targeted dataset for Round-2 SFT error mitigation.
+- **Design Rule 2 (The Test-Set Wall) Verification:**
+  - Loaded all 1,819 forbidden validation and test problem IDs (`val_ids.json` [500], `val_analysis_ids.json` [250], `val_gating_ids.json` [250], `test_ids.json` [1,319]).
+  - Enforced strict membership check in `TargetedSelector.load_training_pool` and `select_for_errors`. Any overlap raises `TestSetWallError`.
+  - Zero validation or test problems leaked into the targeted pool (100% Test-Set Wall integrity).
+
+### Targeted Selection Engine (`src/data/selection.py`)
+1. **Targeted Selection Architecture (`TargetedSelector`):**
+   - Embeds the candidate training pool questions using `QuestionEmbedder` (supporting `sentence-transformers/all-MiniLM-L6-v2` and deterministic TF-IDF fallback).
+   - Groups classified reasoning errors by taxonomy category and calculates the geometric centroid vector for each category.
+   - Computes cosine similarity between each candidate training question and the category centroids.
+   - For each active error category, ranks candidate training problems by similarity and selects the top $N$ ($N \in [20, 50]$, default: 30).
+   - Avoids duplicates within a category while permitting appropriate cross-category coverage if a problem targets multiple failure modes.
+2. **Trace & Solution Attachment:**
+   - Indexes curated reasoning traces from Phase 3 (`data/synthetic/curated/traces_curated_sft.jsonl`).
+   - If a selected training problem has a curated reasoning trace, attaches `curated_trace` to `TargetedExample`.
+   - If no curated trace exists for that problem ID, attaches canonical `cleaned_solution` ending in `#### <number>`.
+3. **Export Formats & Provenance (`data/targeted/`):**
+   - Emits `targeted_examples.jsonl` (line-delimited JSON records with problem metadata, category, similarity score, question, and attached trace/solution).
+   - Emits `targeted_examples.parquet` with complete schema for high-throughput PyTorch dataset loading.
+   - Emits `manifest.json` detailing total count, unique problem count, per-category breakdown, and trace attachment breakdown (`curated_trace` vs `cleaned_gold_solution`).
+   - Emits `run_info.json` recording Git commit hash, timestamps, Python environment, and execution parameters (`save_run_info(stage='data_selection')`).
+
+### CLI Runners, Scripts & Colab Integration
+- **CLI Runner (`scripts/run_day34_selection.py`):**
+   - Supports `--error_file`, `--train_pool`, `--curated_traces`, `--output_dir`, `--target_per_category`, `--embedding_model`, `--use_mock`, and `--sample_mode`.
+- **Error Analysis Integration (`scripts/error_analysis.py`):**
+   - Wired `--select_targeted`, `--target_per_category`, and `--targeted_output_dir` into the main analysis pipeline.
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+   - Appended Step 31: "Phase 5 Day 34 — Targeted Example Selection for SFT Round 2".
+
+### Unit Testing Suite (`tests/test_selection.py`)
+- Created comprehensive test suite verifying:
+  - Strict Test-Set Wall enforcement (`TestSetWallError` raised on forbidden IDs).
+  - Trace attachment priority (curated trace over gold solution).
+  - Minimum and maximum per-category selection bounds.
+  - Export integrity (`.jsonl`, `.parquet`, `manifest.json`, `run_info.json`).
+  - CLI runner `--sample_mode` execution.
+- All 8 selection unit tests passed in 53.9s. Full test suite passing.
+
+---
+
 ## Run Entry: Phase 5 Day 33 — Error Question Semantic Topic Clustering & Audit Report
 
 - **Date:** 2026-11-04
