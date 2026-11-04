@@ -49,6 +49,14 @@ synthetic:
   target_problems_covered: 2500
   max_traces_per_problem: 2
 
+sft_round2:
+  # Phase 5 Day 35: Combined curated and error-targeted SFT dataset
+  curated_file: "data/synthetic/curated/traces_curated_sft.jsonl"
+  targeted_file: "data/targeted/targeted_examples.jsonl"
+  output_dir: "data/processed/sft_round2"
+  duplicate_targeted: true
+  seed: 42
+
 grpo:
   # Phase 6 difficulty filter window (solvable between 20% and 80%)
   min_pass_rate: 0.20
