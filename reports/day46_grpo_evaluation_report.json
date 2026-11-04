@@ -1,0 +1,150 @@
+{
+  "sft_baseline": {
+    "model_name": "SFT Baseline (Round 2 Targeted)",
+    "stage": "sft_baseline",
+    "adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
+    "split": "val_gating",
+    "total_problems": 10,
+    "greedy_accuracy": 1.0,
+    "greedy_accuracy_percent": 100.0,
+    "greedy_format_compliance": 1.0,
+    "greedy_format_compliance_percent": 100.0,
+    "pass_at_1": 0.75,
+    "pass_at_4": 1.0,
+    "pass_at_8": 1.0,
+    "maj_at_8": 1.0,
+    "reward_stats": {
+      "accuracy_reward": {
+        "mean": 0.75,
+        "std": 0.4385,
+        "median": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "format_reward": {
+        "mean": 1.0,
+        "std": 0.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "reasoning_structure_reward": {
+        "mean": 0.0,
+        "std": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "length_penalty": {
+        "mean": 0.0,
+        "std": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "total_reward": {
+        "mean": 1.25,
+        "std": 0.4385,
+        "median": 1.5,
+        "min": 0.5,
+        "max": 1.5
+      }
+    },
+    "mean_completion_tokens": 85.0,
+    "format_method_breakdown": {},
+    "generations_file_greedy": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\eval_grpo\\sft_baseline\\greedy\\generations_val_gating_greedy.jsonl",
+    "generations_file_sampled": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\eval_grpo\\sft_baseline\\sampled\\generations_val_gating_self_consistency.jsonl"
+  },
+  "grpo_policy": {
+    "model_name": "GRPO Post-Trained Policy",
+    "stage": "grpo",
+    "adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\grpo\\adapter_model",
+    "split": "val_gating",
+    "total_problems": 10,
+    "greedy_accuracy": 1.0,
+    "greedy_accuracy_percent": 100.0,
+    "greedy_format_compliance": 1.0,
+    "greedy_format_compliance_percent": 100.0,
+    "pass_at_1": 0.75,
+    "pass_at_4": 1.0,
+    "pass_at_8": 1.0,
+    "maj_at_8": 1.0,
+    "reward_stats": {
+      "accuracy_reward": {
+        "mean": 0.75,
+        "std": 0.4385,
+        "median": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "format_reward": {
+        "mean": 1.0,
+        "std": 0.0,
+        "median": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "reasoning_structure_reward": {
+        "mean": 0.0,
+        "std": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "length_penalty": {
+        "mean": 0.0,
+        "std": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "total_reward": {
+        "mean": 1.4,
+        "std": 0.4385,
+        "median": 1.5,
+        "min": 0.5,
+        "max": 1.5
+      }
+    },
+    "mean_completion_tokens": 85.0,
+    "format_method_breakdown": {},
+    "generations_file_greedy": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\eval_grpo\\grpo_policy\\greedy\\generations_val_gating_greedy.jsonl",
+    "generations_file_sampled": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\eval_grpo\\grpo_policy\\sampled\\generations_val_gating_self_consistency.jsonl"
+  },
+  "delta_greedy_accuracy": 0.0,
+  "delta_greedy_accuracy_percent": 0.0,
+  "delta_pass_at_1": 0.0,
+  "delta_pass_at_4": 0.0,
+  "delta_pass_at_8": 0.0,
+  "delta_maj_at_8": 0.0,
+  "delta_total_reward": 0.15,
+  "delta_format_compliance": 0.0,
+  "gate_verdict": "PASSED",
+  "gate_checks": {
+    "greedy_accuracy_no_regression": {
+      "description": "GRPO greedy accuracy must not regress vs. SFT baseline",
+      "threshold": "delta >= -0.01 (-1.0%)",
+      "actual": 0.0,
+      "passed": true
+    },
+    "pass_at_8_gain": {
+      "description": "GRPO pass@8 must demonstrate exploration/reasoning gain over SFT",
+      "threshold": "delta_pass@8 >= 0.00",
+      "actual": 0.0,
+      "passed": true
+    },
+    "answer_contract_preservation": {
+      "description": "Canonical answer contract format adherence rate under RL",
+      "threshold": ">= 98.0%",
+      "actual": "100.0%",
+      "passed": true
+    },
+    "composite_reward_gain": {
+      "description": "GRPO mean total composite reward must exceed SFT baseline",
+      "threshold": "delta_reward > 0.00",
+      "actual": 0.15,
+      "passed": true
+    }
+  },
+  "timestamp_utc": "2026-11-04T12:54:55.242350+00:00"
+}

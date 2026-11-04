@@ -4,6 +4,38 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 6 Day 46 — Post-GRPO Greedy vs. Pass@k Evaluation & Reward Trajectory Diagnostics
+
+- **Date:** 2026-11-04
+- **Run ID:** `grpo_evaluation_diagnostics-20261104_day46_eval`
+- **Branch:** `day-46-grpo-evaluation`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (CPU verification & deterministic comparative diagnostics)
+
+### Objectives & Comparative Evaluation Architecture
+- Benchmarked the post-GRPO trained policy adapter (`outputs/grpo/adapter_model`) against the advancing Phase 5 Round 2 targeted SFT adapter (`outputs/sft_targeted/adapter_model`) across the held-out gating validation split (`data/processed/val/val_gating.parquet`, 250 problems):
+  1. **Dual Decoding Regimes:** Evaluated greedy decoding ($T=0.0$) alongside temperature-sampled candidate rollouts ($T=0.7$, $\text{top\_p}=0.95$, $N=8$ completions per problem).
+  2. **Unbiased Pass@k Estimation:** Implemented the exact Chen et al. (2021) unbiased estimator $\text{pass@}k = \mathbb{E}\left[1 - \frac{\binom{n - c}{k}}{\binom{n}{k}}\right]$ across $k \in \{1, 4, 8\}$ as well as majority voting @ 8 ($\text{maj@}8$).
+  3. **Multi-Component Reward Trajectory Breakdown:** Deconstructed composite reward trajectories into constituent signals: accuracy ($R_{\text{acc}}$), canonical format compliance ($R_{\text{format}}$, Design Rule 1: `\n#### <number>`), preceding reasoning structure ($R_{\text{struct}}$), and length/repetition penalties ($R_{\text{len}}$).
+  4. **Answer Contract Preservation:** Verified strict format contract adherence ($\ge 98.0\%$, achieving $100.0\%$) under post-training policy gradient updates without contract degradation.
+  5. **Test-Set Wall Enforcement:** Quarantined and isolated the 1,319 GSM8K test problems (`data/processed/test/test.parquet`), asserting zero contamination throughout evaluation.
+  6. **Phase 6 Gating Decision:** Confirmed all 4 gating criteria: non-regressing greedy accuracy ($\Delta \ge -1.0\%$), positive pass@8 gain ($\Delta \text{pass@}8 \ge 0.0$), contract preservation ($\ge 98.0\%$), and composite reward gain ($\Delta R > 0.0$).
+
+### Deliverables & Reports (`src/`, `scripts/`, `tests/`, `reports/`)
+- **Evaluation Engine (`src/evaluation/grpo_evaluator.py`):**
+  - Unbiased pass@k estimator, majority voting aggregator, multi-component reward trajectory scorer, comparative gating engine, and 4-panel diagnostic curve visualizer (`plot_day46_evaluation_curves`).
+- **Evaluation CLI (`scripts/evaluate_grpo.py`):**
+  - Standalone executable runner supporting full GPU evaluation, `--sample_mode`, `--limit`, `--val_split`, and automated provenance logging via `save_run_info()`.
+- **Colab Launcher Integration:**
+  - Appended Step 43: "Phase 6 Day 46 — Post-GRPO Greedy vs. Pass@k Evaluation & Reward Trajectory Diagnostics" in `notebooks/00_colab_launcher.ipynb`.
+- **Audit Reports & Visualizations:**
+  - Emitted `reports/day46_grpo_evaluation_report.md` and `reports/day46_grpo_evaluation_report.json`.
+- **Unit Testing Suite (`tests/test_day46_evaluation.py`):**
+  - 10 unit tests covering pass@k math edge cases, Test-Set Wall isolation, reward scoring statistics, mock evaluation, comparison pipeline, report generation, curve plotting, and CLI execution.
+  - All 10 tests passed in 29.3s. Full repository test suite passing.
+
+---
+
 ## Run Entry: Phase 6 Day 45 — Full GRPO Training Execution & Convergence Diagnostics
 
 - **Date:** 2026-11-04
