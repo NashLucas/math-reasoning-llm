@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-04T13:31:18.260969+00:00",
+  "timestamp": "2026-11-04T13:45:44.975725+00:00",
   "verdict": "PASSED",
   "all_passed": true,
   "release_tag": "v0.7",
@@ -17,9 +17,9 @@
     {
       "name": "Intermediate Dataset & Test-Set Wall",
       "passed": true,
-      "threshold": "1,000 problems, [0.20, 0.80] pass rate, 0 test leaks",
-      "observed": "1000 problems, bounds=[0.2, 0.8], test_leaks=0",
-      "details": "Frozen manifest at manifest.json"
+      "threshold": "1,000 problems, [0.20, 0.80] pass rate, 0 test leaks, frozen manifest",
+      "observed": "1000 problems, bounds=[0.2, 0.8], test_leaks=0, frozen=True",
+      "details": "Frozen manifest verified at C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\grpo\\manifest.json"
     },
     {
       "name": "Reference Model & Schulman k3 KL",

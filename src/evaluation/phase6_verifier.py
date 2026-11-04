@@ -129,15 +129,14 @@ def verify_grpo_dataset_and_wall(
     """Verify Criterion 2: Intermediate difficulty dataset & strict test set wall."""
     ds_dir = Path(dataset_dir) if dataset_dir else (PROJECT_ROOT / "data" / "processed" / "grpo")
     manifest_path = ds_dir / "manifest.json"
-    train_parquet = ds_dir / "grpo_train.parquet"
 
-    if not manifest_path.exists() or not train_parquet.exists():
+    if not manifest_path.exists():
         return GateCriterionStatus(
             name="Intermediate Dataset & Test-Set Wall",
             passed=False,
             threshold="1,000 intermediate problems with frozen manifest & 0 test leaks",
-            observed="Dataset files missing",
-            details=f"Checked {manifest_path} and {train_parquet}",
+            observed=f"manifest.json missing at {ds_dir}",
+            details=f"Checked {manifest_path}",
         )
 
     try:
@@ -153,14 +152,15 @@ def verify_grpo_dataset_and_wall(
         criteria = manifest.get("filtering_criteria", {})
         min_p = criteria.get("min_pass_rate", 0.0)
         max_p = criteria.get("max_pass_rate", 0.0)
+        is_frozen = manifest.get("frozen", False)
 
-        passed = wall_passed and train_count >= 1000 and (min_p == 0.2 and max_p == 0.8)
+        passed = wall_passed and train_count >= 1000 and (min_p == 0.2 and max_p == 0.8) and is_frozen
         return GateCriterionStatus(
             name="Intermediate Dataset & Test-Set Wall",
             passed=passed,
-            threshold="1,000 problems, [0.20, 0.80] pass rate, 0 test leaks",
-            observed=f"{train_count} problems, bounds=[{min_p}, {max_p}], test_leaks={exact_matches}",
-            details=f"Frozen manifest at {manifest_path.name}",
+            threshold="1,000 problems, [0.20, 0.80] pass rate, 0 test leaks, frozen manifest",
+            observed=f"{train_count} problems, bounds=[{min_p}, {max_p}], test_leaks={exact_matches}, frozen={is_frozen}",
+            details=f"Frozen manifest verified at {manifest_path}",
         )
     except Exception as e:
         return GateCriterionStatus(
