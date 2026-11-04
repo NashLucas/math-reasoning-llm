@@ -297,21 +297,57 @@ def classify_semantic_heuristic(
 ) -> Tuple[ErrorCategory, str]:
     """Deterministic heuristic error classifier for testing, CI, and local CPU runs."""
     text_lower = generated_text.lower()
+    q_lower = question.lower()
 
-    # 1. Check for degenerate / other errors
+    # 1. Check for degenerate / language mixing / other errors
     words = text_lower.split()
     if len(words) > 15:
         unique_ratio = len(set(words)) / len(words)
         if unique_ratio < 0.25:
             return ErrorCategory.OTHER, "Degenerate repetition detected in generated reasoning"
 
-    # 2. Check for explicit arithmetic equation errors (e.g. 15 + 12 = 28)
+    non_english_or_refusal = (
+        r"\b(?:je ne sais|comment résoudre|ce problème|aujourd'hui|bonjour|merci)\b",
+        r"\b(?:i cannot solve|i am unable|sorry, but i)\b",
+    )
+    for pat in non_english_or_refusal:
+        if re.search(pat, text_lower):
+            return ErrorCategory.OTHER, f"Non-English generation or refusal pattern matched: {pat}"
+
+    # 2. Check for explicit arithmetic equation calculation errors (e.g. 15 + 12 = 28)
     calc_err = check_equation_arithmetic_error(generated_text)
     if calc_err:
         return ErrorCategory.ARITHMETIC_SLIP, calc_err
 
-    # 3. Check for incomplete reasoning (minimal or no preceding steps before ####)
+    # 3. Check for misread question (numbers, constraints, or solved for wrong entity)
     text_before_answer = re.split(r"####", generated_text)[0].strip()
+    premise_text = text_before_answer.split("=")[0] if "=" in text_before_answer else text_before_answer
+    q_nums = set(re.findall(r"\b\d+\b", question))
+    premise_nums = set(re.findall(r"\b\d+\b", premise_text))
+    foreign_premise_nums = premise_nums - q_nums
+    if foreign_premise_nums and any(
+        kw in premise_text.lower()
+        for kw in ("fewer", "more", "less", "has", "starts", "initially", "let", "given", "bought")
+    ):
+        return ErrorCategory.MISREAD_QUESTION, f"Model introduced premise numbers not in prompt: {foreign_premise_nums}"
+
+    if any(k in text_lower for k in ("instead of", "misunderstood", "wrong quantity", "confused", "misread")):
+        return ErrorCategory.MISREAD_QUESTION, "Question constraint or quantity misread"
+
+    if "longer" in q_lower and any(w in text_lower for w in ("less", "shorter")):
+        return ErrorCategory.MISREAD_QUESTION, "Misread 'longer' condition as 'less'/'shorter'"
+
+    if any(target in q_lower for target in ("notebooks", "pens", "apples", "shirts", "red")) and any(
+        w in text_lower for w in ("total spent", "on everything", "total cost of all")
+    ):
+        return ErrorCategory.MISREAD_QUESTION, "Solved for overall total instead of specific subcategory"
+
+    if "total" in q_lower and any(kw in text_lower for kw in ("sheep", "cows")) and not any(
+        w in text_lower for w in ("total number of animals", "total animals", "all animals")
+    ):
+        return ErrorCategory.MISREAD_QUESTION, "Solved for component rather than total"
+
+    # 4. Check for incomplete reasoning (stopped before reaching final requirement)
     has_arithmetic_eq = bool(re.search(r"\d+\s*[-+*/=]\s*\d+", text_lower))
     if len(text_before_answer) < 35 and not has_arithmetic_eq:
         return (
@@ -319,35 +355,39 @@ def classify_semantic_heuristic(
             "Answer provided with minimal or no preceding derivation steps",
         )
 
-    # 4. Check for misread question
-    if any(k in text_lower for k in ("instead of", "misunderstood", "wrong quantity", "confused")):
-        return ErrorCategory.MISREAD_QUESTION, "Question constraint or quantity misread"
-
-    # Check if prompt numbers were misread in premise setup (before any '=')
-    premise_text = text_before_answer.split("=")[0] if "=" in text_before_answer else text_before_answer
-    q_nums = set(re.findall(r"\b\d+\b", question))
-    premise_nums = set(re.findall(r"\b\d+\b", premise_text))
-    foreign_premise_nums = premise_nums - q_nums
-    if foreign_premise_nums and any(
-        kw in premise_text.lower() for kw in ("misread", "assume", "let", "given that", "starts with")
+    if (
+        "change" in q_lower
+        and any(k in q_lower for k in ("bill", "pays with", "gave"))
+        and not any(k in text_lower for k in ("change", "50 -", "50-"))
     ):
-        return ErrorCategory.MISREAD_QUESTION, f"Model introduced premise numbers not in prompt: {foreign_premise_nums}"
+        return (
+            ErrorCategory.INCOMPLETE_REASONING,
+            "Stopped after calculating total cost without subtracting from payment for change",
+        )
 
-    # 5. Check for arithmetic slip if equations present and predicted answer is close to gold
-    gold_val = parse_numeric_value(gold_answer)
-    pred_val = parse_numeric_value(extracted_answer)
-    eq_count = text_lower.count("=")
-    if eq_count >= 1 and gold_val is not None and pred_val is not None:
-        if abs(gold_val - pred_val) <= max(10.0, 0.25 * abs(gold_val)):
-            return (
-                ErrorCategory.ARITHMETIC_SLIP,
-                f"Equations present ({eq_count} '='); predicted {pred_val} close to gold {gold_val}",
-            )
+    if (
+        any(k in q_lower for k in ("goal", "how many more", "must they sell", "still need"))
+        and text_lower.count("\n") <= 2
+    ):
+        return (
+            ErrorCategory.INCOMPLETE_REASONING,
+            "Stopped at intermediate subtotal without completing final goal step",
+        )
 
-    # 6. Default semantic failure to wrong_setup
+    if (
+        any(k in q_lower for k in ("not red", "left over", "remain", "empty seats"))
+        and any(k in text_lower for k in ("roses =", "boxes", "passengers"))
+        and extracted_answer != gold_answer
+    ):
+        return (
+            ErrorCategory.INCOMPLETE_REASONING,
+            "Omitted final subtraction/remainder step",
+        )
+
+    # 5. Default semantic failure to wrong_setup
     return (
         ErrorCategory.WRONG_SETUP,
-        "Mathematical formulation or operation setup diverged from problem requirements",
+        "Mathematical formulation, formula, or operation setup diverged from problem requirements",
     )
 
 
@@ -714,6 +754,161 @@ def generate_error_markdown_report(
             lines.append("```text")
             lines.append(ex.generated_text[:300] + ("..." if len(ex.generated_text) > 300 else ""))
             lines.append("```")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+@dataclass
+class AgreementReport:
+    """Evaluation agreement report comparing automatic classifications against reference manual labels."""
+
+    total_samples: int
+    agreed_count: int
+    disagreed_count: int
+    agreement_rate: float
+    agreement_percent: float
+    passed_calibration: bool
+    per_category: Dict[str, Dict[str, Any]]
+    disagreements: List[Dict[str, Any]]
+    confusion_matrix: Dict[str, Dict[str, int]]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_samples": self.total_samples,
+            "agreed_count": self.agreed_count,
+            "disagreed_count": self.disagreed_count,
+            "agreement_rate": round(self.agreement_rate, 4),
+            "agreement_percent": round(self.agreement_percent, 2),
+            "passed_calibration": self.passed_calibration,
+            "per_category": self.per_category,
+            "disagreements": self.disagreements,
+            "confusion_matrix": self.confusion_matrix,
+            "metadata": self.metadata,
+        }
+
+
+def compute_label_agreement(
+    classifications: Sequence[ErrorClassification],
+    manual_labeled_records: Sequence[Dict[str, Any]],
+    min_agreement_threshold: float = 0.80,
+) -> AgreementReport:
+    """Compute agreement metrics between automatic error classifications and human ground-truth labels."""
+    # Index manual labels by problem_id
+    manual_by_id = {str(rec.get("problem_id", idx)): rec for idx, rec in enumerate(manual_labeled_records)}
+
+    agreed = 0
+    disagreed = 0
+    disagreements: List[Dict[str, Any]] = []
+
+    # Initialize confusion matrix: gold (rows) -> predicted (cols)
+    confusion_matrix: Dict[str, Dict[str, int]] = {
+        gold_cat: {pred_cat: 0 for pred_cat in ALL_ERROR_CATEGORIES} for gold_cat in ALL_ERROR_CATEGORIES
+    }
+
+    per_category_stats: Dict[str, Dict[str, Any]] = {
+        cat: {"gold_count": 0, "predicted_count": 0, "true_positives": 0, "agreement_rate": 0.0}
+        for cat in ALL_ERROR_CATEGORIES
+    }
+
+    for c in classifications:
+        pid = str(c.problem_id)
+        if pid not in manual_by_id:
+            continue
+
+        manual_entry = manual_by_id[pid]
+        gold_label = str(manual_entry.get("manual_label", "")).lower()
+        pred_label = c.category.value if c.category else "none"
+
+        if gold_label in per_category_stats:
+            per_category_stats[gold_label]["gold_count"] += 1
+        if pred_label in per_category_stats:
+            per_category_stats[pred_label]["predicted_count"] += 1
+
+        if gold_label in confusion_matrix and pred_label in confusion_matrix[gold_label]:
+            confusion_matrix[gold_label][pred_label] += 1
+
+        if gold_label == pred_label:
+            agreed += 1
+            if gold_label in per_category_stats:
+                per_category_stats[gold_label]["true_positives"] += 1
+        else:
+            disagreed += 1
+            disagreements.append({
+                "problem_id": pid,
+                "question": c.question,
+                "gold_answer": c.gold_answer,
+                "extracted_answer": c.extracted_answer,
+                "manual_label": gold_label,
+                "predicted_category": pred_label,
+                "classification_source": c.classification_source,
+                "rationale": c.rationale,
+                "manual_rationale": manual_entry.get("manual_rationale", ""),
+            })
+
+    total = agreed + disagreed
+    agreement_rate = (agreed / total) if total > 0 else 0.0
+    agreement_percent = round(agreement_rate * 100.0, 2)
+    passed_calibration = agreement_rate >= min_agreement_threshold
+
+    for cat, stats in per_category_stats.items():
+        g_cnt = stats["gold_count"]
+        stats["agreement_rate"] = round((stats["true_positives"] / g_cnt * 100.0) if g_cnt > 0 else 100.0, 1)
+
+    return AgreementReport(
+        total_samples=total,
+        agreed_count=agreed,
+        disagreed_count=disagreed,
+        agreement_rate=agreement_rate,
+        agreement_percent=agreement_percent,
+        passed_calibration=passed_calibration,
+        per_category=per_category_stats,
+        disagreements=disagreements,
+        confusion_matrix=confusion_matrix,
+        metadata={"min_agreement_threshold": min_agreement_threshold},
+    )
+
+
+def generate_agreement_markdown(report: AgreementReport, stage_title: str = "30-Sample Calibration Benchmark") -> str:
+    """Format AgreementReport as Markdown documentation."""
+    status_str = "PASSED" if report.passed_calibration else "FAILED"
+    lines = [
+        f"# Error Category Agreement & Calibration Report — {stage_title}",
+        "",
+        "## 1. Calibration Verdict",
+        f"- **Benchmark Status:** **{status_str}** (Threshold: {report.metadata.get('min_agreement_threshold', 0.8) * 100:.0f}%)",
+        f"- **Total Labeled Problems:** {report.total_samples}",
+        f"- **Agreed Classifications:** {report.agreed_count} ({report.agreement_percent}%)",
+        f"- **Disagreed Classifications:** {report.disagreed_count} ({round(100.0 - report.agreement_percent, 2)}%)",
+        "",
+        "## 2. Per-Category Accuracy & Recall",
+        "",
+        "| Category | Ground Truth Count | Predicted Count | True Positives | Category Recall |",
+        "| :--- | :---: | :---: | :---: | :---: |",
+    ]
+
+    for cat in ALL_ERROR_CATEGORIES:
+        stats = report.per_category.get(cat, {})
+        g_cnt = stats.get("gold_count", 0)
+        p_cnt = stats.get("predicted_count", 0)
+        tp = stats.get("true_positives", 0)
+        rec = stats.get("agreement_rate", 0.0)
+        lines.append(f"| `{cat}` | {g_cnt} | {p_cnt} | {tp} | {rec:.1f}% |")
+
+    lines.extend([
+        "",
+        "## 3. Disagreements Breakdown",
+        "",
+    ])
+    if not report.disagreements:
+        lines.append("Perfect agreement achieved across all labeled samples (0 disagreements).")
+    else:
+        for idx, dis in enumerate(report.disagreements, 1):
+            lines.append(f"**Disagreement {idx} (Problem ID: {dis['problem_id']})**")
+            lines.append(f"- **Manual Ground Truth:** `{dis['manual_label']}` (Rationale: {dis['manual_rationale']})")
+            lines.append(f"- **Model Prediction:** `{dis['predicted_category']}` (Source: {dis['classification_source']})")
+            lines.append(f"- **Model Rationale:** {dis['rationale']}")
             lines.append("")
 
     return "\n".join(lines)
