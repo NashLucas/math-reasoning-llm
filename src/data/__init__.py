@@ -40,13 +40,14 @@ from src.data.formatting import (
     format_few_shot_prompt,
     format_zero_shot_prompt,
 )
-from src.data.sft_dataset import (
-    SFTExample,
-    format_sft_prompt_completion,
-    load_sft_dataset,
-    prepare_sft_examples_from_curated,
-    tokenize_sft_example,
-    verify_sft_loss_masking,
+from src.data.grpo_dataset import (
+    DifficultyTier,
+    GRPOProblemProfile,
+    count_reasoning_steps,
+    format_grpo_prompt,
+    load_grpo_dataset_config,
+    prepare_grpo_dataset,
+    profile_problem_difficulty,
 )
 from src.data.round2_dataset import (
     Round2DatasetManifest,
@@ -57,6 +58,14 @@ from src.data.round2_dataset import (
     load_curated_examples,
     load_targeted_examples,
     verify_round2_dataset_safety,
+)
+from src.data.sft_dataset import (
+    SFTExample,
+    format_sft_prompt_completion,
+    load_sft_dataset,
+    prepare_sft_examples_from_curated,
+    tokenize_sft_example,
+    verify_sft_loss_masking,
 )
 from src.data.synthetic import (
     ReasoningTrace,
@@ -70,6 +79,13 @@ from src.data.synthetic import (
 )
 
 __all__ = [
+    "DifficultyTier",
+    "GRPOProblemProfile",
+    "count_reasoning_steps",
+    "format_grpo_prompt",
+    "load_grpo_dataset_config",
+    "prepare_grpo_dataset",
+    "profile_problem_difficulty",
     "Round2DatasetManifest",
     "Round2Example",
     "TestSetWallError",

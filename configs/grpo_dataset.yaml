@@ -1,0 +1,24 @@
+# GRPO Dataset Preparation and Difficulty Filtering Configuration (Phase 6 Day 41)
+# Establishes intermediate difficulty boundaries and sampling parameters to maximize
+# advantage variance across candidate groups (G=4) while guarding against zero-variance failure modes.
+
+filtering:
+  mode: "hybrid"                # "hybrid" (empirical pass rate when present, steps fallback), "pass_rate_only", or "steps_only"
+  min_pass_rate: 0.20           # Minimum empirical pass rate to prevent impossible all-fail zero-variance groups
+  max_pass_rate: 0.80           # Maximum empirical pass rate to prevent trivial all-pass zero-variance groups
+  min_steps: 3                  # Minimum solution reasoning steps (excludes 1-2 step trivial problems)
+  max_steps: 6                  # Maximum solution reasoning steps (excludes excessively long/complex proofs)
+  max_prompt_chars: 1000        # Maximum character limit for question prompt
+
+sampling:
+  target_train_size: 1000       # Number of curated intermediate training problems for GRPO
+  val_size: 100                 # Number of held-out validation prompts for reward monitoring
+  seed: 42                      # Deterministic seed for reproducible selection
+
+paths:
+  train_input: "data/processed/train/train.parquet"
+  val_input: "data/processed/val/val_gating.parquet"
+  test_input: "data/processed/test/test.parquet"
+  pass_rates_input: "data/synthetic/generated/problem_pass_rates.parquet"
+  output_dir: "data/processed/grpo"
+  report_dir: "reports"

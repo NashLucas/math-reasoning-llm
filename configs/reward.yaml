@@ -1,0 +1,21 @@
+# GRPO Reward Function Configuration (Phase 6 Day 40)
+# Defines component reward weights, format patterns, and group advantage normalization settings.
+
+weights:
+  accuracy: 1.0           # Primary mathematical correctness objective
+  format: 0.5             # Canonical Answer Contract enforcement (\n#### <number>)
+  reasoning_structure: 0.2 # Preceding derivation steps to prevent answer guessing/hacking
+  length_penalty: 0.1     # Penalization for rambling or degenerate repetition
+
+parameters:
+  group_size: 4           # Number of sampled completions G per prompt for GRPO
+  epsilon: 1.0e-8         # Small constant to prevent division by zero in group std normalization
+  max_completion_length: 512
+  min_reasoning_tokens: 5 # Minimum tokens preceding answer required for structure reward
+  strict_format_pattern: '(?:\n|^)####\s*(-?[0-9]+(?:\.[0-9]+)?)\s*$'
+
+repetition_penalty:
+  enabled: true
+  ngram_size: 8           # Repeated n-gram detection size
+  max_ngram_repetition: 3 # Maximum times an n-gram may repeat before penalty triggers
+  penalty_scale: 0.2      # Penalty deducted per repeated n-gram exceeding threshold

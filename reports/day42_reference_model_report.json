@@ -1,0 +1,206 @@
+{
+  "timestamp_utc": "2026-11-04T09:07:08.493631+00:00",
+  "benchmark": {
+    "benchmark_cases": [
+      {
+        "name": "identical",
+        "description": "pi_theta == pi_ref (zero drift)",
+        "delta": 0.0,
+        "k1_standard": 0.0,
+        "k2_squared": 0.0,
+        "k3_schulman": 0.0,
+        "k3_non_negative": true,
+        "is_finite": true
+      },
+      {
+        "name": "mild_drift",
+        "description": "delta = +0.1 (mild policy divergence)",
+        "delta": 0.10000000000000009,
+        "k1_standard": 0.10000000000000009,
+        "k2_squared": 0.005000000000000009,
+        "k3_schulman": 0.0048374180359595925,
+        "k3_non_negative": true,
+        "is_finite": true
+      },
+      {
+        "name": "moderate_drift",
+        "description": "delta = +1.0 (moderate divergence)",
+        "delta": 1.0,
+        "k1_standard": 1.0,
+        "k2_squared": 0.5,
+        "k3_schulman": 0.36787944117144233,
+        "k3_non_negative": true,
+        "is_finite": true
+      },
+      {
+        "name": "negative_delta",
+        "description": "delta = -1.0 (policy probability lower than ref)",
+        "delta": -1.0,
+        "k1_standard": -1.0,
+        "k2_squared": 0.5,
+        "k3_schulman": 0.7182818284590451,
+        "k3_non_negative": true,
+        "is_finite": true
+      },
+      {
+        "name": "extreme_positive",
+        "description": "delta = +20.0 (extreme policy confidence)",
+        "delta": 20.0,
+        "k1_standard": 20.0,
+        "k2_squared": 200.0,
+        "k3_schulman": 19.000001,
+        "k3_non_negative": true,
+        "is_finite": true
+      },
+      {
+        "name": "extreme_negative",
+        "description": "delta = -20.0 (extreme policy underconfidence)",
+        "delta": -20.0,
+        "k1_standard": -20.0,
+        "k2_squared": 200.0,
+        "k3_schulman": 999978.9999999995,
+        "k3_non_negative": true,
+        "is_finite": true
+      }
+    ]
+  },
+  "masking_aggregation": {
+    "summary": {
+      "estimator": "k3",
+      "mean_token_kl": 0.01873075307798184,
+      "max_token_kl": 0.018730753077981888,
+      "min_token_kl": 0.018730753077981832,
+      "std_token_kl": 1.945013284395489e-17,
+      "sequence_mean_kl": 0.01873075307798184,
+      "sequence_sum_kl": 0.06555763577293644,
+      "total_valid_tokens": 7,
+      "num_sequences": 2,
+      "is_safe": true,
+      "warning": null
+    },
+    "prompt_masked_correctly": true,
+    "valid_completion_tokens": 7,
+    "expected_valid_tokens": 7
+  },
+  "controller": {
+    "fixed_controller_summary": {
+      "step_count": 8,
+      "current_beta": 0.04,
+      "initial_beta": 0.04,
+      "mean_kl": 0.21375,
+      "max_kl": 0.6,
+      "min_kl": 0.02,
+      "warning_count": 1,
+      "adaptive": false,
+      "target_kl": 0.1,
+      "max_kl_threshold": 0.5
+    },
+    "adaptive_controller_summary": {
+      "step_count": 8,
+      "current_beta": 0.06532496684999999,
+      "initial_beta": 0.04,
+      "mean_kl": 0.21375,
+      "max_kl": 0.6,
+      "min_kl": 0.02,
+      "warning_count": 1,
+      "adaptive": true,
+      "target_kl": 0.1,
+      "max_kl_threshold": 0.5
+    },
+    "trajectory": {
+      "fixed": [
+        {
+          "step": 1,
+          "observed_kl": 0.02,
+          "beta": 0.04
+        },
+        {
+          "step": 2,
+          "observed_kl": 0.05,
+          "beta": 0.04
+        },
+        {
+          "step": 3,
+          "observed_kl": 0.09,
+          "beta": 0.04
+        },
+        {
+          "step": 4,
+          "observed_kl": 0.11,
+          "beta": 0.04
+        },
+        {
+          "step": 5,
+          "observed_kl": 0.14,
+          "beta": 0.04
+        },
+        {
+          "step": 6,
+          "observed_kl": 0.25,
+          "beta": 0.04
+        },
+        {
+          "step": 7,
+          "observed_kl": 0.45,
+          "beta": 0.04
+        },
+        {
+          "step": 8,
+          "observed_kl": 0.6,
+          "beta": 0.04
+        }
+      ],
+      "adaptive": [
+        {
+          "step": 1,
+          "observed_kl": 0.02,
+          "beta": 0.0368
+        },
+        {
+          "step": 2,
+          "observed_kl": 0.05,
+          "beta": 0.03496
+        },
+        {
+          "step": 3,
+          "observed_kl": 0.09,
+          "beta": 0.03461
+        },
+        {
+          "step": 4,
+          "observed_kl": 0.11,
+          "beta": 0.034957
+        },
+        {
+          "step": 5,
+          "observed_kl": 0.14,
+          "beta": 0.036355
+        },
+        {
+          "step": 6,
+          "observed_kl": 0.25,
+          "beta": 0.041808
+        },
+        {
+          "step": 7,
+          "observed_kl": 0.45,
+          "beta": 0.05226
+        },
+        {
+          "step": 8,
+          "observed_kl": 0.6,
+          "beta": 0.065325
+        }
+      ]
+    }
+  },
+  "reference_manager": {
+    "shape": [
+      2,
+      4
+    ],
+    "prompt_tokens_zeroed": true,
+    "completion_tokens_non_zero": true,
+    "is_finite": true
+  }
+}

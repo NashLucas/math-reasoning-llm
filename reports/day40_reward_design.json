@@ -1,0 +1,218 @@
+{
+  "timestamp": "2026-11-04T06:40:00Z",
+  "phase": 6,
+  "day": 40,
+  "stage": "grpo_reward_design",
+  "reward_configuration": {
+    "weights": {
+      "accuracy": 1.0,
+      "format": 0.5,
+      "reasoning_structure": 0.2,
+      "length_penalty": 0.1
+    },
+    "parameters": {
+      "group_size": 4,
+      "epsilon": 1e-08,
+      "max_completion_length": 512,
+      "min_reasoning_tokens": 5,
+      "strict_format_pattern": "(?:\\n|^)####\\s*(-?[0-9]+(?:\\.[0-9]+)?)\\s*$"
+    },
+    "repetition_penalty": {
+      "enabled": true,
+      "ngram_size": 8,
+      "max_ngram_repetition": 3,
+      "penalty_scale": 0.2
+    }
+  },
+  "benchmark_evaluations": [
+    {
+      "case_id": "ideal_cot",
+      "description": "Full step-by-step derivation with correct answer and canonical #### format",
+      "gold_answer": "72",
+      "extracted_answer": "72",
+      "accuracy_reward": 1.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 1.7,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "alternative_cot",
+      "description": "Multi-step reasoning with alternative wording and correct canonical format",
+      "gold_answer": "72",
+      "extracted_answer": "72",
+      "accuracy_reward": 1.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 1.7,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "correct_missing_format",
+      "description": "Correct numerical answer embedded in text without canonical #### format",
+      "gold_answer": "72",
+      "extracted_answer": "Natalia sold a total of 72 clips altogether",
+      "accuracy_reward": 1.0,
+      "format_reward": 0.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 1.2,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "guess_hacking",
+      "description": "Direct canonical answer without preceding derivation (guess hacking vulnerability)",
+      "gold_answer": "72",
+      "extracted_answer": "72",
+      "accuracy_reward": 1.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 0.0,
+      "length_penalty": 0.0,
+      "total_reward": 1.5,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "wrong_with_format",
+      "description": "Reasoning with arithmetic error and canonical format",
+      "gold_answer": "72",
+      "extracted_answer": "100",
+      "accuracy_reward": 0.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 0.7,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "truncated_completion",
+      "description": "Incomplete derivation truncated before reaching a conclusion",
+      "gold_answer": "72",
+      "extracted_answer": "2",
+      "accuracy_reward": 0.0,
+      "format_reward": 0.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 0.2,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "degenerate_repetition",
+      "description": "Looping repetitive text penalized by length and n-gram penalty",
+      "gold_answer": "72",
+      "extracted_answer": "72",
+      "accuracy_reward": 1.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 1.0,
+      "total_reward": 1.5999999999999999,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "empty_completion",
+      "description": "Empty response",
+      "gold_answer": "72",
+      "extracted_answer": null,
+      "accuracy_reward": 0.0,
+      "format_reward": 0.0,
+      "reasoning_structure_reward": 0.0,
+      "length_penalty": 0.0,
+      "total_reward": 0.0,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    }
+  ],
+  "advantage_simulations": {
+    "mixed_group_g4": {
+      "description": "Group of 4 with heterogeneous rewards (optimal, wrong+format, correct+bad_format, wrong)",
+      "rewards": [
+        1.7,
+        0.7,
+        1.2,
+        0.0
+      ],
+      "advantages": [
+        1.2729,
+        -0.3182,
+        0.4773,
+        -1.432
+      ],
+      "top_advantage_positive": true,
+      "bottom_advantage_negative": true,
+      "sum_near_zero": true
+    },
+    "all_correct_g4": {
+      "description": "Group of 4 where all candidates succeeded (zero variance)",
+      "rewards": [
+        1.7,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "advantages": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "all_zero": true
+    },
+    "all_wrong_g4": {
+      "description": "Group of 4 where all candidates failed (zero variance)",
+      "rewards": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "advantages": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "all_zero": true
+    },
+    "group_g8": {
+      "description": "Group of 8 candidates with gradient of reasoning quality",
+      "rewards": [
+        1.7,
+        1.7,
+        1.5,
+        1.2,
+        0.7,
+        0.7,
+        0.2,
+        0.0
+      ],
+      "advantages": [
+        1.1888,
+        1.1888,
+        0.8664,
+        0.3828,
+        -0.4231,
+        -0.4231,
+        -1.2291,
+        -1.5515
+      ],
+      "strictly_ordered": true,
+      "sum_near_zero": true
+    }
+  }
+}

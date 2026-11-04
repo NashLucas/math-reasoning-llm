@@ -1,0 +1,20 @@
+# Reference Model Management & KL Divergence Configuration (Phase 6 Day 42)
+# Defines KL divergence estimator formulations, coefficient beta, drift thresholds,
+# and memory-efficient reference model loading parameters for Colab G4/T4 environments.
+
+kl_divergence:
+  estimator: "k3"               # Schulman non-negative unbiased estimator: r - log(r) - 1, r = pi_ref / pi_theta
+  beta: 0.04                    # KL divergence penalty coefficient (matches configs/grpo_args.json)
+  target_kl: 0.10               # Nominal expected trajectory KL divergence under stable policy gradient updates
+  max_kl_threshold: 0.50        # Safety ceiling triggering policy drift warnings
+  adaptive: false               # If true, dynamic proportional adjustment of beta around target_kl
+  proportional_gain: 0.10       # Gain factor for adaptive beta controller
+  clip_ratio_bounds: [1.0e-6, 1.0e6]  # Numerical stability clipping for extreme probability ratios
+
+reference_model:
+  base_model: "deepseek-ai/deepseek-math-7b-base"
+  adapter_path: "outputs/sft_targeted/adapter_model"   # Advancing Phase 5 Round 2 SFT adapter
+  fallback_adapter: "outputs/sft/adapter_model"        # Phase 4 SFT adapter fallback
+  dtype: "bfloat16"
+  device: "auto"
+  peft_sharing: true            # Evaluates reference logits without duplicating base model in VRAM
