@@ -4,6 +4,50 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 37 — SFT Round Comparison & Gating Evaluation
+
+- **Date:** 2026-11-04
+- **Run ID:** `round_comparison-20261104_day37_compare_rounds`
+- **Branch:** `day-37-compare-rounds`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (deterministic evaluation and gating decision; ~0.4 G4 hours on GPU for 250 problems x 2 rounds)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Compared Round-1 adapter (`outputs/sft/adapter_model`) and Round-2 adapter (`outputs/sft_targeted/adapter_model`) on the gating validation split (`data/processed/val/val_gating.parquet`, 250 problems) using greedy decoding ($T=0.0$, max 512 tokens).
+- Applied Phase 5 Gating Decision Rule to determine which adapter advances to Phase 6 (GRPO):
+  - A 1–2 point difference ($\le 5$ problems / $\le 2.0\%$) is classified as a tie favoring Round 2.
+  - If Round 2 wins or ties: Round 2 advances with error mitigation incorporated.
+  - If Round 1 wins (Round 2 regresses by $> 2.0\%$ / $> 5$ problems): Round 1 advances (fallback).
+- **Design Rule 2 Verification:** Both rounds evaluated exclusively on `val_gating` (250 problems). The test set (`data/processed/test/test.parquet`, 1,319 problems) remained completely untouched and isolated behind the Test-Set Wall.
+
+### Comparison Metrics & Problem-Level Error Shift Analysis
+1. **Head-to-Head Metric Summary:**
+   - Evaluated greedy accuracy, canonical format compliance (`#### <number>`), truncation rate, and token efficiency.
+   - Evaluated problem-level categorization: mutual passes, mutual failures, Round-2 recoveries (errors fixed by targeted SFT), and Round-1 regressions.
+2. **Decision Verdict & Phase 6 Handoff:**
+   - Applied Decision Rule: Round 2 advanced to Phase 6 (`outputs/sft_targeted/adapter_model`).
+   - Format compliance verified $\ge 98.0\%$ with canonical answer contract preservation.
+   - Truncation rate verified $\le 5.0\%$.
+
+### Deliverables & Reports (`reports/`, `src/evaluation/`, `scripts/`)
+- **Engine Module (`src/evaluation/round_comparator.py`):**
+  - Implemented `RoundEvalMetrics`, `ComparisonDecision`, `ProblemComparisonRecord`, `evaluate_round`, `compare_problem_level_results`, `compute_comparison_decision`, `stage_advancing_adapter`, `plot_round_comparison_bars`, and `run_round_comparison`.
+- **CLI Runner (`scripts/compare_sft_rounds.py`):**
+  - Full CLI supporting base model, adapter paths, `--val_split`, `--limit`, `--backend`, `--sample_mode`, and tie margin parameters.
+- **Audit Reports & Visualizations:**
+  - Emitted `reports/round_comparison.json` and `reports/round_comparison.md`.
+  - Staged advancing adapter in `outputs/sft_targeted/adapter_model`.
+  - Provenance tracked via `save_run_info(stage='round_comparison')`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 34: "Phase 5 Day 37 — Compare SFT Rounds (Gating Evaluation)" supporting G4/A100 GPU evaluation and CPU dry-runs.
+- **Unit Testing Suite (`tests/test_compare_sft_rounds.py`):**
+  - Added 8 unit tests verifying decision rules (Round 2 win, Tie -> Round 2 advances, Round 1 fallback win), problem-level breakdown, Test-Set Wall enforcement, adapter staging, and CLI execution.
+  - All 8 tests passed in 8.1s. Full repository test suite passing (335 tests).
+
+---
+
 ## Run Entry: Phase 5 Day 36 — Round-2 SFT Base Model Retraining & Resumption
 
 - **Date:** 2026-11-04
