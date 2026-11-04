@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           # CPU torch (same version vLLM 0.32.0 installs on the G4) for the tiny-model generation tests
           pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements-dev.txt -c requirements.txt pyyaml pandas datasets transformers accelerate
+          pip install -r requirements-dev.txt -c requirements.txt pyyaml pandas datasets transformers accelerate scikit-learn
 
       - name: Run Ruff Linting
         run: |
