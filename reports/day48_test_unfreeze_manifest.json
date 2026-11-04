@@ -1,0 +1,17 @@
+{
+  "unfreeze_timestamp": "2026-11-04T14:38:30.956224+00:00",
+  "phase": "Phase 7 Final Benchmark Evaluation",
+  "dataset_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\test\\test.parquet",
+  "problem_count": 1319,
+  "ids_sha256": "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe",
+  "content_sha256": "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488",
+  "expected_ids_sha256": "22517d8528c00eb32e91d2641aa64b98db7b85a175a552fb6d718cb525a901fe",
+  "expected_content_sha256": "258742568eaa396b4cc88683e3c77dc3b681e782ac300f1cab095851ff865488",
+  "ids_match": true,
+  "content_match": true,
+  "exact_matches_train": 0,
+  "exact_matches_val": 0,
+  "authorization_status": "AUTHORIZED_AND_UNFROZEN",
+  "authorized_by": "Day 48 Benchmark Pipeline",
+  "wall_status": "UNFROZEN_FOR_FINAL_BENCHMARK"
+}
