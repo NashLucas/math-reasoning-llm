@@ -4,6 +4,46 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 6 Day 41 — GRPO Dataset Preparation & Difficulty Filtering
+
+- **Date:** 2026-11-04
+- **Run ID:** `grpo_dataset_prep-20261104_day41_dataset`
+- **Branch:** `day-41-grpo-dataset`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (dataset profiling, filtering, and validation)
+
+### Objectives & Difficulty Stratification (Zero-Variance Protection & GRPO Alignment)
+- Formulated and implemented the data curation pipeline for Group Relative Policy Optimization (GRPO):
+  - Solves the critical RL zero-variance failure mode where trivial ($p > 0.80$, $\sigma_g = 0$) or impossible ($p < 0.20$, $\sigma_g = 0$) prompts yield zero advantage ($A_i = 0$) and null gradient updates.
+  - Profiles problem difficulty via empirical pass rates ($0.20 \le \text{pass\_rate} \le 0.80$) and solution step complexity ($3 \le \text{steps} \le 6$) to isolate the intermediate learning zone.
+  - Generates heterogeneous candidate outcomes ($G=4$) maximizing advantage variance and policy gradient updates.
+- Strictly enforced the Test-Set Wall (Design Rule 2):
+  - Audited 1,319 GSM8K test problems; verified zero exact question matches and zero problem ID leaks.
+  - Formatted prompts into canonical zero-shot reasoning prompts (`format_zero_shot_prompt`) explicitly declaring the Canonical Answer Contract (`\n#### <number>`).
+
+### Deliverables & Frozen Corpus (`configs/`, `src/data/`, `data/processed/grpo/`, `reports/`)
+- **Configuration (`configs/grpo_dataset.yaml`):**
+  - Specifies hybrid filtering mode, pass rate bounds $[0.20, 0.80]$, step complexity bounds $[3, 6]$, question character limit 1000, target train size 1000, and val size 100.
+- **Engine Module (`src/data/grpo_dataset.py`):**
+  - Implemented `DifficultyTier`, `GRPOProblemProfile`, `count_reasoning_steps`, `profile_problem_difficulty`, `format_grpo_prompt`, `prepare_grpo_dataset`, and `load_grpo_dataset_config`.
+- **CLI Runner (`scripts/prepare_grpo_dataset.py`):**
+  - Standalone runner executing profiling, filtering, wall verification, manifest emission, and markdown/JSON audit reporting.
+- **Frozen Corpus & Manifest (`data/processed/grpo/`):**
+  - `grpo_train.parquet` & `grpo_train.jsonl`: 1,000 intermediate difficulty problems (mean 3.97 steps).
+  - `grpo_val.parquet` & `grpo_val.jsonl`: 100 held-out validation prompts for reward tracking.
+  - `manifest.json`: Full provenance tracking with SHA256 hashes for all emitted corpus files.
+- **Audit Reports:**
+  - Emitted `reports/day41_grpo_dataset_report.md` and `reports/day41_grpo_dataset_report.json`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 38: "Phase 6 Day 41 — GRPO Dataset Preparation & Difficulty Filtering".
+- **Unit Testing Suite (`tests/test_grpo_dataset.py`):**
+  - Implemented 10 unit tests covering step counting, empirical pass rate filtering, step complexity fallbacks, prompt length limits, filtering modes, prompt formatting, Test-Set Wall enforcement, pipeline integrity, deterministic sampling, and CLI execution.
+  - All 10 tests passed in 9.0s. Full test suite passing (374 tests).
+
+---
+
 ## Run Entry: Phase 6 Day 40 — GRPO Reward Functions & Design Architecture
 
 - **Date:** 2026-11-04

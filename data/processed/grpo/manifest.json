@@ -1,0 +1,62 @@
+{
+  "dataset_name": "grpo_gsm8k_filtered",
+  "created_at": "2026-11-04T07:07:53.715995+00:00",
+  "seed": 42,
+  "files": {
+    "grpo_train_parquet": {
+      "path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\grpo\\grpo_train.parquet",
+      "sha256": "9033a761e9d9ec3a914a6bf883ab31df97e69f64bb3deda4ad84cd8ec0de2e11",
+      "count": 1000
+    },
+    "grpo_train_jsonl": {
+      "path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\grpo\\grpo_train.jsonl",
+      "sha256": "6b52faee7502de75b1fa4d6ca48e12e00a4006bd850e02cc060808697f9bdfda",
+      "count": 1000
+    },
+    "grpo_val_parquet": {
+      "path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\grpo\\grpo_val.parquet",
+      "sha256": "7b00cea353d29aad64dcdf07b2341c60be411c06bed5de8b364d9644c3a6d124",
+      "count": 100
+    },
+    "grpo_val_jsonl": {
+      "path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\grpo\\grpo_val.jsonl",
+      "sha256": "7120d4e8db099d544a20665eeb1ba61a5c3138d38097030154ee787ae41756fc",
+      "count": 100
+    }
+  },
+  "filtering_criteria": {
+    "mode": "hybrid",
+    "min_pass_rate": 0.2,
+    "max_pass_rate": 0.8,
+    "min_steps": 3,
+    "max_steps": 6,
+    "max_prompt_chars": 1000
+  },
+  "statistics": {
+    "total_profiled": 6973,
+    "eligible_candidates": 4772,
+    "sampled_train_count": 1000,
+    "sampled_val_count": 100,
+    "tier_counts": {
+      "easy": 1902,
+      "medium": 4772,
+      "hard": 299,
+      "unobserved": 0
+    },
+    "step_distribution": {
+      "3": 407,
+      "4": 304,
+      "5": 201,
+      "6": 88
+    },
+    "mean_steps": 3.97,
+    "mean_char_length": 251.611
+  },
+  "test_set_wall": {
+    "test_problems_checked": 1319,
+    "exact_matches_test": 0,
+    "forbidden_id_leaks": 0,
+    "passed": true
+  },
+  "frozen": true
+}
