@@ -13,6 +13,15 @@ from src.rewards.grpo_rewards import (
     trl_format_reward_fn,
     trl_reasoning_structure_reward_fn,
 )
+from src.rewards.reference_model import (
+    KLController,
+    KLEstimatorType,
+    KLSummary,
+    ReferenceModelManager,
+    compute_per_token_kl,
+    compute_trajectory_kl,
+    load_kl_config,
+)
 
 __all__ = [
     "accuracy_reward",
@@ -26,4 +35,11 @@ __all__ = [
     "trl_accuracy_reward_fn",
     "trl_format_reward_fn",
     "trl_reasoning_structure_reward_fn",
+    "KLEstimatorType",
+    "KLSummary",
+    "compute_per_token_kl",
+    "compute_trajectory_kl",
+    "KLController",
+    "ReferenceModelManager",
+    "load_kl_config",
 ]

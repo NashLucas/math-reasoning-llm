@@ -4,6 +4,45 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 6 Day 42 — Reference Model Management & KL Divergence Tracking
+
+- **Date:** 2026-11-04
+- **Run ID:** `reference_model_kl-20261104_day42_ref_kl`
+- **Branch:** `day-42-reference-model`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (KL divergence estimator benchmarking and simulation)
+
+### Objectives & KL Architecture (Drift Control & PEFT Memory Optimization)
+- Formulated and verified the reference model architecture and Kullback-Leibler (KL) divergence penalty system for GRPO:
+  $$\mathcal{L}_{\text{GRPO}}(\theta) = -\mathbb{E}\left[ \min(r_t(\theta)A_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)A_t) \right] + \beta \cdot D_{\text{KL}}(\pi_\theta \parallel \pi_{\text{ref}})$$
+- Implemented and benchmarked core KL divergence estimators:
+  1. **k1 (Standard Log-Ratio):** $\delta_t = \log \pi_\theta(y_t) - \log \pi_{\text{ref}}(y_t)$. Unbiased empirical estimator.
+  2. **k2 (Squared Taylor Approximation):** $\frac{1}{2}\delta_t^2$. Symmetric local approximation.
+  3. **k3 (Schulman / DeepSeek Non-Negative Estimator):** $e^{-\delta_t} + \delta_t - 1 = \frac{\pi_{\text{ref}}(y_t)}{\pi_\theta(y_t)} - \log \frac{\pi_{\text{ref}}(y_t)}{\pi_\theta(y_t)} - 1 \ge 0$. Strictly non-negative, lower variance, heavily penalizing extreme policy divergence.
+- Established memory-efficient reference model strategy for Colab 15-16GB VRAM bounds:
+  - Single base model shared in memory; reference policy log-probabilities evaluated via PEFT adapter disabling or frozen adapter branch, avoiding dual 7B model loading.
+- Implemented completion-only masking ensuring zero contribution from prompt or padding tokens.
+- Implemented `KLController` with fixed $\beta = 0.04$, target KL ($0.10$), and safety ceiling ($0.50$) triggering automated drift warnings.
+
+### Deliverables & Reports (`configs/`, `src/rewards/`, `scripts/`, `reports/`)
+- **Configuration Files (`configs/kl_divergence.yaml`):**
+  - Specifies estimator `k3`, $\beta=0.04$, target KL $0.10$, max threshold $0.50$, and PEFT sharing strategy.
+- **Engine Module (`src/rewards/reference_model.py`):**
+  - Implemented `KLEstimatorType`, `KLSummary`, `compute_per_token_kl`, `compute_trajectory_kl`, `KLController`, `ReferenceModelManager`, and `load_kl_config`. Exported in `src/rewards/__init__.py`.
+- **CLI Verification Runner (`scripts/verify_reference_model.py`):**
+  - Evaluates mathematical equivalence, non-negativity of k3, completion masking, numerical stability with extreme logits ($\pm 20$), controller simulation, and mock reference logprobs.
+- **Audit Reports:**
+  - Emitted `reports/day42_reference_model_report.md` and `reports/day42_reference_model_report.json`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 39: "Phase 6 Day 42 — Reference Model Management & KL Divergence Tracking".
+- **Unit Testing Suite (`tests/test_reference_model.py`):**
+  - Added 13 unit tests covering all estimators, non-negativity, identical distributions, shape checks, extreme ratio clipping, prompt token masking, empty mask handling, drift warnings, fixed/adaptive controllers, mock manager, and CLI execution.
+  - All 13 tests passed in 13.8s. Full repository test suite passing (387 tests).
+
+---
+
 ## Run Entry: Phase 6 Day 41 — GRPO Dataset Preparation & Difficulty Filtering
 
 - **Date:** 2026-11-04
