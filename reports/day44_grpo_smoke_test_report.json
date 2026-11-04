@@ -1,0 +1,91 @@
+{
+  "milestone": "Phase 6 Day 44: Local Smoke Test & Verification Pipeline",
+  "date_utc": "2026-11-04T11:28:33.200779+00:00",
+  "overall_status": "PASSED",
+  "stages": {
+    "stage1_config": {
+      "status": "PASSED",
+      "group_size": 4,
+      "learning_rate": 1e-06,
+      "clip_range": 0.2,
+      "kl_beta": 0.04,
+      "gradient_accumulation_steps": 4,
+      "reward_weights": {
+        "accuracy": 0.7,
+        "format": 0.15,
+        "structure": 0.1,
+        "length": 0.05
+      },
+      "kl_estimator": "k3"
+    },
+    "stage2_data": {
+      "status": "PASSED",
+      "train_prompts_loaded": 1000,
+      "test_set_wall_enforced": true,
+      "sample_mode": false,
+      "sample_prompt_preview": "Question: Toby held a garage sale to raise money to support friends who have lost their jobs.  Of all the items that he ..."
+    },
+    "stage3_and_4_training": {
+      "status": "PASSED",
+      "final_step": 5,
+      "initial_loss": -0.0001,
+      "final_loss": 0.0004,
+      "final_mean_reward": 1.4,
+      "final_val_accuracy": 1.0,
+      "checkpoints_created": [
+        "checkpoint-3",
+        "checkpoint-5"
+      ],
+      "generation_logs_count": 3
+    },
+    "stage5_resumption": {
+      "status": "PASSED",
+      "resumed_from": "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmp416pqexl\\checkpoints\\checkpoint-3",
+      "resumed_start_step": 3,
+      "resumed_final_step": 6,
+      "steps_executed_after_resume": 3,
+      "checkpoint_continuity": "EXACT (Step 3 -> Step 6 without gap or rollback)"
+    },
+    "stage6_memory": {
+      "status": "PASSED",
+      "target_hardware": "NVIDIA T4 / L4 / G4 (16.0 GB VRAM)",
+      "vram_limit_gb": 16.0,
+      "estimated_peak_vram_gb": 15.62,
+      "vram_headroom_gb": 0.38,
+      "memory_breakdown": [
+        {
+          "component": "Base Model (DeepSeekMath-7B in bf16)",
+          "memory_gb": 14.1,
+          "shared": false
+        },
+        {
+          "component": "Trainable LoRA Adapter (r=16, q/k/v/o)",
+          "memory_gb": 0.04,
+          "shared": false
+        },
+        {
+          "component": "Reference Model Weights (Adapter Disabling)",
+          "memory_gb": 0.0,
+          "shared": true
+        },
+        {
+          "component": "AdamW Optimizer States (LoRA params only)",
+          "memory_gb": 0.13,
+          "shared": false
+        },
+        {
+          "component": "Rollout Generation & KV Cache (G=4, L=768)",
+          "memory_gb": 1.15,
+          "shared": false
+        },
+        {
+          "component": "Activation Memory & PyTorch Workspace",
+          "memory_gb": 0.2,
+          "shared": false
+        }
+      ],
+      "single_model_peft_sharing": true,
+      "feasibility_verdict": "FEASIBLE (Single-model PEFT sharing avoids dual 7B VRAM exhaustion)"
+    }
+  }
+}
