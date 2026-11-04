@@ -4,6 +4,46 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 38 — SFT Round 2 Category Shift Analysis
+
+- **Date:** 2026-11-04
+- **Run ID:** `category_shift_analysis-20261104_day38_shift_analysis`
+- **Branch:** `day-38-category-shift`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (deterministic classification and shift comparison; ~0.3 G4 hours on GPU for 250 problems)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Evaluated Round-2 LoRA adapter (`outputs/sft_targeted/adapter_model`) on the validation analysis split (`data/processed/val/val_analysis.parquet`, 250 problems) with greedy decoding.
+- Classified observed errors using the 7-category taxonomy (`parse_error`, `truncation`, `arithmetic_slip`, `misread_question`, `wrong_setup`, `incomplete_reasoning`, `other`).
+- Quantified before-and-after frequency shifts and problem-level transitions against the Round 1 baseline (`reports/error_analysis_sft.json`).
+- **Design Rule 2 Verification:** Analysis exclusively conducted on `val_analysis.parquet` (250 problems). The test set (`data/processed/test/test.parquet`, 1,319 problems) remained completely untouched and isolated behind the Test-Set Wall.
+
+### Category Shift Dynamics & Error Mitigation Findings
+1. **Targeted Error Suppression:**
+   - Error categories targeted during Day 34 selection (specifically reasoning omissions and counting/inventory bottlenecks) exhibited measurable frequency reductions without degrading accuracy on other categories.
+2. **Problem-Level Transition Breakdown:**
+   - Tracked problem dynamics: direct error recoveries (fixed errors), retained errors with consistent category, retained errors with shifted category, and incidental regressions.
+   - Net error movement confirmed positive error reduction on the validation analysis split.
+
+### Deliverables & Reports (`reports/`, `src/evaluation/`, `scripts/`)
+- **Engine Module (`src/evaluation/category_shift.py`):**
+  - Implemented `CategoryShiftMetric`, `ProblemTransitionRecord`, `CategoryShiftSummary`, `compute_category_shift`, `generate_category_shift_table`, `append_category_shift_to_markdown_report`, `plot_category_shift_bars`, and `run_category_shift_analysis`.
+- **CLI Runner (`scripts/run_day38_shift_analysis.py`):**
+  - Full CLI supporting base model, Round 2 adapter path, Round 1 baseline path, `--limit`, `--backend`, and sample/mock mode.
+- **Audit Reports & Visualizations:**
+  - Emitted `reports/category_shift_analysis.json` and standalone report `reports/day38_category_shift_report.md`.
+  - Appended Section 5: "SFT Round 2 Category Shift & Error Mitigation Movement" to `reports/error_analysis_sft.md`.
+  - Provenance tracked via `save_run_info(stage='category_shift_analysis')`.
+
+### Colab Launcher & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 35: "Phase 5 Day 38 — SFT Round 2 Category Shift Analysis" supporting G4/A100 GPU analysis and CPU dry-runs.
+- **Unit Testing Suite (`tests/test_category_shift.py`):**
+  - Added 6 unit tests verifying shift metrics calculation, transition tracking, Markdown table formatting, Test-Set Wall enforcement, report appending, and CLI execution in sample mode.
+  - All 6 tests passed in 3.5s. Full repository test suite passing (341 tests).
+
+---
+
 ## Run Entry: Phase 5 Day 37 — SFT Round Comparison & Gating Evaluation
 
 - **Date:** 2026-11-04

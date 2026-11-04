@@ -1,12 +1,12 @@
 {
-  "run_id": "round_comparison-20261104_053334-phase_5_day_37:_round_1_vs_round_2_sft_comparison_on_gating_split",
-  "stage": "round_comparison",
-  "timestamp_utc": "2026-11-04T05:33:34.020201+00:00",
-  "description": "Phase 5 Day 37: Round 1 vs Round 2 SFT comparison on gating split",
+  "run_id": "category_shift_analysis-20261104_055210-phase_5_day_38:_sft_round_2_category_shift_analysis_on_val_analysis",
+  "stage": "category_shift_analysis",
+  "timestamp_utc": "2026-11-04T05:52:10.921921+00:00",
+  "description": "Phase 5 Day 38: SFT Round 2 category shift analysis on val_analysis",
   "git": {
-    "commit_hash": "57999ac1c5305572900136e92bb808dd5ccace2c",
-    "commit_short": "57999ac",
-    "branch": "day-37-compare-rounds",
+    "commit_hash": "9b07e6c061870ae4b45f58bea7c33db10ccc73d6",
+    "commit_short": "9b07e6c",
+    "branch": "day-38-category-shift",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
@@ -39,26 +39,13 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "model_name_or_path": "deepseek-ai/deepseek-math-7b-base",
-    "round1_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft\\adapter_model",
+    "base_model": "deepseek-ai/deepseek-math-7b-base",
     "round2_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
-    "val_split": "val_gating",
+    "val_analysis_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\processed\\val\\val_analysis.parquet",
     "limit": 10,
     "backend": "auto",
     "use_mock": true,
-    "tie_margin_pct": 2.0,
-    "tie_margin_count": 5,
-    "decision": {
-      "winner": "tie",
-      "decision": "tie_round_2_advances",
-      "advancing_stage": "sft_targeted",
-      "advancing_adapter_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
-      "difference_accuracy_percent": 0.0,
-      "difference_correct": 0,
-      "tie_margin_pct": 2.0,
-      "tie_margin_count": 5,
-      "is_tie": true,
-      "rationale": "Round 2 vs Round 1 performance difference of +0.00% (+0 problems) is within the tie margin (2.0% / 5 problems). Per specification, a 1-2 point difference is treated as a tie favoring Round 2. Round 2 advances to Phase 6 with targeted error mitigation incorporated."
-    }
+    "net_errors_eliminated": 0,
+    "accuracy_delta": 0.0
   }
 }

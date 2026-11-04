@@ -1,5 +1,13 @@
 """Evaluation modules and tools for GSM8K reasoning models."""
 
+from src.evaluation.category_shift import (
+    CategoryShiftMetric,
+    CategoryShiftSummary,
+    ProblemTransitionRecord,
+    compute_category_shift,
+    generate_category_shift_table,
+    run_category_shift_analysis,
+)
 from src.evaluation.evaluator import MathEvaluator, TestSetWallError
 from src.evaluation.round_comparator import (
     ComparisonDecision,
@@ -23,4 +31,10 @@ __all__ = [
     "evaluate_round",
     "resolve_round_adapter",
     "run_round_comparison",
+    "CategoryShiftMetric",
+    "CategoryShiftSummary",
+    "ProblemTransitionRecord",
+    "compute_category_shift",
+    "generate_category_shift_table",
+    "run_category_shift_analysis",
 ]
