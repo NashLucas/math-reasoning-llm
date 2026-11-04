@@ -444,6 +444,7 @@ def run_sft_training(
     eval_limit: int = 100,
     val_path: Optional[Union[str, Path]] = None,
     generations_dir: Union[str, Path] = "logs/generations",
+    stage: str = "sft",
     use_mock: bool = False,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
@@ -594,8 +595,8 @@ def run_sft_training(
         "resumed_from": str(latest_checkpoint) if latest_checkpoint else None,
         "checkpoints_saved": saved_ckpts,
     }
-    run_record = collect_run_info(stage="sft", config=config_snapshot, description="sft_training_run")
-    save_run_info(stage="sft", output_dir=adapter_out_path, config=config_snapshot, description="sft_training_run")
+    run_record = collect_run_info(stage=stage, config=config_snapshot, description=f"{stage}_training_run")
+    save_run_info(stage=stage, output_dir=adapter_out_path, config=config_snapshot, description=f"{stage}_training_run")
     logger.info(f"Saved run provenance to: {adapter_out_path / 'run_info.json'}")
 
     return trainer, run_record
