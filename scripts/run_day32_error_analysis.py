@@ -72,11 +72,24 @@ def run_day32_pipeline(
         )
 
     if not val_analysis_file.exists():
-        raise FileNotFoundError(f"Validation analysis file not found: {val_analysis_file}")
+        if use_mock:
+            sample_val = Path("data/sample/val_sample.parquet")
+            if sample_val.exists():
+                logger.warning(
+                    "Validation analysis file %s not found; falling back to sample split %s in mock/sample mode.",
+                    val_analysis_file,
+                    sample_val,
+                )
+                val_analysis_file = sample_val
+            else:
+                raise FileNotFoundError(f"Validation analysis file not found: {val_analysis_file}")
+        else:
+            raise FileNotFoundError(f"Validation analysis file not found: {val_analysis_file}")
 
     # 2. Run / Load Greedy Evaluation on val_analysis
     eval_stage_dir = output_dir / "eval_val_analysis_greedy"
     eval_results_file = eval_stage_dir / "eval_results.json"
+    split_name = "sample" if "sample" in val_analysis_file.name else "val_analysis"
 
     if eval_results_file.exists() and not use_mock:
         logger.info("Found existing evaluation results at %s; skipping re-generation.", eval_results_file)
@@ -87,7 +100,7 @@ def run_day32_pipeline(
             checkpoint=model_name_or_path,
             adapter_path=str(adapter_dir) if adapter_dir.exists() else None,
             preset="greedy",
-            split="val_analysis",
+            split=split_name,
             output_dir=str(eval_stage_dir),
             use_mock=use_mock,
             limit=limit,
@@ -95,11 +108,23 @@ def run_day32_pipeline(
         evaluator.evaluate()
 
     # Load evaluated problem records
-    generations_file = eval_stage_dir / "generations_val_analysis_greedy.jsonl"
+    generations_file = eval_stage_dir / f"generations_{split_name}_greedy.jsonl"
     if not generations_file.exists():
         # Fallback to eval_results.json records
-        data = json.loads(eval_results_file.read_text(encoding="utf-8"))
-        generations_file = Path(data.get("generations_file", generations_file))
+        if eval_results_file.exists():
+            try:
+                data = json.loads(eval_results_file.read_text(encoding="utf-8"))
+                if "generations_file" in data:
+                    candidate = Path(data["generations_file"])
+                    if candidate.exists():
+                        generations_file = candidate
+            except Exception:
+                pass
+    if not generations_file.exists():
+        # Search for any generations_*.jsonl in eval_stage_dir
+        matches = list(eval_stage_dir.glob("generations_*.jsonl"))
+        if matches:
+            generations_file = matches[0]
 
     records: List[Dict[str, Any]] = []
     if generations_file.exists():
