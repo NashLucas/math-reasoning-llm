@@ -4,6 +4,51 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 33 — Error Question Semantic Topic Clustering & Audit Report
+
+- **Date:** 2026-11-04
+- **Run ID:** `error_analysis-20261104_day33_clustering`
+- **Branch:** `day-33-cluster-errors`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (CPU & deterministic text clustering; sentence-transformers / GPU compatible)
+
+### Objectives & Design Rule 2 (The Test-Set Wall)
+- Segmented model reasoning error questions into coherent semantic mathematical topic clusters to diagnose failure concentration areas for targeted SFT mitigation.
+- **Design Rule 2 Enforcement:** Clustering operates strictly on the error questions from the validation analysis half (`val_analysis.parquet`) or calibration benchmarks. The test set (`test.parquet`) was strictly isolated and never accessed (`TestSetWallError` enforcement).
+
+### Question Embedding & Clustering Engine (`src/evaluation/error_analysis.py`)
+1. **Embedding Architecture (`QuestionEmbedder`):**
+   - Implemented dual-backend question embedder:
+     - Dense neural representations via `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional unit-normalized embeddings).
+     - Deterministic sublinear TF-IDF vectorizer fallback with unigram/bigram features for CPU-only development environments and CI runners.
+2. **Topic Clustering & Disambiguation (`ErrorClusterer`):**
+   - Configured K-Means clustering ($K=5$) over question vector space.
+   - For each discovered cluster:
+     - Computes the geometric centroid vector and calculates Euclidean distances for all cluster questions.
+     - Extracts the 2 closest representative examples per cluster to anchor failure mode interpretation.
+     - Identifies top discriminating n-grams via relative cluster TF-IDF scoring.
+     - Matches question terms against canonical math domains:
+       - `Percentages, Discounts & Proportions`
+       - `Rates, Speed, Work & Motion`
+       - `Money, Commerce & Pricing`
+       - `Geometry, Measurement & Spatial Units`
+       - `Time, Durations & Scheduling`
+       - `Multi-Step Counting, Inventory & Combinatorics`
+3. **Audit Artifacts & Reports (`reports/error_clusters.json`, `reports/error_analysis_sft.md`):**
+   - Built CLI runner `scripts/run_day33_clustering.py` and updated `scripts/error_analysis.py` with `--cluster` flag.
+   - Emitted `reports/error_clusters.json` recording cluster sizes, percentages, keywords, category distributions, problem IDs, and representative examples.
+   - Updated `reports/error_analysis_sft.md` with Section 4: "Semantic Topic Clusters of Reasoning Errors" displaying cluster summary table, keyword profiles, and 2 concrete failure examples per cluster with full questions, gold answers, model generations, and failure analyses.
+   - Persisted run provenance via `save_run_info(stage='error_analysis')`.
+
+### Colab Launcher Integration & Unit Testing
+- **Colab Launcher (`notebooks/00_colab_launcher.ipynb`):**
+  - Added Step 30: "Phase 5 Day 33 — Error Question Semantic Clustering & Topic Reporting" supporting both GPU sentence-transformers execution and CPU sample mode.
+- **Unit Testing Suite (`tests/test_day33_clustering.py`):**
+  - Added 11 unit tests verifying embedding shape & L2 normalization, empty input handling, keyword extraction, topic labeling, error filtering, representative example bounds, markdown generation, CLI execution, and test-set wall isolation.
+  - Full test suite: 309 passing unit tests across repository.
+
+---
+
 ## Run Entry: Phase 5 Day 32 — SFT Model Error Classification & Human Agreement Calibration
 
 - **Date:** 2026-11-04

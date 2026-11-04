@@ -1,12 +1,12 @@
 {
-  "run_id": "error_analysis-20261104_030135-run",
+  "run_id": "error_analysis-20261104_033234-run",
   "stage": "error_analysis",
-  "timestamp_utc": "2026-11-04T03:01:35.779325+00:00",
+  "timestamp_utc": "2026-11-04T03:32:34.503014+00:00",
   "description": "",
   "git": {
-    "commit_hash": "c56301d586ac9144015c85ba8e5b67aecad0a01c",
-    "commit_short": "c56301d",
-    "branch": "day-32-classify-sft-errors",
+    "commit_hash": "0759df8996ab1c0034459505fac8cdd07ebcfb56",
+    "commit_short": "0759df8",
+    "branch": "day-33-cluster-errors",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
@@ -39,42 +39,80 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "val_analysis_file": "data\\processed\\val\\val_analysis.parquet",
-    "adapter_dir": "outputs\\sft\\adapter_model",
-    "calibration_file": "data\\sample\\labeled_30_errors.jsonl",
-    "error_summary": {
-      "total_evaluated": 250,
-      "correct_count": 238,
-      "error_count": 12,
-      "accuracy": 95.2,
-      "error_rate": 4.8,
-      "category_counts": {
-        "parse_error": 0,
-        "truncation": 0,
-        "arithmetic_slip": 0,
-        "misread_question": 0,
-        "wrong_setup": 0,
-        "incomplete_reasoning": 12,
-        "other": 0
+    "day": 33,
+    "task": "error_question_topic_clustering",
+    "input_file": "data\\sample\\labeled_30_errors.jsonl",
+    "output_clusters_file": "reports\\error_clusters.json",
+    "report_file": "reports\\error_analysis_sft.md",
+    "num_clusters": 5,
+    "total_errors": 30,
+    "embedding_model": "tfidf_fallback",
+    "clusters": [
+      {
+        "id": 1,
+        "name": "Multi-Step Counting, Inventory & Combinatorics",
+        "size": 10,
+        "percentage": 33.33333333333333,
+        "top_keywords": [
+          "apples",
+          "desks",
+          "books",
+          "cookies",
+          "calculate times"
+        ]
       },
-      "category_percentages": {
-        "parse_error": 0.0,
-        "truncation": 0.0,
-        "arithmetic_slip": 0.0,
-        "misread_question": 0.0,
-        "wrong_setup": 0.0,
-        "incomplete_reasoning": 100.0,
-        "other": 0.0
+      {
+        "id": 2,
+        "name": "Multi-Step Counting, Inventory & Combinatorics (Does)",
+        "size": 10,
+        "percentage": 33.33333333333333,
+        "top_keywords": [
+          "15",
+          "does",
+          "minus",
+          "15 minus",
+          "cups"
+        ]
       },
-      "rule_based_count": 0,
-      "rule_based_percentage": 0.0,
-      "semantic_count": 12,
-      "semantic_percentage": 100.0,
-      "sources": {
-        "heuristic_fallback": 12
+      {
+        "id": 3,
+        "name": "Multi-Step Counting, Inventory & Combinatorics (Divided)",
+        "size": 4,
+        "percentage": 13.333333333333334,
+        "top_keywords": [
+          "divided",
+          "100",
+          "100 divided",
+          "20 divided",
+          "solve 20"
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Rates, Speed, Work & Motion",
+        "size": 3,
+        "percentage": 10.0,
+        "top_keywords": [
+          "hours",
+          "miles",
+          "workers",
+          "miles hour",
+          "hour"
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Time, Durations & Scheduling",
+        "size": 3,
+        "percentage": 10.0,
+        "top_keywords": [
+          "liters",
+          "40",
+          "afternoon",
+          "morning",
+          "60"
+        ]
       }
-    },
-    "agreement_percent": 100.0,
-    "passed_calibration": true
+    ]
   }
 }

@@ -19,7 +19,9 @@ import math
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+import numpy as np
 
 from src.math_utils.answer_extraction import extract_answer
 from src.math_utils.normalization import is_equivalent, parse_numeric_value
@@ -688,6 +690,7 @@ def generate_error_markdown_report(
     summary: Dict[str, Any],
     classifications: Sequence[ErrorClassification],
     stage_name: str = "SFT Round 1",
+    cluster_report: Optional[ClusterAnalysisReport] = None,
 ) -> str:
     """Generate Markdown error analysis report for reports/error_analysis_sft.md."""
     lines = [
@@ -755,6 +758,10 @@ def generate_error_markdown_report(
             lines.append(ex.generated_text[:300] + ("..." if len(ex.generated_text) > 300 else ""))
             lines.append("```")
             lines.append("")
+
+    if cluster_report is not None and cluster_report.clusters:
+        lines.append("")
+        lines.append(generate_cluster_markdown(cluster_report))
 
     return "\n".join(lines)
 
@@ -909,6 +916,455 @@ def generate_agreement_markdown(report: AgreementReport, stage_title: str = "30-
             lines.append(f"- **Manual Ground Truth:** `{dis['manual_label']}` (Rationale: {dis['manual_rationale']})")
             lines.append(f"- **Model Prediction:** `{dis['predicted_category']}` (Source: {dis['classification_source']})")
             lines.append(f"- **Model Rationale:** {dis['rationale']}")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+
+# ==============================================================================
+# Phase 5 Day 33: Semantic Topic Clustering of Error Questions
+# ==============================================================================
+
+@dataclass
+class ErrorCluster:
+    """Represents a coherent semantic cluster of mathematical error questions."""
+
+    cluster_id: int
+    name: str
+    size: int
+    percentage: float
+    top_keywords: List[str]
+    representative_examples: List[Dict[str, Any]]
+    problem_ids: List[str]
+    category_distribution: Dict[str, int] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "cluster_id": self.cluster_id,
+            "name": self.name,
+            "size": self.size,
+            "percentage": round(self.percentage, 2),
+            "top_keywords": self.top_keywords,
+            "representative_examples": self.representative_examples,
+            "problem_ids": self.problem_ids,
+            "category_distribution": self.category_distribution,
+        }
+
+
+@dataclass
+class ClusterAnalysisReport:
+    """Consolidated topic cluster analysis report across error questions."""
+
+    total_error_questions: int
+    num_clusters: int
+    embedding_model: str
+    clusters: List[ErrorCluster]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_error_questions": self.total_error_questions,
+            "num_clusters": self.num_clusters,
+            "embedding_model": self.embedding_model,
+            "clusters": [c.to_dict() for c in self.clusters],
+        }
+
+
+CANONICAL_MATH_TOPICS: Dict[str, Dict[str, Any]] = {
+    "Percentages, Discounts & Proportions": {
+        "keywords": [
+            "percent", "percentage", "discount", "tax", "tip", "sale", "off",
+            "ratio", "proportion", "proportions", "fraction", "half", "third", "quarter",
+        ],
+        "weight": 1.2,
+    },
+    "Rates, Speed, Work & Motion": {
+        "keywords": [
+            "speed", "mph", "miles", "rate", "faster", "slower", "distance",
+            "travel", "travels", "traveled", "leak", "fill", "empty", "drain",
+            "work", "workers", "paint", "job", "per hour",
+        ],
+        "weight": 1.1,
+    },
+    "Money, Commerce & Pricing": {
+        "keywords": [
+            "dollar", "dollars", "cost", "costs", "price", "prices", "buy",
+            "buys", "bought", "sell", "sells", "sold", "pay", "paid", "spent",
+            "spend", "bill", "change", "earn", "earns", "earned", "salary", "profit",
+        ],
+        "weight": 1.0,
+    },
+    "Geometry, Measurement & Spatial Units": {
+        "keywords": [
+            "perimeter", "area", "length", "width", "height", "depth", "volume",
+            "rectangle", "square", "triangle", "circle", "radius", "diameter",
+            "feet", "inches", "meters", "centimeters", "yard", "yards", "pounds",
+            "ounces", "liters", "gallons", "weigh", "weight",
+        ],
+        "weight": 1.2,
+    },
+    "Time, Durations & Scheduling": {
+        "keywords": [
+            "minute", "minutes", "second", "seconds", "morning", "afternoon",
+            "evening", "yesterday", "tomorrow", "clock", "calendar", "schedule",
+            "days", "weeks", "months", "years", "later", "earlier", "delay",
+        ],
+        "weight": 1.0,
+    },
+    "Multi-Step Counting, Inventory & Combinatorics": {
+        "keywords": [
+            "apples", "books", "cookies", "trays", "loaves", "cards", "marbles",
+            "desks", "cows", "sheep", "animals", "shelves", "rows", "boxes",
+            "stamps", "total", "altogether", "remaining", "left", "leftover",
+            "share", "shares", "divide", "equally", "each", "twice",
+        ],
+        "weight": 0.9,
+    },
+}
+
+
+def extract_cluster_keywords(
+    cluster_texts: Sequence[str],
+    all_texts: Sequence[str],
+    top_n: int = 5,
+) -> List[str]:
+    """Extract top discriminating keywords for a cluster relative to all texts using TF-IDF."""
+    if not cluster_texts:
+        return []
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+
+        combined = list(all_texts)
+        vec = TfidfVectorizer(stop_words="english", max_features=1000, ngram_range=(1, 2))
+        tfidf_matrix = vec.fit_transform(combined)
+        feature_names = np.array(vec.get_feature_names_out())
+
+        cluster_indices = [i for i, t in enumerate(combined) if t in cluster_texts]
+        if not cluster_indices:
+            cluster_indices = list(range(len(cluster_texts)))
+
+        cluster_submatrix = tfidf_matrix[cluster_indices]
+        mean_scores = np.asarray(cluster_submatrix.mean(axis=0)).ravel()
+        top_indices = mean_scores.argsort()[::-1][:top_n]
+        return [str(feature_names[idx]) for idx in top_indices if mean_scores[idx] > 0]
+    except Exception:
+        stop_words = {
+            "the", "a", "an", "is", "and", "or", "to", "in", "of", "how", "many",
+            "what", "does", "did", "he", "she", "they", "his", "her", "their",
+            "with", "has", "had", "have", "for", "are", "each", "was", "were",
+        }
+        counts: Dict[str, int] = {}
+        for t in cluster_texts:
+            for w in re.findall(r"\b[a-zA-Z]{3,}\b", t.lower()):
+                if w not in stop_words:
+                    counts[w] = counts.get(w, 0) + 1
+        return [k for k, _ in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:top_n]]
+
+
+def assign_cluster_topic(
+    cluster_texts: Sequence[str],
+    top_keywords: Sequence[str],
+    existing_topics: Optional[Sequence[str]] = None,
+) -> str:
+    """Assign an interpretable domain topic name to a cluster of question texts."""
+    if not cluster_texts:
+        return "Miscellaneous Arithmetic"
+
+    cluster_blob = " ".join(cluster_texts).lower()
+    kw_blob = " ".join(top_keywords).lower()
+
+    scores: Dict[str, float] = {}
+    for topic_name, meta in CANONICAL_MATH_TOPICS.items():
+        score = 0.0
+        kw_list = meta["keywords"]
+        weight = meta.get("weight", 1.0)
+        for kw in kw_list:
+            hits = len(re.findall(rf"\b{re.escape(kw)}\b", cluster_blob))
+            if hits > 0:
+                score += (hits ** 0.5) * weight
+            if kw in kw_blob:
+                score += 1.5 * weight
+        scores[topic_name] = score
+
+    best_topic = max(scores, key=lambda k: scores[k])
+    best_score = scores[best_topic]
+
+    if best_score < 1.0:
+        if top_keywords:
+            valid_kw = [k for k in top_keywords if len(k) > 2][:2]
+            if valid_kw:
+                return f"Topic: {' & '.join(valid_kw).title()}"
+        return "General Multi-Step Arithmetic"
+
+    # Disambiguate if topic already assigned to another cluster
+    if existing_topics and best_topic in existing_topics:
+        distinctive_kw = [k for k in top_keywords if len(k) > 2][:1]
+        if distinctive_kw:
+            return f"{best_topic} ({distinctive_kw[0].title()})"
+
+    return best_topic
+
+
+class QuestionEmbedder:
+    """Embeds question texts using sentence-transformers/all-MiniLM-L6-v2 with TF-IDF fallback."""
+
+    def __init__(
+        self,
+        model_name_or_path: str = "sentence-transformers/all-MiniLM-L6-v2",
+        use_fallback: bool = False,
+    ):
+        self.model_name = model_name_or_path
+        self.use_fallback = use_fallback
+        self.backend = "sentence-transformers" if not use_fallback else "tfidf"
+        self._st_model = None
+
+    def embed(self, texts: Sequence[str]) -> Tuple[np.ndarray, str]:
+        """Embed a sequence of texts into normalized embedding vectors."""
+        if not texts:
+            return np.empty((0, 384), dtype=np.float32), self.backend
+
+        if not self.use_fallback:
+            try:
+                import torch  # noqa: F401
+                from sentence_transformers import SentenceTransformer
+
+                if self._st_model is None:
+                    logger.info("Loading sentence-transformers model: %s", self.model_name)
+                    self._st_model = SentenceTransformer(self.model_name)
+                embs = self._st_model.encode(
+                    list(texts),
+                    show_progress_bar=False,
+                    normalize_embeddings=True,
+                )
+                return np.asarray(embs, dtype=np.float32), "sentence-transformers"
+            except Exception as e:
+                logger.info(
+                    "sentence_transformers unavailable (%s); falling back to TF-IDF text embeddings.",
+                    e,
+                )
+
+        # Fallback via sklearn TfidfVectorizer
+        from sklearn.feature_extraction.text import TfidfVectorizer
+
+        vec = TfidfVectorizer(max_features=384, stop_words="english", ngram_range=(1, 2))
+        try:
+            raw = vec.fit_transform(texts).toarray()
+            norms = np.linalg.norm(raw, axis=1, keepdims=True)
+            norms[norms == 0.0] = 1.0
+            return (raw / norms).astype(np.float32), "tfidf_fallback"
+        except Exception as e:
+            logger.warning("TF-IDF vectorizer failed (%s); using deterministic hash fallback.", e)
+            vecs = []
+            for t in texts:
+                h = np.zeros(64, dtype=np.float32)
+                for c in t.lower():
+                    h[ord(c) % 64] += 1.0
+                norm = np.linalg.norm(h)
+                if norm > 0:
+                    h /= norm
+                vecs.append(h)
+            return np.array(vecs, dtype=np.float32), "hash_fallback"
+
+
+class ErrorClusterer:
+    """Clusters mathematical reasoning errors into semantic topic clusters."""
+
+    def __init__(
+        self,
+        embedder: Optional[QuestionEmbedder] = None,
+        num_clusters: int = 5,
+        random_state: int = 42,
+    ):
+        self.embedder = embedder or QuestionEmbedder()
+        self.num_clusters = num_clusters
+        self.random_state = random_state
+
+    def cluster(
+        self,
+        records: Sequence[Union[ErrorClassification, Dict[str, Any]]],
+        num_clusters: Optional[int] = None,
+    ) -> ClusterAnalysisReport:
+        """Cluster error records by question semantic similarity.
+
+        Args:
+            records: Sequence of ErrorClassification objects or dictionary problem records.
+            num_clusters: Optional override for number of clusters K.
+
+        Returns:
+            ClusterAnalysisReport containing clusters, keywords, and 2 representative examples per cluster.
+        """
+        # Filter down strictly to errors
+        error_items: List[Dict[str, Any]] = []
+        for r in records:
+            if isinstance(r, ErrorClassification):
+                if r.is_error:
+                    error_items.append(r.to_dict())
+            elif isinstance(r, dict):
+                is_err = r.get("is_error", True)
+                if is_err:
+                    error_items.append(r)
+
+        if not error_items:
+            logger.warning("No error items found to cluster.")
+            return ClusterAnalysisReport(
+                total_error_questions=0,
+                num_clusters=0,
+                embedding_model=self.embedder.backend,
+                clusters=[],
+            )
+
+        questions = [item.get("question", "") for item in error_items]
+        embeddings, backend_name = self.embedder.embed(questions)
+
+        n_samples = len(error_items)
+        k = num_clusters if num_clusters is not None else self.num_clusters
+        k = max(1, min(k, n_samples))
+
+        logger.info(
+            "Clustering %d error questions into %d semantic clusters using %s...",
+            n_samples,
+            k,
+            backend_name,
+        )
+
+        if k == 1 or n_samples == 1:
+            labels = np.zeros(n_samples, dtype=int)
+        else:
+            try:
+                import os
+                os.environ["LOKY_MAX_CPU_COUNT"] = "1"
+                from sklearn.cluster import KMeans
+
+                kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=10)
+                labels = kmeans.fit_predict(embeddings)
+            except Exception as e:
+                logger.warning("KMeans failed (%s); assigning round-robin clusters.", e)
+                labels = np.array([i % k for i in range(n_samples)])
+
+        # Group indices by cluster
+        clusters_dict: Dict[int, List[int]] = {c: [] for c in range(k)}
+        for idx, lbl in enumerate(labels):
+            clusters_dict[int(lbl)].append(idx)
+
+        all_clusters: List[ErrorCluster] = []
+        existing_topic_names: List[str] = []
+
+        for cid, indices in clusters_dict.items():
+            if not indices:
+                continue
+
+            cluster_records = [error_items[i] for i in indices]
+            cluster_questions = [questions[i] for i in indices]
+            cluster_embs = embeddings[indices]
+
+            # Compute centroid and distances
+            centroid = np.mean(cluster_embs, axis=0)
+            distances = np.linalg.norm(cluster_embs - centroid, axis=1)
+
+            sorted_order = np.argsort(distances)
+            sorted_records = [cluster_records[i] for i in sorted_order]
+            sorted_distances = [distances[i] for i in sorted_order]
+
+            representative_examples: List[Dict[str, Any]] = []
+            for rank, rec in enumerate(sorted_records[:2]):
+                cat_val = rec.get("category")
+                if isinstance(cat_val, dict):
+                    cat_name = cat_val.get("value", "other")
+                elif hasattr(cat_val, "value"):
+                    cat_name = cat_val.value
+                else:
+                    cat_name = str(cat_val or "other")
+
+                representative_examples.append({
+                    "problem_id": rec.get("problem_id", f"cluster_{cid}_{rank+1}"),
+                    "question": rec.get("question", ""),
+                    "gold_answer": str(rec.get("gold_answer", "")),
+                    "gold_solution": rec.get("gold_solution", ""),
+                    "generated_text": rec.get("generated_text", ""),
+                    "extracted_answer": str(rec.get("extracted_answer", "")),
+                    "category": cat_name,
+                    "rationale": rec.get("rationale", ""),
+                    "distance_to_centroid": round(float(sorted_distances[rank]), 4),
+                })
+
+            keywords = extract_cluster_keywords(cluster_questions, questions, top_n=5)
+            topic_name = assign_cluster_topic(cluster_questions, keywords, existing_topic_names)
+            existing_topic_names.append(topic_name)
+
+            cat_counts: Dict[str, int] = {}
+            for rec in cluster_records:
+                cval = rec.get("category")
+                cname = cval.value if hasattr(cval, "value") else str(cval or "other")
+                cat_counts[cname] = cat_counts.get(cname, 0) + 1
+
+            cluster_obj = ErrorCluster(
+                cluster_id=cid + 1,
+                name=topic_name,
+                size=len(indices),
+                percentage=(len(indices) / n_samples) * 100.0,
+                top_keywords=keywords,
+                representative_examples=representative_examples,
+                problem_ids=[rec.get("problem_id", "") for rec in cluster_records],
+                category_distribution=cat_counts,
+            )
+            all_clusters.append(cluster_obj)
+
+        all_clusters.sort(key=lambda c: c.size, reverse=True)
+        for new_id, cl in enumerate(all_clusters, start=1):
+            cl.cluster_id = new_id
+
+        return ClusterAnalysisReport(
+            total_error_questions=n_samples,
+            num_clusters=len(all_clusters),
+            embedding_model=backend_name,
+            clusters=all_clusters,
+        )
+
+
+def generate_cluster_markdown(report: ClusterAnalysisReport) -> str:
+    """Generate Markdown section detailing semantic topic clusters and representative examples."""
+    lines = [
+        "## 4. Semantic Topic Clusters of Reasoning Errors",
+        "",
+        f"- **Total Error Questions Clustered:** {report.total_error_questions}",
+        f"- **Number of Semantic Clusters:** {report.num_clusters}",
+        f"- **Embedding Model:** `{report.embedding_model}`",
+        "",
+        "### Cluster Overview Table",
+        "",
+        "| Cluster | Topic / Mathematical Domain | Errors | % of Errors | Top Distinctive Keywords |",
+        "| :---: | :--- | :---: | :---: | :--- |",
+    ]
+    for c in report.clusters:
+        kw_str = ", ".join(f"`{k}`" for k in c.top_keywords[:4])
+        lines.append(f"| {c.cluster_id} | **{c.name}** | {c.size} | {c.percentage:.1f}% | {kw_str} |")
+
+    lines.extend(["", "### Detailed Cluster Profiles & Representative Examples", ""])
+
+    for c in report.clusters:
+        lines.append(f"#### Cluster {c.cluster_id}: {c.name}")
+        lines.append(f"- **Cluster Size:** {c.size} errors ({c.percentage:.1f}% of analyzed errors)")
+        lines.append(f"- **Top Distinguishing Keywords:** {', '.join(c.top_keywords)}")
+        if c.category_distribution:
+            cats = ", ".join(
+                f"`{cat}`: {cnt}"
+                for cat, cnt in sorted(c.category_distribution.items(), key=lambda x: -x[1])
+            )
+            lines.append(f"- **Error Category Distribution:** {cats}")
+        lines.append("")
+
+        for idx, ex in enumerate(c.representative_examples, 1):
+            lines.append(f"##### Example {c.cluster_id}.{idx} (ID: {ex['problem_id']})")
+            lines.append(f"- **Question:** {ex['question']}")
+            lines.append(f"- **Gold Answer:** `{ex['gold_answer']}`")
+            lines.append(f"- **Extracted Answer:** `{ex['extracted_answer']}`")
+            lines.append(f"- **Assigned Error Category:** `{ex['category']}`")
+            if ex.get("rationale"):
+                lines.append(f"- **Failure Analysis:** {ex['rationale']}")
+            lines.append("```text")
+            gen_text = ex.get("generated_text", "")
+            lines.append(gen_text[:350] + ("..." if len(gen_text) > 350 else ""))
+            lines.append("```")
             lines.append("")
 
     return "\n".join(lines)

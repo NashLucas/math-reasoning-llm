@@ -3783,5 +3783,223 @@
       "metadata": {}
     }
   ],
-  "stage": "val_analysis_greedy"
+  "stage": "val_analysis_greedy",
+  "clusters": {
+    "total_error_questions": 30,
+    "num_clusters": 4,
+    "embedding_model": "tfidf_fallback",
+    "clusters": [
+      {
+        "cluster_id": 1,
+        "name": "Multi-Step Counting, Inventory & Combinatorics",
+        "size": 18,
+        "percentage": 60.0,
+        "top_keywords": [
+          "15",
+          "books",
+          "100",
+          "desks",
+          "times"
+        ],
+        "representative_examples": [
+          {
+            "problem_id": "calib_19",
+            "question": "A bookstore sells 15 books on Monday, 25 on Tuesday, and 30 on Wednesday. If their weekly goal is 100 books, how many more must they sell?",
+            "gold_answer": "30",
+            "gold_solution": "15 + 25 + 30 = 70. 100 - 70 = 30.\n#### 30",
+            "generated_text": "On Monday they sold 15, on Tuesday 25: 15 + 25 = 40.\n#### 40",
+            "extracted_answer": "40",
+            "category": "incomplete_reasoning",
+            "rationale": "",
+            "distance_to_centroid": 0.9451
+          },
+          {
+            "problem_id": "calib_30",
+            "question": "What is 15 minus 8?",
+            "gold_answer": "7",
+            "gold_solution": "15 - 8 = 7.\n#### 7",
+            "generated_text": "Je ne sais pas exactement comment r\u00e9soudre ce probl\u00e8me math\u00e9matique aujourd'hui.\n#### 999",
+            "extracted_answer": "999",
+            "category": "other",
+            "rationale": "",
+            "distance_to_centroid": 0.9594
+          }
+        ],
+        "problem_ids": [
+          "calib_03",
+          "calib_04",
+          "calib_05",
+          "calib_06",
+          "calib_10",
+          "calib_12",
+          "calib_13",
+          "calib_15",
+          "calib_16",
+          "calib_17",
+          "calib_19",
+          "calib_20",
+          "calib_21",
+          "calib_22",
+          "calib_23",
+          "calib_25",
+          "calib_27",
+          "calib_30"
+        ],
+        "category_distribution": {
+          "arithmetic_slip": 3,
+          "misread_question": 2,
+          "wrong_setup": 4,
+          "incomplete_reasoning": 4,
+          "parse_error": 3,
+          "truncation": 1,
+          "other": 1
+        }
+      },
+      {
+        "cluster_id": 2,
+        "name": "Multi-Step Counting, Inventory & Combinatorics (Apples)",
+        "size": 6,
+        "percentage": 20.0,
+        "top_keywords": [
+          "apples",
+          "total",
+          "solve",
+          "does total",
+          "solve 20"
+        ],
+        "representative_examples": [
+          {
+            "problem_id": "calib_24",
+            "question": "Solve for the total cost of 5 apples at $2 each.",
+            "gold_answer": "10",
+            "gold_solution": "5 * 2 = 10.\n#### 10",
+            "generated_text": "Apples are delicious and nutritious fruits enjoyed worldwide.",
+            "extracted_answer": "None",
+            "category": "parse_error",
+            "rationale": "",
+            "distance_to_centroid": 0.8226
+          },
+          {
+            "problem_id": "calib_01",
+            "question": "Janet has 15 apples and buys 12 more. How many apples does she have in total?",
+            "gold_answer": "27",
+            "gold_solution": "15 + 12 = 27.\n#### 27",
+            "generated_text": "Janet starts with 15 apples. She buys 12 more.\n15 + 12 = 28.\nTherefore she has 28 apples.\n#### 28",
+            "extracted_answer": "28",
+            "category": "arithmetic_slip",
+            "rationale": "",
+            "distance_to_centroid": 0.8238
+          }
+        ],
+        "problem_ids": [
+          "calib_01",
+          "calib_08",
+          "calib_18",
+          "calib_24",
+          "calib_26",
+          "calib_29"
+        ],
+        "category_distribution": {
+          "arithmetic_slip": 1,
+          "misread_question": 1,
+          "incomplete_reasoning": 1,
+          "parse_error": 1,
+          "truncation": 1,
+          "other": 1
+        }
+      },
+      {
+        "cluster_id": 3,
+        "name": "Rates, Speed, Work & Motion",
+        "size": 3,
+        "percentage": 10.0,
+        "top_keywords": [
+          "hours",
+          "miles",
+          "workers",
+          "miles hour",
+          "hour"
+        ],
+        "representative_examples": [
+          {
+            "problem_id": "calib_28",
+            "question": "If a car drives 60 miles each hour for 4 hours, how far does it go?",
+            "gold_answer": "240",
+            "gold_solution": "60 * 4 = 240.\n#### 240",
+            "generated_text": "The distance traveled is calculated by multiplying speed times time, so 60 * 4 =",
+            "extracted_answer": "None",
+            "category": "truncation",
+            "rationale": "",
+            "distance_to_centroid": 0.7103
+          },
+          {
+            "problem_id": "calib_11",
+            "question": "A car travels 180 miles in 3 hours. What is its average speed in miles per hour?",
+            "gold_answer": "60",
+            "gold_solution": "180 / 3 = 60.\n#### 60",
+            "generated_text": "To find the average speed, we multiply the distance by time:\n180 * 3 = 540 mph.\n#### 540",
+            "extracted_answer": "540",
+            "category": "wrong_setup",
+            "rationale": "",
+            "distance_to_centroid": 0.7163
+          }
+        ],
+        "problem_ids": [
+          "calib_11",
+          "calib_14",
+          "calib_28"
+        ],
+        "category_distribution": {
+          "wrong_setup": 2,
+          "truncation": 1
+        }
+      },
+      {
+        "cluster_id": 4,
+        "name": "Multi-Step Counting, Inventory & Combinatorics (Cookies)",
+        "size": 3,
+        "percentage": 10.0,
+        "top_keywords": [
+          "cookies",
+          "did",
+          "notebooks",
+          "minutes",
+          "emily"
+        ],
+        "representative_examples": [
+          {
+            "problem_id": "calib_07",
+            "question": "Sam bought 4 notebooks for $5 each and 2 pens for $3 each. How much did he spend on notebooks?",
+            "gold_answer": "20",
+            "gold_solution": "4 * 5 = 20.\n#### 20",
+            "generated_text": "Sam bought 4 notebooks for $5 each: 4 * 5 = 20 dollars.\nHe also bought 2 pens for $3 each: 2 * 3 = 6 dollars.\nTotal spent on everything is 20 + 6 = 26 dollars.\n#### 26",
+            "extracted_answer": "26",
+            "category": "misread_question",
+            "rationale": "",
+            "distance_to_centroid": 0.8012
+          },
+          {
+            "problem_id": "calib_02",
+            "question": "A baker bakes 7 trays of cookies with 8 cookies per tray. How many cookies did he bake?",
+            "gold_answer": "56",
+            "gold_solution": "7 * 8 = 56.\n#### 56",
+            "generated_text": "There are 7 trays with 8 cookies each.\n7 * 8 = 54 cookies.\n#### 54",
+            "extracted_answer": "54",
+            "category": "arithmetic_slip",
+            "rationale": "",
+            "distance_to_centroid": 0.8038
+          }
+        ],
+        "problem_ids": [
+          "calib_02",
+          "calib_07",
+          "calib_09"
+        ],
+        "category_distribution": {
+          "arithmetic_slip": 1,
+          "misread_question": 2
+        }
+      }
+    ]
+  }
 }

@@ -33,6 +33,8 @@ from src.config import ConfigManager  # noqa: E402
 from src.evaluation.error_analysis import (  # noqa: E402
     ALL_ERROR_CATEGORIES,
     ErrorClassifier,
+    ErrorClusterer,
+    QuestionEmbedder,
     compute_error_distribution,
     generate_error_markdown_report,
 )
@@ -93,6 +95,8 @@ def run_error_analysis(
     limit: Optional[int] = None,
     stage_name: str = "SFT Round 1",
     profile: Optional[str] = None,
+    cluster: bool = False,
+    num_clusters: int = 5,
 ) -> Dict[str, Any]:
     """Run full error classification pipeline over input generations."""
     logger.info("==================================================")
@@ -149,9 +153,19 @@ def run_error_analysis(
         json.dump(full_payload, f, indent=2)
     logger.info("Saved error analysis JSON report to: %s", output_file)
 
+    # Optional topic clustering (Phase 5 Day 33)
+    cluster_report = None
+    if cluster:
+        embedder = QuestionEmbedder(use_fallback=use_mock)
+        clusterer = ErrorClusterer(embedder=embedder, num_clusters=num_clusters, random_state=42)
+        cluster_report = clusterer.cluster(classifications, num_clusters=num_clusters)
+        full_payload["clusters"] = cluster_report.to_dict()
+
     # Persist Markdown report
     report_file.parent.mkdir(parents=True, exist_ok=True)
-    md_content = generate_error_markdown_report(summary, classifications, stage_name=stage_name)
+    md_content = generate_error_markdown_report(
+        summary, classifications, stage_name=stage_name, cluster_report=cluster_report
+    )
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(md_content)
     logger.info("Saved error analysis Markdown report to: %s", report_file)
@@ -212,6 +226,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--sample_mode",
         action="store_true",
         help="Run quickly on sample data in mock mode for CI / testing.",
+    )
+    parser.add_argument(
+        "--cluster",
+        action="store_true",
+        help="Perform semantic topic clustering on error questions (Phase 5 Day 33).",
+    )
+    parser.add_argument(
+        "--num_clusters",
+        type=int,
+        default=5,
+        help="Number of semantic topic clusters K (default: 5).",
     )
     parser.add_argument(
         "--limit",
