@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-11-05T03:50:51.208190+00:00",
+  "backend_mode": "Deterministic Mock Engine",
+  "total_queries_tested": 40,
+  "concurrency_results": [
+    {
+      "concurrency": 1,
+      "queries_dispatched": 10,
+      "successful_queries": 10,
+      "format_compliant_queries": 10,
+      "total_elapsed_ms": 15.73,
+      "queries_per_sec": 635.6,
+      "tokens_per_sec": 37503.2,
+      "mean_latency_ms": 0.11,
+      "p50_latency_ms": 0.1,
+      "p95_latency_ms": 0.16,
+      "p99_latency_ms": 0.16
+    },
+    {
+      "concurrency": 5,
+      "queries_dispatched": 10,
+      "successful_queries": 10,
+      "format_compliant_queries": 10,
+      "total_elapsed_ms": 2.8,
+      "queries_per_sec": 3577.0,
+      "tokens_per_sec": 211045.9,
+      "mean_latency_ms": 0.1,
+      "p50_latency_ms": 0.1,
+      "p95_latency_ms": 0.1,
+      "p99_latency_ms": 0.1
+    },
+    {
+      "concurrency": 10,
+      "queries_dispatched": 10,
+      "successful_queries": 10,
+      "format_compliant_queries": 10,
+      "total_elapsed_ms": 2.01,
+      "queries_per_sec": 4968.7,
+      "tokens_per_sec": 293153.1,
+      "mean_latency_ms": 0.1,
+      "p50_latency_ms": 0.1,
+      "p95_latency_ms": 0.1,
+      "p99_latency_ms": 0.1
+    },
+    {
+      "concurrency": 20,
+      "queries_dispatched": 10,
+      "successful_queries": 10,
+      "format_compliant_queries": 10,
+      "total_elapsed_ms": 2.04,
+      "queries_per_sec": 4893.1,
+      "tokens_per_sec": 288692.1,
+      "mean_latency_ms": 0.1,
+      "p50_latency_ms": 0.1,
+      "p95_latency_ms": 0.1,
+      "p99_latency_ms": 0.1
+    }
+  ],
+  "overall_format_compliance_rate": 1.0,
+  "status": "PASSED"
+}

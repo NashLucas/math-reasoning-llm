@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-11-05T03:49:27.625961+00:00",
+  "base_model": "deepseek-ai/deepseek-math-7b-base",
+  "adapter_path": "outputs/grpo/adapter_model",
+  "profiles_evaluated": [
+    {
+      "profile_id": "bf16_baseline",
+      "display_name": "BF16 Baseline (Uncompressed)",
+      "bits": 16,
+      "estimated_size_gb": 14.2,
+      "compression_ratio": 1.0,
+      "accuracy": 1.0,
+      "format_compliance": 1.0,
+      "mean_latency_ms": 0.15,
+      "status": "CERTIFIED"
+    },
+    {
+      "profile_id": "bnb_4bit_nf4",
+      "display_name": "BitsAndBytes 4-bit NF4",
+      "bits": 4,
+      "estimated_size_gb": 4.3,
+      "compression_ratio": 3.3,
+      "accuracy": 1.0,
+      "format_compliance": 1.0,
+      "mean_latency_ms": 0.1,
+      "status": "CERTIFIED"
+    },
+    {
+      "profile_id": "bnb_8bit",
+      "display_name": "BitsAndBytes 8-bit",
+      "bits": 8,
+      "estimated_size_gb": 7.4,
+      "compression_ratio": 1.92,
+      "accuracy": 1.0,
+      "format_compliance": 1.0,
+      "mean_latency_ms": 0.1,
+      "status": "CERTIFIED"
+    },
+    {
+      "profile_id": "awq_4bit",
+      "display_name": "AWQ 4-bit (Activation-aware)",
+      "bits": 4,
+      "estimated_size_gb": 4.5,
+      "compression_ratio": 3.15,
+      "accuracy": 1.0,
+      "format_compliance": 1.0,
+      "mean_latency_ms": 0.1,
+      "status": "CERTIFIED"
+    },
+    {
+      "profile_id": "gguf_q4_k_m",
+      "display_name": "GGUF Q4_K_M (Edge / CPU)",
+      "bits": 4,
+      "estimated_size_gb": 4.2,
+      "compression_ratio": 3.38,
+      "accuracy": 1.0,
+      "format_compliance": 1.0,
+      "mean_latency_ms": 0.1,
+      "status": "CERTIFIED"
+    }
+  ],
+  "recommended_gpu_profile": "awq_4bit",
+  "recommended_cpu_profile": "gguf_q4_k_m"
+}

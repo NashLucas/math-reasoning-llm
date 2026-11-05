@@ -108,6 +108,24 @@ curl http://localhost:8000/v1/health
 python scripts/evaluate_ood.py --output_dir reports
 ```
 
+### Model Quantization & Compression Audit
+```bash
+# Audit 4-bit/8-bit regimes (AWQ, GGUF, BitsAndBytes)
+python scripts/export_quantized_model.py --use_mock
+```
+
+### Production Traffic Observability & Drift Detection
+```bash
+# Monitor request telemetry and detect Answer Contract / latency drift
+python scripts/run_traffic_monitor.py --log_file logs/production/requests.jsonl
+```
+
+### High-Concurrency Load Stress Benchmarking
+```bash
+# Benchmark multi-worker concurrency scaling and token throughput
+python scripts/benchmark_serving_load.py --queries_per_tier 20 --use_mock
+```
+
 ---
 
 ## Key Design Rules
@@ -130,11 +148,11 @@ math-reasoning-llm/
 │   ├── reasoning/        # Prompt formats, trace synthesis, and self-consistency
 │   ├── training/         # SFT training, callbacks, and sweeps
 │   ├── grpo/             # GRPO rewards, advantages, rollouts, and trainer
-│   ├── serving/          # Production serving engine & traffic logger
+│   ├── serving/          # Serving engine, REST API, quantization, drift monitor
 │   └── evaluation/       # Benchmark evaluators, diagnostics, and gate verifiers
 ├── app/                  # FastAPI REST service (api.py) & Gradio UI (app.py)
 ├── scripts/              # Executable stage workflows & gate verifiers
-├── notebooks/            # Colab operational launcher (Steps 1–49)
+├── notebooks/            # Colab operational launcher (Steps 1–50)
 ├── tests/                # Automated pytest & unittest suite
 ├── reports/              # Phase gate reports, benchmarks, and audit logs
 └── outputs/              # Advancing LoRA adapters (outputs/grpo/adapter_model)

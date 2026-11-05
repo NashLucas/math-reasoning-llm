@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-11-05T03:50:02.100846+00:00",
+  "total_records": 20,
+  "format_compliance_rate": 1.0,
+  "mean_latency_ms": 0.29,
+  "p50_latency_ms": 0.26,
+  "p95_latency_ms": 0.53,
+  "p99_latency_ms": 0.77,
+  "mean_prompt_tokens": 35.0,
+  "mean_completion_tokens": 147.5,
+  "regime_distribution": {
+    "greedy": 10,
+    "self_consistency": 10
+  },
+  "contract_alert": false,
+  "latency_alert": false,
+  "alerts": [
+    "All operational indicators operating within nominal design tolerances."
+  ]
+}
