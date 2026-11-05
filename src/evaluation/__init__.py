@@ -32,6 +32,15 @@ from src.evaluation.final_evaluator import (
     unbiased_pass_at_k,
     verify_and_unfreeze_test_set,
 )
+from src.evaluation.ood_evaluator import (
+    CURATED_OOD_BENCHMARK,
+    OODBenchmarkReport,
+    OODCategoryMetrics,
+    OODEvaluator,
+    OODProblem,
+    generate_ood_markdown_report,
+    run_ood_evaluation,
+)
 from src.evaluation.phase5_verifier import (
     GateCriterionStatus,
     Phase5GateSummary,
@@ -103,4 +112,11 @@ __all__ = [
     "plot_day49_final_benchmark_curves",
     "generate_day49_markdown_report",
     "ALL_TIERS",
+    "OODEvaluator",
+    "OODProblem",
+    "OODCategoryMetrics",
+    "OODBenchmarkReport",
+    "CURATED_OOD_BENCHMARK",
+    "generate_ood_markdown_report",
+    "run_ood_evaluation",
 ]

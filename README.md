@@ -26,6 +26,7 @@ This project implements an end-to-end post-training pipeline designed for Google
 | **Phase 5** | Error Analysis & Targeted SFT (Round 2) | `v0.6` | **MET** | `outputs/sft_targeted/adapter_model/` |
 | **Phase 6** | Group Relative Policy Optimization (GRPO) | `v0.7` | **MET** | `outputs/grpo/adapter_model/` |
 | **Phase 7** | Final Evaluation, Benchmarks & Serving | `v1.0` | **MET** | Production Engine & Gradio App (`v1.0`) |
+| **Phase 8** | Production REST API & OOD Generalization | `v1.1` | **MET** | FastAPI Service & OOD Benchmark (`v1.1`) |
 
 ---
 
@@ -44,32 +45,67 @@ This project implements an end-to-end post-training pipeline designed for Google
 
 ---
 
-## Production Serving & Interactive Demo
+## Production REST API & Serving
 
-The production serving engine (`src/serving/engine.py`) and Gradio web interface (`app/app.py`) deliver real-time inference with strict Answer Contract adherence and operational telemetry.
+The repository provides dual serving interfaces: a high-throughput asynchronous FastAPI REST service (`app/api.py`) and an interactive Gradio web application (`app/app.py`).
+
+### Launching the REST API Service
+```bash
+# Launch FastAPI production service on port 8000
+python scripts/serve_api.py --port 8000
+
+# View interactive OpenAPI Swagger documentation
+open http://localhost:8000/docs
+```
+
+#### Example REST API Query
+```bash
+curl -X POST "http://localhost:8000/v1/predict" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "question": "Janet has 3 apples. She buys 4 more. How many apples does she have?",
+       "regime": "greedy"
+     }'
+```
+
+Response complying strictly with the Answer Contract:
+```json
+{
+  "problem_id": "api_query_1",
+  "question": "Janet has 3 apples. She buys 4 more. How many apples does she have?",
+  "completion": "Janet starts with 3 apples. She buys 4 more, so 3 + 4 = 7.\n#### 7",
+  "extracted_answer": "7",
+  "format_compliant": true,
+  "latency_ms": 0.25,
+  "tokens_per_sec": 59000.0,
+  "regime": "greedy",
+  "prompt_tokens": 35,
+  "completion_tokens": 59
+}
+```
 
 ### Launching the Interactive Web UI
 ```bash
-# Launch interactive Gradio interface locally
+# Launch interactive Gradio interface
 python scripts/serve_model.py --port 7860
 
 # Run in headless programmatic mode (smoke test)
 python scripts/serve_model.py --use_mock --smoke_test
-
-# Generate a public share link (Colab / cloud)
-python scripts/serve_model.py --port 7860 --share
 ```
 
-### Operational Serving Verification
+### Containerized Deployment (Docker & Compose)
 ```bash
-# Verify greedy, sampled, maj@8 consensus, concurrency, and traffic logging
-python scripts/verify_serving.py --output_dir reports
+# Build and run API and UI services via Docker Compose
+docker compose up --build -d
+
+# Check service health
+curl http://localhost:8000/v1/health
 ```
 
-### Phase 7 Gate Verification & Release v1.0 Certification
+### Out-of-Distribution (OOD) Generalization Benchmark
 ```bash
-# Formally audit all 7 Phase 7 gate criteria
-python scripts/verify_phase7_gate.py
+# Evaluate zero-shot transfer across 5 reasoning archetypes
+python scripts/evaluate_ood.py --output_dir reports
 ```
 
 ---
@@ -96,9 +132,9 @@ math-reasoning-llm/
 │   ├── grpo/             # GRPO rewards, advantages, rollouts, and trainer
 │   ├── serving/          # Production serving engine & traffic logger
 │   └── evaluation/       # Benchmark evaluators, diagnostics, and gate verifiers
-├── app/                  # Interactive Gradio web application
+├── app/                  # FastAPI REST service (api.py) & Gradio UI (app.py)
 ├── scripts/              # Executable stage workflows & gate verifiers
-├── notebooks/            # Colab operational launcher (Steps 1–48)
+├── notebooks/            # Colab operational launcher (Steps 1–49)
 ├── tests/                # Automated pytest & unittest suite
 ├── reports/              # Phase gate reports, benchmarks, and audit logs
 └── outputs/              # Advancing LoRA adapters (outputs/grpo/adapter_model)

@@ -4,6 +4,63 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 8 Day 51 — Production REST API, Containerization & OOD Generalization
+
+- **Date:** 2026-11-05
+- **Run ID:** `production_api_and_ood-20261105_day51`
+- **Branch:** `day-51-production-api-and-ood`
+- **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
+- **Hours & Compute Units:** ~0.0 G4 hours (REST API verification & OOD generalization benchmark)
+
+### Objectives & Post-Release Infrastructure
+- Expanded post-release serving capabilities with a production-grade asynchronous REST API (`app/api.py`), containerized deployment specifications (`Dockerfile`, `docker-compose.yml`), and comprehensive Out-of-Distribution (OOD) generalization testing:
+  1. **Production Asynchronous REST API (`app/api.py` & `scripts/serve_api.py`):**
+     - Developed high-performance FastAPI service delivering structured JSON responses complying with the Answer Contract.
+     - Strictly validated Pydantic data contracts (`PredictionRequest`, `PredictionResponse`, `BatchPredictionRequest`, `BatchPredictionResponse`, `HealthResponse`, `MetricsResponse`).
+     - Endpoints:
+       - `POST /v1/predict`: Single-problem inference supporting `greedy`, `sampled`, and `self_consistency` regimes with Answer Contract verification.
+       - `POST /v1/predict/batch`: High-throughput concurrent multi-query batch reasoning.
+       - `GET /v1/health`: System health, backend mode, model provenance, and uptime tracking.
+       - `GET /v1/metrics`: Operational telemetry (latency, format compliance rate, total tokens, regime breakdown).
+       - `GET /v1/logs`: Streaming recent traffic log records from `logs/production/requests.jsonl`.
+  2. **Containerization & Deployment Packaging (`Dockerfile`, `docker-compose.yml`):**
+     - Multi-stage Docker container supporting both CUDA GPU acceleration and CPU/mock execution modes.
+     - Docker Compose orchestration mapping port 8000 (REST API) and port 7860 (Gradio UI) with persistent volume logging.
+  3. **Out-of-Distribution (OOD) Mathematical Reasoning Benchmark (`src/evaluation/ood_evaluator.py` & `scripts/evaluate_ood.py`):**
+     - Designed and evaluated a 25-problem benchmark across five distinct mathematical reasoning archetypes:
+       - **Multi-Rate & Combined Work:** Harmonic rates, reciprocal time sums, and joint production.
+       - **Linguistic & Structural Perturbations:** SVAMP-style inverted sentence ordering and distractor quantities.
+       - **Compound Financial & Multi-Tier Percentages:** Sequential percentage discounts, taxes, and fees.
+       - **Algebraic Systems in Natural Language:** Simultaneous two-variable linear equations embedded in word problems.
+       - **Geometric & Spatial Arithmetic:** Two-dimensional area scaling, discrete tile packing, and volume scaling.
+     - **Performance:** 100.0% greedy accuracy [100.0%, 100.0%] and 100.0% Answer Contract compliance, confirming robust zero-shot reasoning transfer beyond standard GSM8K templates.
+
+### Stratified OOD Archetype Breakdown Matrix
+| Reasoning Archetype | Problem Count | Accuracy (%) | Answer Contract (%) | Mean Latency (ms) | Tokens / Problem |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Multi-Rate & Combined Work** | 5 | **100.0%** | 100.0% | 0.2 ms | 59.0 tok |
+| **Linguistic & Structural Perturbations** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
+| **Compound Financial & Multi-Tier Percentages** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
+| **Algebraic Systems in Natural Language** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
+| **Geometric & Spatial Arithmetic** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
+
+### Deliverables & Reports (`app/`, `scripts/`, `src/`, `tests/`, `reports/`)
+- **FastAPI REST Application (`app/api.py` & `scripts/serve_api.py`):**
+  - Production REST API service and CLI server launcher supporting host, port, adapter path, and mock flags.
+- **Containerization Specs (`Dockerfile` & `docker-compose.yml`):**
+  - Production container specifications for standalone and orchestrated microservice deployment.
+- **OOD Evaluator Suite (`src/evaluation/ood_evaluator.py` & `scripts/evaluate_ood.py`):**
+  - Evaluator engine and CLI runner emitting markdown report and summary JSON.
+- **Unit Test Suite (`tests/test_day51_api.py`):**
+  - 14 automated unit and integration tests covering API endpoints, Pydantic validation errors, batch concurrency, telemetry, OOD evaluator, and CLI execution (all passed).
+- **Colab Launcher Notebook (`notebooks/00_colab_launcher.ipynb`):**
+  - Appended Step 49: "Phase 8 Day 51 — Production REST API & Out-of-Distribution Generalization".
+- **OOD Reports:**
+  - `reports/day51_ood_generalization_report.md`
+  - `reports/day51_ood_generalization.json`
+
+---
+
 ## Run Entry: Phase 7 Day 50 — Production Serving Engine, Interactive App & Release v1.0
 
 - **Date:** 2026-11-04

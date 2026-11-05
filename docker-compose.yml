@@ -1,0 +1,40 @@
+services:
+  math-reasoning-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: math-reasoning-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - USE_MOCK=true
+    volumes:
+      - ./logs/production:/workspace/logs/production
+      - ./reports:/workspace/reports
+    command: ["python", "app/api.py", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  math-reasoning-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: math-reasoning-ui
+    ports:
+      - "7860:7860"
+    environment:
+      - PORT=7860
+      - HOST=0.0.0.0
+      - USE_MOCK=true
+    volumes:
+      - ./logs/production:/workspace/logs/production
+    command: ["python", "app/app.py", "--port", "7860"]
+    restart: unless-stopped
+    depends_on:
+      - math-reasoning-api
