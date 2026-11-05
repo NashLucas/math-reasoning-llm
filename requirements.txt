@@ -37,3 +37,5 @@ pillow>=12.3.0,<13  # gradio 6.31 needs <13; vLLM 0.32.0 needs >=12.3.0
 pyyaml>=6.0.3,<7
 tqdm>=4.70.1,<5
 pydantic>=2.14.2,<3
+fastapi>=0.115.0,<1
+uvicorn>=0.32.0,<1

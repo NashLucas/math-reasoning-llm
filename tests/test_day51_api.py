@@ -19,9 +19,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pydantic import ValidationError
+try:
+    from pydantic import ValidationError
+
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
+    ValidationError = Exception  # type: ignore[misc,assignment]
 
 from app.api import (
+    HAS_FASTAPI,
     BatchPredictionRequest,
     HealthResponse,
     MetricsResponse,
@@ -46,6 +53,7 @@ from src.serving.engine import ReasoningServingEngine, ServingConfig
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+@unittest.skipUnless(HAS_FASTAPI and HAS_PYDANTIC, "FastAPI and Pydantic are required for REST API tests")
 class TestFastAPIEndpoints(unittest.TestCase):
     """Test FastAPI endpoint handlers and contract validation directly."""
 

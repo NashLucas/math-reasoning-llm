@@ -1,12 +1,12 @@
 # Phase 8 Day 51: Out-of-Distribution Mathematical Generalization Report
 
-- **Evaluation Timestamp:** `2026-11-05T03:24:09.314172+00:00`
+- **Evaluation Timestamp:** `2026-11-05T03:33:40.690903+00:00`
 - **Target Model:** `deepseek-ai/deepseek-math-7b-base`
 - **Advancing LoRA Adapter:** `outputs/grpo/adapter_model`
 - **Total OOD Problems Evaluated:** 25
 - **Overall Greedy Accuracy:** **100.0%** [100.0%, 100.0%]
 - **Answer Contract Adherence:** `100.0%`
-- **Mean Serving Latency:** `0.10 ms`
+- **Mean Serving Latency:** `0.11 ms`
 
 ---
 

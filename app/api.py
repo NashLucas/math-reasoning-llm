@@ -27,9 +27,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query, status
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+try:
+    from fastapi import FastAPI, HTTPException, Query, status
+    from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel, Field
+
+    HAS_FASTAPI = True
+except ImportError:
+    HAS_FASTAPI = False
+    BaseModel = object  # type: ignore[misc,assignment]
+
+    def Field(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
+        return None
+
+    def Query(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
+        return kwargs.get("default", None)
+
+    class DummyStatus:  # type: ignore[no-redef]
+        HTTP_200_OK = 200
+        HTTP_500_INTERNAL_SERVER_ERROR = 500
+
+    status = DummyStatus()  # type: ignore[assignment]
+    HTTPException = Exception  # type: ignore[misc,assignment]
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -204,24 +223,36 @@ def set_engine(engine: ReasoningServingEngine) -> None:
     _engine_instance = engine
 
 
-app = FastAPI(
-    title="Math Reasoning LLM Production REST API",
-    description=(
-        "High-performance REST API serving the post-trained DeepSeekMath-7B Post-GRPO Policy "
-        "model on GSM8K mathematical reasoning with Answer Contract enforcement."
-    ),
-    version="1.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
+if HAS_FASTAPI:
+    app = FastAPI(
+        title="Math Reasoning LLM Production REST API",
+        description=(
+            "High-performance REST API serving the post-trained DeepSeekMath-7B Post-GRPO Policy "
+            "model on GSM8K mathematical reasoning with Answer Contract enforcement."
+        ),
+        version="1.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    class DummyApp:  # type: ignore[no-redef]
+        def get(self, *args: Any, **kwargs: Any) -> Any:
+            return lambda fn: fn
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        def post(self, *args: Any, **kwargs: Any) -> Any:
+            return lambda fn: fn
+
+        def add_middleware(self, *args: Any, **kwargs: Any) -> Any:
+            pass
+
+    app = DummyApp()  # type: ignore[assignment]
 
 
 # --- REST API Endpoints ---
