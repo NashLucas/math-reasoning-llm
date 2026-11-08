@@ -26,7 +26,8 @@ ANSWER_PHRASE_PATTERNS = [
 # count on the last non-empty line; otherwise "the total cost is 3" in the middle of the working
 # would beat the real result on the final line.
 FINAL_LINE_PHRASE_PATTERNS = [
-    re.compile(r"(?:result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r]+)", re.IGNORECASE),
+    re.compile(r"(?:result|profit|cost|value|amount|total)\s+(?:is|equals|=)\s*([^\n\r.;,]*\d[^\n\r.;]*)", re.IGNORECASE),
+    re.compile(r"therefore,?\s*[^\n\r]*?\b(?:is|equals|=)\s*([-−–]?\s*[\$€£¥₹₩¢]?\s*[-−–]?\d[^\n\r.;]*)", re.IGNORECASE),
     re.compile(r"therefore,?\s*([^\n\r]+)", re.IGNORECASE),
 ]
 PHRASE_PATTERNS = ANSWER_PHRASE_PATTERNS + FINAL_LINE_PHRASE_PATTERNS

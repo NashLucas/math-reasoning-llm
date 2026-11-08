@@ -186,6 +186,26 @@ class TestAnswerExtraction(unittest.TestCase):
         # Bold step headers without a number are ignored
         self.assertEqual(extract_and_normalize("**Final step:** add them: 5 + 3 = 8")[1:], (8.0, "last_number"))
 
+    def test_final_line_is_number_and_qualitative_result_clause(self):
+        """Day 13 real-output regressions: qualitative 'result is negative' and unbolded '<subject> is <num>'."""
+        # gsm8k_08015e702db6b87f: 'result is negative' has no number in that clause; 80 kg is the last number
+        text_qual = (
+            "Weight to leave out = 300 kg - 380 kg = -80 kg\n\n"
+            "Since the result is negative, it means Daryl has more items than he can carry. "
+            "He needs to leave out 80 kg of items to meet the weight limit."
+        )
+        raw, val, method = extract_and_normalize(text_qual)
+        self.assertEqual((raw, val, method), ("80", 80.0, "last_number"))
+
+        # Unbolded final sentence with a distractor number in the subject before 'is <answer>'
+        text_subj = (
+            "400 / 40 = 10\n\n"
+            "Therefore, the number of bags weighing 40 kilograms each that can still be loaded in the truck is 10."
+        )
+        raw2, val2, method2 = extract_and_normalize(text_subj)
+        self.assertEqual((raw2, val2, method2), ("10", 10.0, "answer_is"))
+
+
 
 if __name__ == "__main__":
     unittest.main()
