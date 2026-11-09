@@ -41,12 +41,25 @@ except ImportError:
     torch = None
     HAS_TORCH = False
 
+# Compatibility shim for PyTorch 2.14+ where torch.ops.aten.cholesky was removed
+# but vLLM's internal env_override._patch_inductor_fallback_allow_list expects it
+if HAS_TORCH:
+    try:
+        _ = torch.ops.aten.cholesky
+    except AttributeError:
+        try:
+            torch.ops.aten.__dict__["cholesky"] = getattr(
+                torch.ops.aten, "linalg_cholesky", lambda *a, **kw: None
+            )
+        except Exception:
+            pass
+
 # Optional vllm import
 try:
     from vllm import LLM, SamplingParams
     from vllm.lora.request import LoRARequest
     HAS_VLLM = True
-except ImportError:
+except Exception:
     LLM = None
     SamplingParams = None
     LoRARequest = None

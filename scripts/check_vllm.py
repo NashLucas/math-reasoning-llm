@@ -58,6 +58,17 @@ def main() -> int:
     }
 
     try:
+        import torch
+        try:
+            _ = torch.ops.aten.cholesky
+        except AttributeError:
+            try:
+                torch.ops.aten.__dict__["cholesky"] = getattr(
+                    torch.ops.aten, "linalg_cholesky", lambda *a, **kw: None
+                )
+            except Exception:
+                pass
+
         import vllm
 
         result["import_ok"] = True
