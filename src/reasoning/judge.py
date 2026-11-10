@@ -322,6 +322,8 @@ class ReasoningJudge:
         dtype: str = "auto",
         use_mock: bool = False,
         seed: int = 42,
+        load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
     ) -> None:
         self.model_name_or_path = model_name_or_path
         self.backend = backend
@@ -329,6 +331,8 @@ class ReasoningJudge:
         self.dtype = dtype
         self.use_mock = use_mock
         self.seed = seed
+        self.load_in_4bit = load_in_4bit
+        self.load_in_8bit = load_in_8bit
 
         self.model: Any = None
         self.tokenizer: Any = None
@@ -349,11 +353,28 @@ class ReasoningJudge:
             except ImportError:
                 resolved_dtype = "float32"
 
+        # Low-VRAM auto-detection for 7B/8B models on <=16GB GPUs
+        auto_4bit = self.load_in_4bit
+        if not auto_4bit and not self.load_in_8bit:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                    if vram_gb <= 16.0 and any(m in self.model_name_or_path.lower() for m in ["7b", "8b"]):
+                        logger.info(
+                            f"Auto-enabling 4-bit quantization for judge model {self.model_name_or_path} on {vram_gb:.1f}GB GPU"
+                        )
+                        auto_4bit = True
+            except Exception:
+                pass
+
         logger.info(f"Initializing Judge model: {self.model_name_or_path} ({resolved_dtype})")
         self.model, self.tokenizer = load_model_and_tokenizer(
             model_name_or_path=self.model_name_or_path,
             torch_dtype=resolved_dtype,
             device_map=self.device or "auto",
+            load_in_4bit=auto_4bit,
+            load_in_8bit=self.load_in_8bit,
         )
         self._is_initialized = True
 

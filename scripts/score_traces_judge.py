@@ -318,8 +318,8 @@ def main() -> None:
     parser.add_argument(
         "--report_name",
         type=str,
-        default="day22_judge_scoring",
-        help="Base name for output report files.",
+        default=None,
+        help="Base name for output report files (default: day21_judge_calibration or day22_judge_scoring).",
     )
     parser.add_argument(
         "--reports_dir",
@@ -339,6 +339,18 @@ def main() -> None:
         default=None,
         help="Optional max number of traces to evaluate.",
     )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load judge model with bitsandbytes 4-bit NF4 quantization for low-VRAM GPUs.",
+    )
+    parser.add_argument(
+        "--load_in_8bit",
+        action="store_true",
+        default=False,
+        help="Load judge model with bitsandbytes 8-bit quantization.",
+    )
     args = parser.parse_args()
 
     use_mock_flag = args.use_mock or (not args.use_real_model)
@@ -352,6 +364,8 @@ def main() -> None:
     judge = ReasoningJudge(
         model_name_or_path=args.model_name,
         use_mock=use_mock_flag,
+        load_in_4bit=args.load_in_4bit,
+        load_in_8bit=args.load_in_8bit,
     )
 
     # 1. Benchmark Calibration against 20 manual scores
@@ -402,8 +416,9 @@ def main() -> None:
                 reports_dir = PROJECT_ROOT / reports_dir
             reports_dir.mkdir(parents=True, exist_ok=True)
 
-            md_path = reports_dir / f"{args.report_name}.md"
-            json_path = reports_dir / f"{args.report_name}_report.json"
+            calib_report_name = args.report_name or "day21_judge_calibration"
+            md_path = reports_dir / f"{calib_report_name}.md"
+            json_path = reports_dir / f"{calib_report_name}_report.json"
 
             generate_calibration_markdown_report(
                 calib_metrics=calib_metrics,
@@ -574,8 +589,9 @@ def main() -> None:
         reports_dir = PROJECT_ROOT / reports_dir
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    md_report_path = reports_dir / f"{args.report_name}.md"
-    json_report_path = reports_dir / f"{args.report_name}_report.json"
+    score_report_name = args.report_name or "day22_judge_scoring"
+    md_report_path = reports_dir / f"{score_report_name}.md"
+    json_report_path = reports_dir / f"{score_report_name}_report.json"
 
     unique_problems = len({t.get("problem_id", "") for t in ranked_traces})
 
