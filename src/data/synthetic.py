@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from src.config import ConfigManager
 from src.generation import (
     DEFAULT_STOP_SEQUENCES,
+    HAS_TORCH,
     LLM,
     check_or_write_run_meta,
     free_gpu_memory,
@@ -29,6 +30,7 @@ from src.generation import (
     resolve_generation_backend,
     run_meta_path,
     shutdown_model,
+    torch,
 )
 from src.math_utils.answer_extraction import extract_answer
 from src.math_utils.normalization import is_equivalent
@@ -293,6 +295,8 @@ class TraceSampler:
         torch_dtype: str = "bfloat16",
         model: Any = None,
         tokenizer: Any = None,
+        load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
     ) -> None:
         self.model_name_or_path = model_name_or_path
         self.backend = backend
@@ -300,6 +304,29 @@ class TraceSampler:
         self.seed = seed
         self.use_mock = use_mock
         self.torch_dtype = torch_dtype
+        self.load_in_4bit = load_in_4bit
+        self.load_in_8bit = load_in_8bit
+
+        # Automatic low-VRAM detection on <= 16GB GPUs for 7B+ models
+        if (
+            HAS_TORCH
+            and torch.cuda.is_available()
+            and not self.use_mock
+            and not self.load_in_4bit
+            and not self.load_in_8bit
+        ):
+            try:
+                gpu_mem_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                is_7b_or_larger = any(tag in str(self.model_name_or_path).lower() for tag in ["7b", "8b", "13b", "14b"])
+                if gpu_mem_gb <= 16.0 and is_7b_or_larger:
+                    logger.warning(
+                        f"Detected GPU with {gpu_mem_gb:.1f} GiB total VRAM running {self.model_name_or_path}. "
+                        "A 7B model in 16-bit precision requires ~14.1 GiB for weights alone, causing CUDA OOM on "
+                        "16GB GPUs (e.g. Tesla T4). Automatically enabling 4-bit (BitsAndBytes NF4) quantization."
+                    )
+                    self.load_in_4bit = True
+            except Exception:
+                pass
 
         mgr = ConfigManager()
         self.project_root = mgr.project_root
@@ -355,10 +382,17 @@ class TraceSampler:
         else:
             from src.model import load_model_and_tokenizer
 
+            hf_kwargs = {}
+            if self.load_in_4bit:
+                hf_kwargs["load_in_4bit"] = True
+            elif self.load_in_8bit:
+                hf_kwargs["load_in_8bit"] = True
+
             self.model, self.tokenizer = load_model_and_tokenizer(
                 model_name_or_path=self.model_name_or_path,
                 torch_dtype=self.torch_dtype,
                 device_map="auto",
+                **hf_kwargs,
             )
         self._owns_model = True
 
@@ -600,7 +634,7 @@ class TraceSampler:
 
             set_seed(seed)
 
-        return generate_batch_hf(
+        res = generate_batch_hf(
             model=self.model,
             tokenizer=self.tokenizer,
             prompts=prompts,
@@ -612,6 +646,9 @@ class TraceSampler:
             stop_sequences=stop_sequences,
             num_return_sequences=num_return_sequences,
         )
+        if HAS_TORCH and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return res
 
     def _append_chunk(self, path: Path, records: List[Dict[str, Any]]) -> None:
         """Append records to JSONL file with immediate disk sync."""

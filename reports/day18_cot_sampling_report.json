@@ -6,6 +6,7 @@
     "chain_of_thought"
   ],
   "samples_per_problem": 4,
+  "only_solved": false,
   "output_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\synthetic\\generated\\traces_Qwen2.5-1.5B-Instruct_chain_of_thought.jsonl",
   "yield_metrics": {
     "total_traces": 400,
@@ -33,5 +34,6 @@
     "retention_rate": 1.0,
     "retention_percent": 100.0,
     "rejection_breakdown": {}
-  }
+  },
+  "per_strategy_breakdown": {}
 }

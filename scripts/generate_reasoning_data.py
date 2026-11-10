@@ -35,10 +35,14 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+# Prevent CUDA memory fragmentation on 16GB GPUs (Tesla T4)
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True,max_split_size_mb:128")
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -292,6 +296,21 @@ def main() -> None:
         help="Overwrite existing output traces file and metadata instead of resuming",
     )
     parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        help="Load model in 4-bit precision (BitsAndBytes NF4) to prevent CUDA OOM on 16GB GPUs (Tesla T4)",
+    )
+    parser.add_argument(
+        "--load_in_8bit",
+        action="store_true",
+        help="Load model in 8-bit precision to reduce VRAM consumption",
+    )
+    parser.add_argument(
+        "--no_quantize",
+        action="store_true",
+        help="Disable automatic 4-bit quantization even on 16GB GPUs",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -337,6 +356,12 @@ def main() -> None:
         sys.exit(1)
 
     # 2. Initialize sampler
+    use_4bit = args.load_in_4bit
+    use_8bit = args.load_in_8bit
+    if args.no_quantize:
+        use_4bit = False
+        use_8bit = False
+
     sampler = TraceSampler(
         model_name_or_path=args.model_name,
         backend=args.backend,
@@ -345,6 +370,8 @@ def main() -> None:
         batch_size=args.batch_size,
         seed=args.seed,
         use_mock=use_mock_flag,
+        load_in_4bit=use_4bit,
+        load_in_8bit=use_8bit,
     )
 
     try:

@@ -152,14 +152,43 @@ def load_model(
     resolved_device = resolve_device_map(device_map)
     cache_dir_str = str(hf_cache_dir) if hf_cache_dir else None
 
-    logger.info(f"Loading base model '{model_path_str}' (dtype={resolved_dtype}, device={resolved_device})")
+    load_in_4bit = kwargs.pop("load_in_4bit", False)
+    load_in_8bit = kwargs.pop("load_in_8bit", False)
+
+    from_pretrained_kwargs = {
+        "device_map": resolved_device,
+        "cache_dir": cache_dir_str,
+        "trust_remote_code": kwargs.pop("trust_remote_code", True),
+    }
+
+    if load_in_4bit:
+        try:
+            from transformers import BitsAndBytesConfig
+            compute_dtype = resolved_dtype if isinstance(resolved_dtype, torch.dtype) else (
+                torch.bfloat16 if (HAS_TORCH and torch.cuda.is_available() and torch.cuda.is_bf16_supported()) else torch.float16
+            )
+            from_pretrained_kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=compute_dtype,
+                bnb_4bit_use_double_quant=True,
+            )
+            logger.info(f"Loading base model '{model_path_str}' in 4-bit NF4 (compute_dtype={compute_dtype}, device={resolved_device})")
+        except Exception as e:
+            logger.warning(f"BitsAndBytesConfig failed ({e}); passing load_in_4bit=True directly")
+            from_pretrained_kwargs["load_in_4bit"] = True
+    elif load_in_8bit:
+        logger.info(f"Loading base model '{model_path_str}' in 8-bit (device={resolved_device})")
+        from_pretrained_kwargs["load_in_8bit"] = True
+    else:
+        logger.info(f"Loading base model '{model_path_str}' (dtype={resolved_dtype}, device={resolved_device})")
+        from_pretrained_kwargs["dtype"] = resolved_dtype
+
+    from_pretrained_kwargs.update(kwargs)
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path_str,
-        dtype=resolved_dtype,
-        device_map=resolved_device,
-        cache_dir=cache_dir_str,
-        trust_remote_code=kwargs.pop("trust_remote_code", True),
-        **kwargs,
+        **from_pretrained_kwargs,
     )
 
     # Attach LoRA adapter if provided
