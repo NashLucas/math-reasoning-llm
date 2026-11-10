@@ -27,6 +27,7 @@ from src.generation import (
     is_vllm_available,
     load_vllm_model,
     resolve_generation_backend,
+    run_meta_path,
     shutdown_model,
 )
 from src.math_utils.answer_extraction import extract_answer
@@ -371,6 +372,7 @@ class TraceSampler:
         max_new_tokens: int = 512,
         stop_sequences: Optional[Sequence[str]] = None,
         filename_suffix: Optional[str] = None,
+        overwrite: bool = False,
     ) -> Path:
         """Sample reasoning traces for all problems across specified prompt strategies.
 
@@ -383,6 +385,13 @@ class TraceSampler:
         suffix = f"_{filename_suffix}" if filename_suffix else ""
         out_filename = f"traces_{self.model_slug}_{type_str}{suffix}.jsonl"
         out_path = self.output_dir / out_filename
+
+        if overwrite:
+            if out_path.exists():
+                out_path.unlink()
+            meta_p = run_meta_path(out_path)
+            if meta_p.exists():
+                meta_p.unlink()
 
         stops = list(stop_sequences) if stop_sequences is not None else list(DEFAULT_STOP_SEQUENCES)
 
@@ -398,6 +407,20 @@ class TraceSampler:
             "backend": self.backend,
             "use_mock": self.use_mock,
         }
+        meta_p = run_meta_path(out_path)
+        if not overwrite and meta_p.exists() and not self.use_mock:
+            try:
+                old_meta = json.loads(meta_p.read_text(encoding="utf-8"))
+                if old_meta.get("run_config", {}).get("use_mock"):
+                    logger.info(
+                        f"Discarding prior mock run in {out_path.name} to begin real model generation."
+                    )
+                    if out_path.exists():
+                        out_path.unlink()
+                    meta_p.unlink()
+            except Exception:
+                pass
+
         has_existing = out_path.exists() and out_path.stat().st_size > 0
         check_or_write_run_meta(out_path, run_config, has_records=has_existing)
 

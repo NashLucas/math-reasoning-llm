@@ -131,6 +131,16 @@ class TestSyntheticDataGeneration(unittest.TestCase):
             records_2 = load_synthetic_traces(out_file_2)
             self.assertEqual(len(records_2), 4)
 
+            # Third run: rerun with different config and overwrite=True -> replaces old file safely
+            out_file_3 = sampler.sample_traces(
+                problems=sample_problems,
+                prompt_types=["chain_of_thought"],
+                samples_per_problem=1,
+                overwrite=True,
+            )
+            records_3 = load_synthetic_traces(out_file_3)
+            self.assertEqual(len(records_3), 2)
+
             sampler.close()
 
     def test_real_vllm_backend_signatures_batching_and_stop_rules(self) -> None:

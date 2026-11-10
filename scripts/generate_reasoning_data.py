@@ -287,6 +287,11 @@ def main() -> None:
         help="Top-p nucleus sampling (default: 0.95)",
     )
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing output traces file and metadata instead of resuming",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -350,6 +355,7 @@ def main() -> None:
             samples_per_problem=args.samples_per_problem,
             temperature=args.temperature,
             top_p=args.top_p,
+            overwrite=args.overwrite,
         )
 
         # 4. Compute overall yield metrics
@@ -399,6 +405,8 @@ def main() -> None:
 
         if args.report_name:
             base_name = args.report_name
+        elif args.limit and args.limit <= 100:
+            base_name = "day17_synthetic_generation"
         elif len(prompt_types_list) == 1 and prompt_types_list[0] == "chain_of_thought":
             base_name = "day18_cot_sampling"
         elif set(prompt_types_list) == {"solve_then_verify", "alternative_method"}:
@@ -422,6 +430,7 @@ def main() -> None:
             }, f, indent=2)
 
         md_report = reports_dir / f"{base_name}.md"
+        report_title_str = "Day 17 Reasoning Data Generation Report" if base_name == "day17_synthetic_generation" else f"{base_name.replace('_', ' ').title()}"
         generate_markdown_report(
             yield_metrics=yield_metrics,
             model_name=args.model_name,
@@ -431,7 +440,7 @@ def main() -> None:
             report_path=md_report,
             use_real_model=real_flag,
             filter_stats=filter_stats,
-            report_title=f"{base_name.replace('_', ' ').title()}",
+            report_title=report_title_str,
             per_strategy_breakdown=per_strategy if per_strategy else None,
         )
 
