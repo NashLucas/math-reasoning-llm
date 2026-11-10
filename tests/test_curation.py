@@ -331,6 +331,8 @@ class TestCurationAndYieldAnalysis(unittest.TestCase):
                 "scripts/analyze_reasoning_yield.py",
                 "--output_dir",
                 str(out_dir),
+                "--curated_dir",
+                str(out_dir),
                 "--reports_dir",
                 str(out_dir),
                 "--mock",

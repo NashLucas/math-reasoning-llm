@@ -189,8 +189,8 @@ def main() -> None:
     parser.add_argument(
         "--limit",
         type=int,
-        default=100,
-        help="Number of problems to sample from the training subset (default: 100; 0 for all 3,000)",
+        default=None,
+        help="Number of problems to sample from the training subset (default: all 3,000; specify e.g. 100 for Day 17)",
     )
     parser.add_argument(
         "--samples_per_problem",

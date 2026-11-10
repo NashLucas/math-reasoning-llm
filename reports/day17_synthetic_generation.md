@@ -1,6 +1,6 @@
 # Day 17 Reasoning Data Generation Report
 
-- **Date:** 2026-11-02 16:07:53 UTC
+- **Date:** 2026-11-10 12:20:42 UTC
 - **Teacher Model:** `Qwen/Qwen2.5-1.5B-Instruct` (MOCK / Simulation)
 - **Prompt Strategies:** `chain_of_thought`
 - **Samples per Problem:** 4
@@ -11,7 +11,7 @@
 > 100% accuracy and format compliance numbers below verify the pipeline plumbing only.
 > Run with `--use_real_model` on a Colab GPU to measure real yield.
 
-## Yield & Quality Metrics
+## Overall Yield & Quality Metrics
 
 | Metric | Value |
 |---|---|
@@ -22,7 +22,19 @@
 | Trace Accuracy | 100.0% (1.0000) |
 | Problems with $\ge 1$ Correct Trace | 100 / 100 (100.0%) |
 
-## Pass-Rate Distribution (Correct Samples per Problem)
+## Curation Filter Results
+
+| Curation Metric | Value |
+|---|---|
+| Evaluated Traces | 400 |
+| Kept (Correct & Clean) | 400 (100.0%) |
+| Rejected Count | 0 |
+
+### Rejection Breakdown
+
+No traces rejected (100% retention).
+
+## Pass Rate Distribution
 
 | Bucket | Problem Count | Share (%) |
 |---|---|---|
@@ -33,8 +45,8 @@
 | (75, 100%) | 0 | 0.0% |
 | 100% | 100 | 100.0% |
 
-## Phase 3 Day 17 Status
+## Status & Next Steps
 
 **Status:** MOCK (Plumbing Verified; Real Model Run Pending)
 - Records contain prompt, completion, parsed answer, extraction method, correctness flag, token counts, and timestamp.
-- Next: Run `--use_real_model` on 100 problems with `Qwen/Qwen2.5-1.5B-Instruct` on a cheap GPU.
+- Mock run verified: run `--use_real_model` on Colab G4 for real generation.
