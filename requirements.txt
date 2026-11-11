@@ -19,7 +19,7 @@ tokenizers==0.23.3
 trl==1.17.1
 peft==0.21.2
 accelerate==1.15.0
-bitsandbytes>=0.43.0
+bitsandbytes>=0.46.1
 datasets==5.1.0
 sentence-transformers==6.2.0
 safetensors==0.8.0

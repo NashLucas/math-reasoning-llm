@@ -18,7 +18,7 @@ from src.data.sft_dataset import (
     load_sft_dataset,
     tokenize_sft_example,
 )
-from src.run_info import collect_run_info, save_run_info
+from src.run_info import collect_run_info, make_json_serializable, save_run_info
 from src.training.checkpointing import (
     find_latest_checkpoint,
     get_checkpoints,
@@ -735,16 +735,17 @@ def run_sft_training(
 
     # 7. Record Provenance (Design Rule 5)
     saved_ckpts = [str(c) for c in get_checkpoints(out_dir_path, complete_only=True)]
-    config_snapshot = {
+    raw_lora_dict = lora_cfg.to_dict() if hasattr(lora_cfg, "to_dict") else lora_cfg
+    config_snapshot = make_json_serializable({
         "model_name_or_path": str(model_name_or_path),
         "curated_data_path": str(c_path),
         "total_examples": len(sft_examples),
         "learning_rate": learning_rate,
-        "lora_config": lora_cfg.to_dict() if hasattr(lora_cfg, "to_dict") else lora_cfg,
+        "lora_config": raw_lora_dict,
         "train_result": train_result,
         "resumed_from": str(latest_checkpoint) if latest_checkpoint else None,
         "checkpoints_saved": saved_ckpts,
-    }
+    })
     run_record = collect_run_info(stage=stage, config=config_snapshot, description=f"{stage}_training_run")
     save_run_info(stage=stage, output_dir=adapter_out_path, config=config_snapshot, description=f"{stage}_training_run")
     logger.info(f"Saved run provenance to: {adapter_out_path / 'run_info.json'}")

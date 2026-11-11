@@ -274,6 +274,31 @@ class TestSFTTrainerAndExecution(unittest.TestCase):
             self.assertTrue(out_adapter.exists())
             self.assertTrue((out_adapter / "run_info.json").exists())
 
+    def test_save_run_info_serializes_sets_and_namedtuples(self) -> None:
+        """Verify save_run_info handles PEFT set fields and HF TrainOutput namedtuples cleanly."""
+        from collections import namedtuple
+        from src.run_info import save_run_info
+
+        TrainOutput = namedtuple("TrainOutput", ["global_step", "training_loss", "metrics"])
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_dir = Path(tmp_dir)
+            config_with_set = {
+                "lora_config": {
+                    "r": 16,
+                    "target_modules": {"q_proj", "v_proj", "k_proj"},
+                },
+                "train_result": TrainOutput(global_step=10, training_loss=0.42, metrics={"epoch": 1.0}),
+                "path_obj": Path("/tmp/test"),
+            }
+            out_file = save_run_info(stage="sft", output_dir=out_dir, config=config_with_set)
+            self.assertTrue(out_file.exists())
+            loaded = json.loads(out_file.read_text(encoding="utf-8"))
+            self.assertEqual(
+                loaded["config_snapshot"]["lora_config"]["target_modules"],
+                ["k_proj", "q_proj", "v_proj"],
+            )
+            self.assertEqual(loaded["config_snapshot"]["train_result"]["global_step"], 10)
+
 
 class TestCLIScriptsExecution(unittest.TestCase):
     """Test suite for CLI execution of verification and training scripts."""

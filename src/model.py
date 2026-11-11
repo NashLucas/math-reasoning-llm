@@ -138,6 +138,31 @@ def load_tokenizer(
     return tokenizer
 
 
+def _ensure_bitsandbytes_installed() -> bool:
+    """Ensure bitsandbytes>=0.46.1 is installed when 4-bit/8-bit quantization is requested on CUDA."""
+    if not (HAS_TORCH and torch.cuda.is_available()):
+        return False
+    try:
+        import bitsandbytes as bnb  # noqa: F401
+        return True
+    except ImportError:
+        logger.info("bitsandbytes not found in CUDA environment. Auto-installing bitsandbytes>=0.46.1...")
+        try:
+            import importlib
+            import subprocess
+            import sys
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "-q", "-U", "bitsandbytes>=0.46.1"]
+            )
+            importlib.invalidate_caches()
+            import bitsandbytes as bnb  # noqa: F401
+            logger.info("Successfully installed bitsandbytes.")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not auto-install bitsandbytes ({e}).")
+            return False
+
+
 def load_model(
     model_name_or_path: Union[str, Path],
     adapter_path: Optional[Union[str, Path]] = None,
@@ -180,6 +205,9 @@ def load_model(
 
     bf16_ok = is_bf16_supported_cuda()
 
+    if load_in_4bit or load_in_8bit:
+        _ensure_bitsandbytes_installed()
+
     if load_in_4bit:
         try:
             from transformers import BitsAndBytesConfig
@@ -220,10 +248,31 @@ def load_model(
 
     from_pretrained_kwargs.update(kwargs)
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path_str,
-        **from_pretrained_kwargs,
-    )
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path_str,
+            **from_pretrained_kwargs,
+        )
+    except Exception as exc:
+        if ("bitsandbytes" in str(exc).lower() or "quantization" in str(exc).lower()) and (
+            "quantization_config" in from_pretrained_kwargs
+            or "load_in_4bit" in from_pretrained_kwargs
+            or "load_in_8bit" in from_pretrained_kwargs
+        ):
+            logger.warning(
+                f"Quantized model loading failed ({exc}). Retrying without 4-bit/8-bit quantization..."
+            )
+            from_pretrained_kwargs.pop("quantization_config", None)
+            from_pretrained_kwargs.pop("load_in_4bit", None)
+            from_pretrained_kwargs.pop("load_in_8bit", None)
+            fallback_dtype = torch.float16 if not bf16_ok else torch.bfloat16
+            from_pretrained_kwargs["torch_dtype"] = fallback_dtype
+            model = AutoModelForCausalLM.from_pretrained(
+                model_path_str,
+                **from_pretrained_kwargs,
+            )
+        else:
+            raise
 
     # Ensure model.config.torch_dtype matches the target compute/training dtype
     target_dtype = from_pretrained_kwargs.get("torch_dtype", resolved_dtype)

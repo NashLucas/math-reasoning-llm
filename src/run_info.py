@@ -143,6 +143,40 @@ def get_library_versions() -> Dict[str, str]:
     return versions
 
 
+def make_json_serializable(obj: Any) -> Any:
+    """Recursively convert sets, Paths, namedtuples, and custom objects into JSON-serializable types."""
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, Path):
+        return str(obj)
+    if isinstance(obj, set):
+        return sorted((make_json_serializable(x) for x in obj), key=str)
+    if isinstance(obj, dict):
+        return {str(k): make_json_serializable(v) for k, v in obj.items()}
+    if hasattr(obj, "_asdict") and callable(obj._asdict):
+        return make_json_serializable(obj._asdict())
+    if isinstance(obj, (list, tuple)):
+        return [make_json_serializable(item) for item in obj]
+    if hasattr(obj, "to_dict") and callable(obj.to_dict):
+        return make_json_serializable(obj.to_dict())
+    if hasattr(obj, "__dict__"):
+        return make_json_serializable(vars(obj))
+    return str(obj)
+
+
+def _json_default(obj: Any) -> Any:
+    """Fallback JSON encoder default handler."""
+    if isinstance(obj, set):
+        return sorted(list(obj), key=str)
+    if isinstance(obj, Path):
+        return str(obj)
+    if hasattr(obj, "_asdict") and callable(obj._asdict):
+        return obj._asdict()
+    if hasattr(obj, "to_dict") and callable(obj.to_dict):
+        return obj.to_dict()
+    return str(obj)
+
+
 def collect_run_info(
     stage: str,
     config: Optional[Dict[str, Any]] = None,
@@ -167,7 +201,7 @@ def collect_run_info(
             "machine": platform.machine(),
         },
         "library_versions": get_library_versions(),
-        "config_snapshot": config or {},
+        "config_snapshot": make_json_serializable(config or {}),
     }
 
 
@@ -195,7 +229,7 @@ def save_run_info(
     run_info = collect_run_info(stage=stage, config=config, description=description)
 
     with open(out_file, "w", encoding="utf-8") as f:
-        json.dump(run_info, f, indent=2, ensure_ascii=False)
+        json.dump(run_info, f, indent=2, ensure_ascii=False, default=_json_default)
 
     print(f"Run provenance record saved to: {out_file.resolve()}")
     return out_file
