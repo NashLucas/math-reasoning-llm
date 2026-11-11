@@ -360,11 +360,51 @@ class MockSFTTrainer:
         logger.info(f"Saved mock adapter model to: {out}")
 
 
+def wrap_dataset_for_trainer(dataset: Any) -> Any:
+    """Ensure dataset is a Dataset or IterableDataset as required by Hugging Face / TRL Trainer."""
+    if dataset is None:
+        return None
+
+    type_name = type(dataset).__name__
+    if "Dataset" in type_name or "IterableDataset" in type_name:
+        return dataset
+
+    if isinstance(dataset, list):
+        # 1. Prefer Hugging Face datasets.Dataset
+        try:
+            from datasets import Dataset as HFDataset
+
+            return HFDataset.from_list(dataset)
+        except Exception:
+            pass
+
+        # 2. Fall back to torch.utils.data.Dataset
+        try:
+            import torch
+            from torch.utils.data import Dataset as TorchDataset
+
+            class TorchListDataset(TorchDataset):
+                def __init__(self, data: List[Dict[str, Any]]) -> None:
+                    self.data = data
+
+                def __len__(self) -> int:
+                    return len(self.data)
+
+                def __getitem__(self, idx: int) -> Dict[str, Any]:
+                    return self.data[idx]
+
+            return TorchListDataset(dataset)
+        except Exception:
+            pass
+
+    return dataset
+
+
 def build_sft_trainer(
     model: Any,
     tokenizer: Any,
-    train_dataset: List[Dict[str, Any]],
-    eval_dataset: Optional[List[Dict[str, Any]]] = None,
+    train_dataset: Any,
+    eval_dataset: Optional[Any] = None,
     lora_config: Optional[Any] = None,
     training_args: Optional[Any] = None,
     output_dir: Optional[Union[str, Path]] = None,
@@ -396,6 +436,11 @@ def build_sft_trainer(
             training_args=training_args,
         )
 
+    # Wrap raw lists into Dataset instances for Hugging Face Trainer / TRL SFTTrainer
+    train_dataset = wrap_dataset_for_trainer(train_dataset)
+    if eval_dataset is not None:
+        eval_dataset = wrap_dataset_for_trainer(eval_dataset)
+
     # If PEFT and LoraConfig are available, apply LoRA to model
     if HAS_PEFT and lora_config is not None and get_peft_model is not None:
         if isinstance(lora_config, LoraConfig):
@@ -403,28 +448,47 @@ def build_sft_trainer(
             model = get_peft_model(model, lora_config)
             model.print_trainable_parameters()
 
-    # Build TRL SFTTrainer if available
+    import inspect
+
+    # Try TRL SFTTrainer first if available and using SFTConfig
     if HAS_TRL and SFTTrainer is not None and isinstance(training_args, SFTConfig):
-        logger.info("Instantiating TRL SFTTrainer...")
-        return SFTTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-            data_collator=collator,
-            callbacks=callbacks,
-        )
+        try:
+            logger.info("Instantiating TRL SFTTrainer...")
+            sft_params = inspect.signature(SFTTrainer.__init__).parameters
+            sft_kwargs = {
+                "model": model,
+                "args": training_args,
+                "train_dataset": train_dataset,
+                "eval_dataset": eval_dataset,
+                "data_collator": collator,
+                "callbacks": callbacks,
+            }
+            if "processing_class" in sft_params:
+                sft_kwargs["processing_class"] = tokenizer
+            elif "tokenizer" in sft_params:
+                sft_kwargs["tokenizer"] = tokenizer
+
+            return SFTTrainer(**sft_kwargs)
+        except Exception as trl_exc:
+            logger.warning(f"TRL SFTTrainer initialization failed ({trl_exc}); falling back to HF Trainer.")
 
     # Fallback to standard Hugging Face Trainer
     logger.info("Instantiating Hugging Face Trainer with CompletionOnlyDataCollator...")
-    return Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        data_collator=collator,
-        callbacks=callbacks,
-    )
+    trainer_params = inspect.signature(Trainer.__init__).parameters
+    trainer_kwargs = {
+        "model": model,
+        "args": training_args,
+        "train_dataset": train_dataset,
+        "eval_dataset": eval_dataset,
+        "data_collator": collator,
+        "callbacks": callbacks,
+    }
+    if "processing_class" in trainer_params:
+        trainer_kwargs["processing_class"] = tokenizer
+    elif "tokenizer" in trainer_params:
+        trainer_kwargs["tokenizer"] = tokenizer
+
+    return Trainer(**trainer_kwargs)
 
 
 def run_sft_training(
