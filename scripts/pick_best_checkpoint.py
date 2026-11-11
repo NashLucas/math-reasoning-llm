@@ -38,6 +38,19 @@ from src.training.checkpointing import (  # noqa: E402
     parse_checkpoint_step,
 )
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    torch = None
+    HAS_TORCH = False
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pick_best_checkpoint")
 
@@ -122,13 +135,29 @@ def evaluate_and_pick_best_checkpoint(
     stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
 
     # Resolve directories
-    ckpt_dir_path = Path(checkpoints_dir) if checkpoints_dir else stage_paths["checkpoints"]
-    if not ckpt_dir_path.is_absolute():
-        ckpt_dir_path = PROJECT_ROOT / ckpt_dir_path
+    if checkpoints_dir:
+        ckpt_dir_path = Path(checkpoints_dir)
+        if not ckpt_dir_path.is_absolute():
+            drive_ckpt = mgr.get_profile_dir("checkpoints_dir", profile_name=active_profile) / ckpt_dir_path.name
+            if drive_ckpt.exists():
+                ckpt_dir_path = drive_ckpt
+            elif (PROJECT_ROOT / ckpt_dir_path).exists():
+                ckpt_dir_path = PROJECT_ROOT / ckpt_dir_path
+            else:
+                ckpt_dir_path = drive_ckpt if active_profile == "colab" else (PROJECT_ROOT / ckpt_dir_path)
+    else:
+        ckpt_dir_path = stage_paths["checkpoints"]
 
-    adapter_out_path = Path(adapter_dir) if adapter_dir else (stage_paths["outputs"] / "adapter_model")
-    if not adapter_out_path.is_absolute():
-        adapter_out_path = PROJECT_ROOT / adapter_out_path
+    if adapter_dir:
+        adapter_out_path = Path(adapter_dir)
+        if not adapter_out_path.is_absolute():
+            drive_adapter = mgr.get_profile_dir("outputs_dir", profile_name=active_profile) / adapter_out_path.name
+            if active_profile == "colab":
+                adapter_out_path = drive_adapter
+            else:
+                adapter_out_path = PROJECT_ROOT / adapter_out_path
+    else:
+        adapter_out_path = stage_paths["outputs"] / "adapter_model"
 
     rep_path = Path(reports_dir)
     if not rep_path.is_absolute():
@@ -137,19 +166,28 @@ def evaluate_and_pick_best_checkpoint(
 
     # 1. Discover Checkpoints
     ckpt_dir_path.mkdir(parents=True, exist_ok=True)
-    completed_ckpts = get_checkpoints(ckpt_dir_path, complete_only=True)
+    completed_ckpts = get_checkpoints(ckpt_dir_path, complete_only=True, require_weights=True)
 
     # In mock/test environments without checkpoints, generate simulated checkpoints for end-to-end evaluation
     if not completed_ckpts:
-        logger.warning(f"No completed checkpoints found in {ckpt_dir_path}. Setting up simulated checkpoints for evaluation...")
-        for step in [50, 100, 150]:
-            c_dir = ckpt_dir_path / f"checkpoint-{step}"
-            c_dir.mkdir(parents=True, exist_ok=True)
-            (c_dir / "trainer_state.json").write_text(json.dumps({"global_step": step, "loss": 0.3}), encoding="utf-8")
-            (c_dir / "adapter_config.json").write_text(json.dumps({"r": 16, "lora_alpha": 32, "target_modules": ["q_proj", "v_proj"]}), encoding="utf-8")
-            (c_dir / "adapter_model.bin").write_text("mock_adapter_weights", encoding="utf-8")
-            (c_dir / "adapter_model.safetensors").write_bytes(b"mock_safetensors")
-        completed_ckpts = get_checkpoints(ckpt_dir_path, complete_only=True)
+        if (adapter_out_path / "adapter_config.json").exists():
+            logger.info(f"No checkpoint subdirectories found in {ckpt_dir_path}, but found final adapter in {adapter_out_path}.")
+            completed_ckpts = [adapter_out_path]
+        elif use_mock or not (HAS_TORCH and torch.cuda.is_available()):
+            logger.warning(f"No completed checkpoints found in {ckpt_dir_path}. Setting up simulated checkpoints for evaluation...")
+            for step in [50, 100, 150]:
+                c_dir = ckpt_dir_path / f"checkpoint-{step}"
+                c_dir.mkdir(parents=True, exist_ok=True)
+                (c_dir / "trainer_state.json").write_text(json.dumps({"global_step": step, "loss": 0.3}), encoding="utf-8")
+                (c_dir / "adapter_config.json").write_text(json.dumps({"r": 16, "lora_alpha": 32, "target_modules": ["q_proj", "v_proj"]}), encoding="utf-8")
+                (c_dir / "adapter_model.bin").write_text("mock_adapter_weights", encoding="utf-8")
+                (c_dir / "adapter_model.safetensors").write_bytes(b"mock_safetensors")
+            completed_ckpts = get_checkpoints(ckpt_dir_path, complete_only=True)
+        else:
+            raise FileNotFoundError(
+                f"No completed checkpoints with model/adapter weights found in {ckpt_dir_path}. "
+                "Please run Phase 4 Day 29 (scripts/train_7b_sft.py) first to generate training checkpoints."
+            )
 
     logger.info("==================================================")
     logger.info("Phase 4 Day 30: Evaluating Saved SFT Checkpoints")
@@ -219,12 +257,13 @@ def evaluate_and_pick_best_checkpoint(
     best_src_path = Path(best_ckpt["checkpoint_path"])
     adapter_out_path.mkdir(parents=True, exist_ok=True)
 
-    # Copy adapter weights, configs, tokenizer files
-    for item in best_src_path.iterdir():
-        if item.is_file() and not item.name.startswith("eval_"):
-            shutil.copy2(item, adapter_out_path / item.name)
-
-    logger.info(f"Copied best adapter files from {best_src_path} to {adapter_out_path}")
+    if best_src_path.resolve() != adapter_out_path.resolve():
+        for item in best_src_path.iterdir():
+            if item.is_file() and not item.name.startswith("eval_"):
+                shutil.copy2(item, adapter_out_path / item.name)
+        logger.info(f"Copied best adapter files from {best_src_path} to {adapter_out_path}")
+    else:
+        logger.info(f"Best adapter files already located in destination: {adapter_out_path}")
 
     # 5. Evaluate Best Checkpoint with Self-Consistency (maj@8)
     logger.info("\n--- Evaluating Best Checkpoint with Self-Consistency (maj@8) ---")

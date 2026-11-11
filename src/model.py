@@ -230,6 +230,20 @@ def load_model(
     load_in_4bit = kwargs.pop("load_in_4bit", False)
     load_in_8bit = kwargs.pop("load_in_8bit", False)
 
+    # Auto-detect VRAM constraint for 7B+ models when on CUDA
+    if not load_in_4bit and not load_in_8bit:
+        try:
+            if HAS_TORCH and torch.cuda.is_available():
+                total_mem = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                if total_mem <= 16.5 and any(tag in str(model_name_or_path).lower() for tag in ["7b", "8b", "13b", "14b", "70b"]):
+                    logger.info(
+                        f"Detected GPU with {total_mem:.1f} GiB VRAM (<= 16.5 GiB). "
+                        "Auto-enabling load_in_4bit for model loading to prevent CUDA OOM."
+                    )
+                    load_in_4bit = True
+        except Exception:
+            pass
+
     from_pretrained_kwargs = {
         "device_map": resolved_device,
         "cache_dir": cache_dir_str,

@@ -155,6 +155,12 @@ class MathEvaluator:
         """
         if processed.exists():
             return processed
+        local_candidate = self.cfg_mgr.project_root / "data" / "processed" / processed.parent.name / processed.name
+        if local_candidate.exists():
+            return local_candidate
+        splits_candidate = self.cfg_mgr.project_root / "data" / "splits" / processed.name
+        if splits_candidate.exists():
+            return splits_candidate
         if self.use_mock and sample.exists():
             logger.warning(f"Split {processed} not found; mock run falling back to sample set {sample}")
             return sample
