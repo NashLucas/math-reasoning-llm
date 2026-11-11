@@ -190,7 +190,7 @@ class ValidationEvalCallback(TrainerCallback):
                 if is_real_torch_model:
                     try:
                         inputs = tok(prompt, return_tensors="pt")
-                        device = next(model.parameters()).device
+                        device = getattr(model, "device", None) or next(model.parameters()).device
                         inputs = {k: v.to(device) for k, v in inputs.items()}
 
                         with torch.no_grad():
@@ -198,7 +198,6 @@ class ValidationEvalCallback(TrainerCallback):
                                 **inputs,
                                 max_new_tokens=self.max_new_tokens,
                                 do_sample=False,
-                                temperature=0.0,
                                 pad_token_id=getattr(tok, "pad_token_id", None) or getattr(tok, "eos_token_id", 0),
                             )
                         prompt_len = inputs["input_ids"].shape[1]

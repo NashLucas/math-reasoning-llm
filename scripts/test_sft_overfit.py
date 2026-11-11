@@ -55,12 +55,22 @@ def run_overfitting_test(
     output_dir: str = "checkpoints/sft_overfit",
     reports_dir: str = "reports",
     device: str = "auto",
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
+    overwrite: bool = True,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute SFT overfitting test on 20 examples and return verification metrics."""
     out_path = Path(output_dir)
     if not out_path.is_absolute():
         out_path = PROJECT_ROOT / out_path
     out_path.mkdir(parents=True, exist_ok=True)
+
+    if overwrite and out_path.exists():
+        import shutil
+        for item in out_path.iterdir():
+            if item.is_dir() and item.name.startswith("checkpoint-"):
+                shutil.rmtree(item, ignore_errors=True)
 
     rep_path = Path(reports_dir)
     if not rep_path.is_absolute():
@@ -86,7 +96,16 @@ def run_overfitting_test(
                 model_name_or_path,
                 torch_dtype="bfloat16" if device != "cpu" else "float32",
                 device_map="auto" if device != "cpu" else "cpu",
+                load_in_4bit=load_in_4bit,
+                load_in_8bit=load_in_8bit,
             )
+            if (load_in_4bit or load_in_8bit) and not isinstance(model, MockModel):
+                try:
+                    from peft import prepare_model_for_kbit_training
+                    model = prepare_model_for_kbit_training(model)
+                    logger.info("Prepared model for k-bit LoRA training.")
+                except Exception as e:
+                    logger.warning(f"prepare_model_for_kbit_training: {e}")
         except Exception as exc:
             logger.warning(f"Could not load real model ({exc}). Using mock model.")
             model = MockModel()
@@ -96,12 +115,35 @@ def run_overfitting_test(
     # 2. Load 20 Examples
     c_path = Path(curated_data_path)
     if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+        try:
+            from src.config import ConfigManager, get_default_profile
+            mgr = ConfigManager()
+            active_prof = profile or get_default_profile()
+            prof_dir = mgr.get_profile_dir("data_dir", profile_name=active_prof)
+            drive_curated = prof_dir / "synthetic" / "curated" / c_path.name
+            local_curated = PROJECT_ROOT / c_path
+            if drive_curated.exists() and local_curated.exists():
+                c_path = drive_curated if drive_curated.stat().st_size >= local_curated.stat().st_size else local_curated
+            elif drive_curated.exists():
+                c_path = drive_curated
+            elif local_curated.exists():
+                c_path = local_curated
+            elif (prof_dir / c_path).exists():
+                c_path = prof_dir / c_path
+            else:
+                c_path = local_curated
+        except Exception:
+            c_path = PROJECT_ROOT / c_path
 
     if not c_path.exists():
-        fallback_path = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
-        if fallback_path.exists():
-            c_path = fallback_path
+        for fallback in [
+            PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl",
+            PROJECT_ROOT / "data" / "sample" / "train_sample.parquet",
+        ]:
+            if fallback.exists():
+                logger.warning(f"Curated dataset not found at {curated_data_path}. Falling back to sample set: {fallback}")
+                c_path = fallback
+                break
 
     logger.info(f"Loading {num_examples} examples from: {c_path}")
     sft_examples = load_sft_dataset(c_path, eos_token=eos_str, limit=num_examples)
@@ -137,9 +179,24 @@ def run_overfitting_test(
     logger.info(f"Starting overfitting training run ({max_steps} steps on {len(sft_examples)} examples)...")
     train_result = trainer.train()
 
-    loss_history = train_result.get("loss_history", [])
+    loss_history: List[Dict[str, Any]] = []
+    if hasattr(trainer, "loss_history") and trainer.loss_history:
+        loss_history = trainer.loss_history
+    elif hasattr(trainer, "state") and getattr(trainer.state, "log_history", None):
+        for entry in trainer.state.log_history:
+            if "loss" in entry and "step" in entry:
+                loss_history.append({"step": entry["step"], "loss": round(float(entry["loss"]), 4)})
+    elif isinstance(train_result, dict):
+        loss_history = train_result.get("loss_history", [])
+
+    final_loss = getattr(train_result, "training_loss", None)
+    if final_loss is None and isinstance(train_result, dict):
+        final_loss = train_result.get("training_loss", None)
+    if final_loss is None:
+        final_loss = loss_history[-1]["loss"] if loss_history else 0.05
+    final_loss = round(float(final_loss), 4)
+
     initial_loss = loss_history[0]["loss"] if loss_history else 2.5
-    final_loss = train_result.get("training_loss", 0.05)
     loss_reduction_pct = round(((initial_loss - final_loss) / initial_loss) * 100, 2) if initial_loss > 0 else 0.0
 
     # 5. Greedy Evaluation on the 20 Trained Examples
@@ -149,6 +206,8 @@ def run_overfitting_test(
     per_example_results: List[Dict[str, Any]] = []
 
     is_real_torch_model = hasattr(model, "generate") and hasattr(model, "parameters") and hasattr(tokenizer, "decode")
+    if is_real_torch_model and hasattr(model, "eval"):
+        model.eval()
 
     for ex in sft_examples:
         prompt = ex["prompt"]
@@ -160,16 +219,18 @@ def run_overfitting_test(
             try:
                 import torch
                 inputs = tokenizer(prompt, return_tensors="pt")
-                device_target = next(model.parameters()).device
+                device_target = getattr(model, "device", None) or next(model.parameters()).device
                 inputs = {k: v.to(device_target) for k, v in inputs.items()}
+                pad_id = getattr(tokenizer, "pad_token_id", None) or getattr(tokenizer, "eos_token_id", 0)
                 with torch.no_grad():
                     gen_ids = model.generate(
                         **inputs,
                         max_new_tokens=256,
                         do_sample=False,
-                        temperature=0.0,
+                        pad_token_id=pad_id,
                     )
-                pred_tokens = gen_ids[0][inputs["input_ids"].shape[1]:]
+                prompt_len = inputs["input_ids"].shape[1]
+                pred_tokens = gen_ids[0][prompt_len:]
                 pred_text = tokenizer.decode(pred_tokens, skip_special_tokens=True)
             except Exception as exc:
                 pred_text = f"Error: {exc}"
@@ -256,12 +317,16 @@ def run_overfitting_test(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Day 27 SFT overfitting sanity test on 20 examples.")
     parser.add_argument("--model_name_or_path", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--curated_file", type=str, default="data/synthetic/curated/traces_curated_sft.jsonl")
+    parser.add_argument("--curated_file", "--curated_data_path", type=str, dest="curated_file", default="data/synthetic/curated/traces_curated_sft.jsonl")
     parser.add_argument("--num_examples", type=int, default=20)
     parser.add_argument("--max_steps", type=int, default=30)
     parser.add_argument("--output_dir", type=str, default="checkpoints/sft_overfit")
     parser.add_argument("--reports_dir", type=str, default="reports")
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"])
+    parser.add_argument("--load_in_4bit", action="store_true", default=False, help="Load model in 4-bit NF4 quantization.")
+    parser.add_argument("--load_in_8bit", action="store_true", default=False, help="Load model in 8-bit quantization.")
+    parser.add_argument("--no_overwrite", dest="overwrite", action="store_false", default=True, help="Do not overwrite checkpoints directory.")
+    parser.add_argument("--profile", type=str, default=None, help="Runtime profile name (e.g. colab, local).")
     args = parser.parse_args()
 
     res = run_overfitting_test(
@@ -272,6 +337,10 @@ def main() -> None:
         output_dir=args.output_dir,
         reports_dir=args.reports_dir,
         device=args.device,
+        load_in_4bit=args.load_in_4bit,
+        load_in_8bit=args.load_in_8bit,
+        overwrite=args.overwrite,
+        profile=args.profile,
     )
 
     if not res["test_passed"]:
