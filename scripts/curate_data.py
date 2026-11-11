@@ -39,6 +39,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.curation import (  # noqa: E402
     CuratedDatasetStats,
     curate_reasoning_dataset,
@@ -210,22 +211,40 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    cfg_mgr = ConfigManager()
+    profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
+
     # 1. Resolve traces input file
     t_path: Optional[Path] = None
     if args.traces_file:
         t_path = Path(args.traces_file)
         if not t_path.is_absolute():
-            t_path = PROJECT_ROOT / t_path
+            if (PROJECT_ROOT / t_path).exists():
+                t_path = PROJECT_ROOT / t_path
+            elif (profile_data_dir / "synthetic" / "generated" / t_path.name).exists():
+                t_path = profile_data_dir / "synthetic" / "generated" / t_path.name
+            elif (profile_data_dir / t_path).exists():
+                t_path = profile_data_dir / t_path
+            else:
+                t_path = PROJECT_ROOT / t_path
     else:
-        # Check standard scored file
+        # Check standard scored file in PROJECT_ROOT and profile_data_dir
         default_scored = PROJECT_ROOT / "data" / "synthetic" / "generated" / "traces_scored.jsonl"
+        drive_scored = profile_data_dir / "synthetic" / "generated" / "traces_scored.jsonl"
         if default_scored.exists():
             t_path = default_scored
+        elif drive_scored.exists():
+            t_path = drive_scored
         else:
             # Check for any generated trace files in traces_dir
             tdir = Path(args.traces_dir)
             if not tdir.is_absolute():
-                tdir = PROJECT_ROOT / tdir
+                if (PROJECT_ROOT / tdir).exists():
+                    tdir = PROJECT_ROOT / tdir
+                elif (profile_data_dir / "synthetic" / "generated").exists():
+                    tdir = profile_data_dir / "synthetic" / "generated"
+                else:
+                    tdir = PROJECT_ROOT / tdir
             if tdir.exists():
                 jsonl_files = list(tdir.glob("*.jsonl"))
                 if jsonl_files:
@@ -286,7 +305,10 @@ def main() -> None:
     # 4. Save Curated JSONL
     out_file = Path(args.output_file)
     if not out_file.is_absolute():
-        out_file = PROJECT_ROOT / out_file
+        if (profile_data_dir / "synthetic").exists() and not (PROJECT_ROOT / out_file).parent.exists():
+            out_file = profile_data_dir / out_file
+        else:
+            out_file = PROJECT_ROOT / out_file
 
     save_curated_dataset(curated_traces, out_file)
 

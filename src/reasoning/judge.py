@@ -201,33 +201,36 @@ def parse_judge_output(
             pass
 
     # 2. Regex pattern extraction for bullet or line-based format
+    clean_text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    clean_text = re.sub(r"__(.*?)__", r"\1", clean_text)
+
     def _extract_metric(metric_name: str) -> Optional[float]:
-        # Matches: "- Completeness: 0.8", "Completeness = 8/10", "Completeness: 85%"
+        # Matches: "- Completeness: 0.8", "Completeness = 8/10", "Completeness: 85%", "**Completeness:** 1.0"
         patterns = [
-            rf"(?:^|\n)[ \t*-]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*/[ \t]*([0-9]+(?:\.[0-9]+)?)",
-            rf"(?:^|\n)[ \t*-]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*%",
-            rf"(?:^|\n)[ \t*-]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)",
+            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*/[ \t]*([0-9]+(?:\.[0-9]+)?)",
+            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*%",
+            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)",
         ]
 
         # Check for explicit N/A
-        na_match = re.search(rf"(?:^|\n)[ \t*-]*{metric_name}[ \t]*[:=][ \t]*(?:N/A|n/a|None|none)", text)
+        na_match = re.search(rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*(?:N/A|n/a|None|none)", clean_text)
         if na_match:
             return None
 
         # Ratio match: e.g. 8/10 or 4/5
-        m_ratio = re.search(patterns[0], text, re.IGNORECASE)
+        m_ratio = re.search(patterns[0], clean_text, re.IGNORECASE)
         if m_ratio:
             num = float(m_ratio.group(1))
             den = float(m_ratio.group(2))
             return _clamp_score(num / den) if den > 0 else 0.0
 
         # Percentage match: e.g. 85%
-        m_pct = re.search(patterns[1], text, re.IGNORECASE)
+        m_pct = re.search(patterns[1], clean_text, re.IGNORECASE)
         if m_pct:
             return _clamp_score(float(m_pct.group(1)) / 100.0)
 
         # Direct number match: e.g. 0.85 or 8.5
-        m_num = re.search(patterns[2], text, re.IGNORECASE)
+        m_num = re.search(patterns[2], clean_text, re.IGNORECASE)
         if m_num:
             val = float(m_num.group(1))
             if val > 1.0 and val <= 10.0:
@@ -244,7 +247,7 @@ def parse_judge_output(
     extracted_overall = _extract_metric("Overall Score")
 
     # Extract rationale
-    rationale_match = re.search(r"(?:^|\n)[ \t*-]*Rationale[ \t]*[:=][ \t]*(.+)", text, re.DOTALL | re.IGNORECASE)
+    rationale_match = re.search(r"(?:^|\n)[ \t*\-\d.]*Rationale[ \t]*[:=][ \t]*(.+)", clean_text, re.DOTALL | re.IGNORECASE)
     rationale = rationale_match.group(1).strip() if rationale_match else ""
     # Truncate rationale if multi-paragraph
     if "\n\n" in rationale:

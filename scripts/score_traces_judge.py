@@ -50,6 +50,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.curation import evaluate_trace_correctness  # noqa: E402
 from src.data.synthetic import load_synthetic_traces  # noqa: E402
 from src.reasoning.judge import (  # noqa: E402
@@ -440,9 +441,16 @@ def main() -> None:
             logger.info(f"Saved calibration report to: {md_path}")
 
             # Exit early if this is a calibration-only invocation
+            cfg_mgr = ConfigManager()
+            profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
             tdir_path = Path(args.traces_dir)
             if not tdir_path.is_absolute():
-                tdir_path = PROJECT_ROOT / tdir_path
+                if (PROJECT_ROOT / tdir_path).exists() and bool(discover_generated_trace_files(PROJECT_ROOT / tdir_path)):
+                    tdir_path = PROJECT_ROOT / tdir_path
+                elif (profile_data_dir / "synthetic" / "generated").exists():
+                    tdir_path = profile_data_dir / "synthetic" / "generated"
+                else:
+                    tdir_path = PROJECT_ROOT / tdir_path
             has_trace_files = tdir_path.exists() and bool(discover_generated_trace_files(tdir_path))
 
             if not args.traces_file and (not args.output_file or not has_trace_files):
@@ -451,10 +459,20 @@ def main() -> None:
 
     # 2. Trace Discovery & Loading for Full Scoring
     raw_traces: List[Dict[str, Any]] = []
+    cfg_mgr = ConfigManager()
+    profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
+
     if args.traces_file:
         t_path = Path(args.traces_file)
         if not t_path.is_absolute():
-            t_path = PROJECT_ROOT / t_path
+            if (PROJECT_ROOT / t_path).exists():
+                t_path = PROJECT_ROOT / t_path
+            elif (profile_data_dir / "synthetic" / "generated" / t_path.name).exists():
+                t_path = profile_data_dir / "synthetic" / "generated" / t_path.name
+            elif (profile_data_dir / t_path).exists():
+                t_path = profile_data_dir / t_path
+            else:
+                t_path = PROJECT_ROOT / t_path
         if not t_path.exists():
             logger.error(f"Traces file not found: {t_path}")
             sys.exit(1)
@@ -462,7 +480,12 @@ def main() -> None:
     else:
         tdir = Path(args.traces_dir)
         if not tdir.is_absolute():
-            tdir = PROJECT_ROOT / tdir
+            if (PROJECT_ROOT / tdir).exists() and bool(discover_generated_trace_files(PROJECT_ROOT / tdir)):
+                tdir = PROJECT_ROOT / tdir
+            elif (profile_data_dir / "synthetic" / "generated").exists() and bool(discover_generated_trace_files(profile_data_dir / "synthetic" / "generated")):
+                tdir = profile_data_dir / "synthetic" / "generated"
+            else:
+                tdir = PROJECT_ROOT / tdir
         if tdir.exists():
             trace_files = discover_generated_trace_files(tdir)
             logger.info(f"Discovered {len(trace_files)} trace files in {tdir}")
@@ -557,11 +580,19 @@ def main() -> None:
     logger.info(f"Scores >= 0.90: {overall_dist['pct_above_0_90']:.1f}% (High clustering: {overall_dist['high_clustering']})")
 
     # 8. Save Scored Output Files
-    out_file = Path(args.output_file) if args.output_file else (
-        PROJECT_ROOT / "data" / "synthetic" / "generated" / "traces_scored.jsonl"
-    )
-    if not out_file.is_absolute():
-        out_file = PROJECT_ROOT / out_file
+    if args.output_file:
+        out_file = Path(args.output_file)
+        if not out_file.is_absolute():
+            if (profile_data_dir / "synthetic" / "generated").exists() and not (PROJECT_ROOT / out_file).parent.exists():
+                out_file = profile_data_dir / out_file
+            else:
+                out_file = PROJECT_ROOT / out_file
+    else:
+        out_file = (
+            profile_data_dir / "synthetic" / "generated" / "traces_scored.jsonl"
+            if profile_data_dir.exists()
+            else PROJECT_ROOT / "data" / "synthetic" / "generated" / "traces_scored.jsonl"
+        )
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(out_file, "w", encoding="utf-8") as f:
