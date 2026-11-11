@@ -140,20 +140,23 @@ def load_training_arguments(
         args_dict["fp16"] = False
         args_dict["gradient_checkpointing"] = False
     elif HAS_TORCH and torch.cuda.is_available():
-        bf16_supported = False
-        if hasattr(torch.cuda, "is_bf16_supported"):
-            try:
-                bf16_supported = torch.cuda.is_bf16_supported()
-            except Exception:
-                bf16_supported = False
+        try:
+            from src.model import is_bf16_supported_cuda
+            bf16_supported = is_bf16_supported_cuda()
+        except Exception:
+            bf16_supported = False
 
-        if not bf16_supported and args_dict.get("bf16", False):
-            logger.info(
-                "Current CUDA device does NOT support bfloat16 GEMM (compute capability < 8.0, e.g. Tesla T4). "
-                "Switching training arguments to fp16=True, bf16=False."
-            )
+        if not bf16_supported:
+            if args_dict.get("bf16", False):
+                logger.info(
+                    "Current CUDA device does NOT support native bfloat16 GEMM (compute capability < 8.0, e.g. Tesla T4). "
+                    "Switching training arguments to fp16=True, bf16=False."
+                )
             args_dict["bf16"] = False
             args_dict["fp16"] = True
+        elif args_dict.get("fp16", False):
+            # If fp16 is explicitly enabled, disable bf16 to prevent mutually exclusive flag conflict
+            args_dict["bf16"] = False
 
     if HAS_TRANSFORMERS and TrainingArguments is not None:
         import inspect
@@ -575,9 +578,10 @@ def run_sft_training(
             from src.model import load_model
 
             bf16_supported = False
-            if HAS_TORCH and torch.cuda.is_available() and hasattr(torch.cuda, "is_bf16_supported"):
+            if HAS_TORCH and torch.cuda.is_available():
                 try:
-                    bf16_supported = torch.cuda.is_bf16_supported()
+                    from src.model import is_bf16_supported_cuda
+                    bf16_supported = is_bf16_supported_cuda()
                 except Exception:
                     bf16_supported = False
 
