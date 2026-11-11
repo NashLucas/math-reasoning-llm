@@ -134,6 +134,12 @@ def main() -> None:
         help="Do not resume from existing checkpoints in output_dir.",
     )
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Overwrite existing checkpoints and start training from scratch (step 0).",
+    )
+    parser.add_argument(
         "--eval_steps",
         type=int,
         default=None,
@@ -233,7 +239,8 @@ def main() -> None:
     logger.info(f"Sample Mode: {args.sample_mode} (limit: {args.sample_limit if args.sample_mode else 'all'})")
     logger.info(f"Device: {args.device}")
     logger.info(f"4-bit QLoRA: {load_4bit}, 8-bit: {args.load_in_8bit}")
-    logger.info(f"Resume: {not args.no_resume}")
+    should_resume = (not args.no_resume) and (not args.overwrite)
+    logger.info(f"Resume: {should_resume}")
     logger.info(f"Eval Steps: {args.eval_steps} (limit: {args.eval_limit})")
     logger.info(f"Generations Dir: {generations_dir}")
     logger.info("==================================================")
@@ -245,7 +252,7 @@ def main() -> None:
         final_adapter_dir=adapter_dir,
         lora_config_path=args.lora_config,
         training_args_path=args.training_args,
-        resume=not args.no_resume,
+        resume=should_resume,
         sample_limit=args.sample_limit if args.sample_mode else None,
         device=args.device,
         max_steps=args.max_steps,

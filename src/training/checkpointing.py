@@ -20,6 +20,15 @@ CHECKPOINT_PATTERN = re.compile(r"^checkpoint-(\d+)$")
 # so its presence marks a checkpoint whose save finished.
 COMPLETION_MARKER = "trainer_state.json"
 
+WEIGHT_FILENAMES = (
+    "adapter_model.safetensors",
+    "adapter_model.bin",
+    "model.safetensors",
+    "pytorch_model.bin",
+    "model.safetensors.index.json",
+    "pytorch_model.bin.index.json",
+)
+
 
 def parse_checkpoint_step(path: Union[str, Path]) -> int:
     """Extract the integer step count from a checkpoint directory name."""
@@ -30,12 +39,30 @@ def parse_checkpoint_step(path: Union[str, Path]) -> int:
     return -1
 
 
-def is_complete_checkpoint(path: Union[str, Path]) -> bool:
-    """True if the checkpoint save finished (a disconnect mid-save leaves no completion marker)."""
-    return (Path(path) / COMPLETION_MARKER).is_file()
+def has_checkpoint_weights(path: Union[str, Path]) -> bool:
+    """True if directory contains valid model or adapter weight files loadable by Trainer/PEFT."""
+    p = Path(path)
+    return any((p / name).is_file() for name in WEIGHT_FILENAMES)
 
 
-def get_checkpoints(checkpoint_dir: Union[str, Path], complete_only: bool = True) -> List[Path]:
+def is_complete_checkpoint(path: Union[str, Path], require_weights: bool = False) -> bool:
+    """True if the checkpoint save finished (a disconnect mid-save leaves no completion marker).
+
+    If require_weights is True, also verifies that at least one weight file is present.
+    """
+    p = Path(path)
+    if not (p / COMPLETION_MARKER).is_file():
+        return False
+    if require_weights and not has_checkpoint_weights(p):
+        return False
+    return True
+
+
+def get_checkpoints(
+    checkpoint_dir: Union[str, Path],
+    complete_only: bool = True,
+    require_weights: bool = False,
+) -> List[Path]:
     """Find `checkpoint-<step>` directories sorted by step (latest checkpoint is the last element).
 
     Only directories named `checkpoint-<step>` count. Other folders (copied adapters, best
@@ -44,6 +71,7 @@ def get_checkpoints(checkpoint_dir: Union[str, Path], complete_only: bool = True
     Args:
         checkpoint_dir: Stage checkpoint directory.
         complete_only: If True, skip checkpoints whose save did not finish.
+        require_weights: If True, require model/adapter weights file to be present.
     """
     path = Path(checkpoint_dir)
     if not path.exists() or not path.is_dir():
@@ -53,7 +81,7 @@ def get_checkpoints(checkpoint_dir: Union[str, Path], complete_only: bool = True
     for item in path.iterdir():
         if not item.is_dir() or not CHECKPOINT_PATTERN.match(item.name):
             continue
-        if complete_only and not is_complete_checkpoint(item):
+        if complete_only and not is_complete_checkpoint(item, require_weights=require_weights):
             continue
         checkpoints.append(item)
 
@@ -61,19 +89,23 @@ def get_checkpoints(checkpoint_dir: Union[str, Path], complete_only: bool = True
     return checkpoints
 
 
-def get_latest_checkpoint(checkpoint_dir: Union[str, Path]) -> Optional[Path]:
+def get_latest_checkpoint(
+    checkpoint_dir: Union[str, Path],
+    complete_only: bool = True,
+    require_weights: bool = False,
+) -> Optional[Path]:
     """Return the most recent complete checkpoint in the given directory, or None.
 
     Incomplete checkpoints newer than it (e.g. from a disconnect during save) are skipped
     with a warning.
     """
-    complete = get_checkpoints(checkpoint_dir, complete_only=True)
+    complete = get_checkpoints(checkpoint_dir, complete_only=complete_only, require_weights=require_weights)
     latest = complete[-1] if complete else None
 
     latest_step = parse_checkpoint_step(latest) if latest else -1
     for ckpt in get_checkpoints(checkpoint_dir, complete_only=False):
-        if parse_checkpoint_step(ckpt) > latest_step and not is_complete_checkpoint(ckpt):
-            logger.warning(f"Skipping incomplete checkpoint (no {COMPLETION_MARKER}): {ckpt}")
+        if parse_checkpoint_step(ckpt) > latest_step and not is_complete_checkpoint(ckpt, require_weights=require_weights):
+            logger.warning(f"Skipping incomplete checkpoint (missing {COMPLETION_MARKER} or weights): {ckpt}")
 
     return latest
 
@@ -155,10 +187,12 @@ def cleanup_old_checkpoints(
 
 
 def find_latest_checkpoint(
-    checkpoint_dir: Union[str, Path], complete_only: bool = True
+    checkpoint_dir: Union[str, Path],
+    complete_only: bool = True,
+    require_weights: bool = False,
 ) -> Optional[Path]:
-    """Alias for get_latest_checkpoint supporting complete_only argument."""
-    return get_latest_checkpoint(checkpoint_dir)
+    """Alias for get_latest_checkpoint supporting complete_only and require_weights arguments."""
+    return get_latest_checkpoint(checkpoint_dir, complete_only=complete_only, require_weights=require_weights)
 
 
 def prune_checkpoints(

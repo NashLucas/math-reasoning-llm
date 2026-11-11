@@ -357,6 +357,7 @@ class MockSFTTrainer:
                 json.dumps({"r": 16, "lora_alpha": 32, "target_modules": ["q_proj", "v_proj"]}),
                 encoding="utf-8",
             )
+            (ckpt_dir / "adapter_model.safetensors").write_bytes(b"mock_safetensors_weights")
 
         self.loss_history = loss_history
         return {
@@ -646,9 +647,11 @@ def run_sft_training(
     # 4. Check for Checkpoint Resumption
     latest_checkpoint: Optional[Path] = None
     if resume and out_dir_path.exists():
-        latest_checkpoint = find_latest_checkpoint(out_dir_path, complete_only=True)
+        latest_checkpoint = find_latest_checkpoint(out_dir_path, complete_only=True, require_weights=True)
         if latest_checkpoint:
             logger.info(f"Found completed checkpoint to resume from: {latest_checkpoint}")
+        else:
+            logger.info(f"No valid checkpoints with model/adapter weights found in {out_dir_path}. Starting from step 0.")
 
     # 5. Build Callbacks and Trainer
     active_callbacks = list(callbacks or [])
@@ -675,7 +678,17 @@ def run_sft_training(
     )
 
     logger.info("Starting SFT training run...")
-    train_result = trainer.train(resume_from_checkpoint=str(latest_checkpoint) if latest_checkpoint else None)
+    try:
+        train_result = trainer.train(resume_from_checkpoint=str(latest_checkpoint) if latest_checkpoint else None)
+    except Exception as exc:
+        if latest_checkpoint is not None and ("valid checkpoint" in str(exc).lower()):
+            logger.warning(
+                f"Checkpoint {latest_checkpoint} was rejected by Trainer ({exc}). "
+                "Falling back to starting training from scratch (step 0)..."
+            )
+            train_result = trainer.train(resume_from_checkpoint=None)
+        else:
+            raise
 
     # 6. Save Adapter & Prune
     logger.info(f"Saving final trained adapter to: {adapter_out_path}")

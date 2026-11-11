@@ -148,6 +148,25 @@ class TestCheckpointing(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cleanup_old_checkpoints(tmp_dir, keep_last_n=0)
 
+    def test_require_weights_skips_checkpoints_without_weight_files(self):
+        """Checkpoints with trainer_state.json but NO weights file must be skipped when require_weights=True."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = Path(tmp_dir)
+            # Checkpoint 5 has only trainer_state.json (like a corrupt or mock checkpoint)
+            ckpt5 = make_checkpoint(base, 5, complete=True)
+            self.assertTrue(is_complete_checkpoint(ckpt5, require_weights=False))
+            self.assertFalse(is_complete_checkpoint(ckpt5, require_weights=True))
+
+            # Without require_weights, checkpoint-5 is returned
+            self.assertEqual(get_latest_checkpoint(base, require_weights=False).name, "checkpoint-5")
+            # With require_weights, checkpoint-5 is skipped because it lacks model/adapter weights
+            self.assertIsNone(get_latest_checkpoint(base, require_weights=True))
+
+            # When adapter_model.safetensors is added, it becomes valid
+            (ckpt5 / "adapter_model.safetensors").write_bytes(b"mock_weights")
+            self.assertTrue(is_complete_checkpoint(ckpt5, require_weights=True))
+            self.assertEqual(get_latest_checkpoint(base, require_weights=True).name, "checkpoint-5")
+
 
 if __name__ == "__main__":
     unittest.main()
