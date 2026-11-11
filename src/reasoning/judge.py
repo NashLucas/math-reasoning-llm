@@ -468,10 +468,10 @@ class ReasoningJudge:
         from src.generation import generate_batch_hf
 
         messages = format_chat_messages(
+            question=user_prompt,
             system_prompt=JUDGE_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
         )
-        rendered_prompt = apply_chat_template(self.tokenizer, messages)
+        rendered_prompt = apply_chat_template(messages, self.tokenizer)
 
         results = generate_batch_hf(
             model=self.model,
@@ -535,10 +535,10 @@ class ReasoningJudge:
                 reference_cot=ref_cot,
             )
             messages = format_chat_messages(
+                question=user_p,
                 system_prompt=JUDGE_SYSTEM_PROMPT,
-                user_prompt=user_p,
             )
-            prompts.append(apply_chat_template(self.tokenizer, messages))
+            prompts.append(apply_chat_template(messages, self.tokenizer))
 
         # Batch generation
         for i in range(0, len(prompts), batch_size):
