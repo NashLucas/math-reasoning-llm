@@ -33,6 +33,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.curation import (  # noqa: E402
     evaluate_trace_correctness,
     load_curated_dataset,
@@ -375,10 +376,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    cfg_mgr = ConfigManager()
+    profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
+
     # 1. Load curated dataset
     c_path = Path(args.curated_file)
     if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+        if (PROJECT_ROOT / c_path).exists():
+            c_path = PROJECT_ROOT / c_path
+        elif (profile_data_dir / "synthetic" / "curated" / c_path.name).exists():
+            c_path = profile_data_dir / "synthetic" / "curated" / c_path.name
+        elif (profile_data_dir / c_path).exists():
+            c_path = profile_data_dir / c_path
+        else:
+            c_path = PROJECT_ROOT / c_path
 
     if not c_path.exists():
         logger.error(f"Curated file not found: {c_path}")
@@ -391,7 +402,14 @@ def main() -> None:
     # 2. Load all scored traces
     s_path = Path(args.scored_file)
     if not s_path.is_absolute():
-        s_path = PROJECT_ROOT / s_path
+        if (PROJECT_ROOT / s_path).exists():
+            s_path = PROJECT_ROOT / s_path
+        elif (profile_data_dir / "synthetic" / "generated" / s_path.name).exists():
+            s_path = profile_data_dir / "synthetic" / "generated" / s_path.name
+        elif (profile_data_dir / s_path).exists():
+            s_path = profile_data_dir / s_path
+        else:
+            s_path = PROJECT_ROOT / s_path
 
     all_scored: List[Dict[str, Any]] = []
     if s_path.exists():
@@ -404,7 +422,14 @@ def main() -> None:
     # 3. Load pass rates if available
     pr_path = Path(args.pass_rates_file)
     if not pr_path.is_absolute():
-        pr_path = PROJECT_ROOT / pr_path
+        if (PROJECT_ROOT / pr_path).exists():
+            pr_path = PROJECT_ROOT / pr_path
+        elif (profile_data_dir / "synthetic" / "generated" / pr_path.name).exists():
+            pr_path = profile_data_dir / "synthetic" / "generated" / pr_path.name
+        elif (profile_data_dir / pr_path).exists():
+            pr_path = profile_data_dir / pr_path
+        else:
+            pr_path = PROJECT_ROOT / pr_path
 
     yield_summary: Dict[str, Any] = {
         "curated_traces": len(curated_traces),
