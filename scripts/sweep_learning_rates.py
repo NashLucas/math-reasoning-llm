@@ -116,6 +116,8 @@ def run_learning_rate_sweep(
     reports_dir: Union[str, Path] = "reports",
     best_adapter_dir: Union[str, Path] = "outputs/sft/adapter_model_dev",
     device: str = "auto",
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
 ) -> Dict[str, Any]:
     """Execute learning rate sweep across candidate values, select best, and generate report."""
     if learning_rates is None:
@@ -174,6 +176,8 @@ def run_learning_rate_sweep(
             learning_rate=lr,
             callbacks=[val_cb],
             resume=False,
+            load_in_4bit=load_in_4bit,
+            load_in_8bit=load_in_8bit,
         )
 
         # Retrieve training loss progression
@@ -199,7 +203,12 @@ def run_learning_rate_sweep(
             val_correct = latest_val.get("correct_count", 0)
         else:
             # Fallback evaluation if eval_steps was larger than max_steps
-            final_eval = val_cb.evaluate_and_log(step=max_steps, model=getattr(trainer, "model", None))
+            fallback_tok = getattr(trainer, "tokenizer", None) or getattr(trainer, "processing_class", None)
+            final_eval = val_cb.evaluate_and_log(
+                step=max_steps,
+                model=getattr(trainer, "model", None),
+                tokenizer=fallback_tok,
+            )
             val_acc = final_eval.get("accuracy", 0.0)
             val_format = final_eval.get("format_compliance_rate", 0.0)
             val_total = final_eval.get("total_problems", 0)
@@ -317,8 +326,8 @@ def run_learning_rate_sweep(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Day 28 learning-rate sweep on the development model.")
     parser.add_argument("--model_name_or_path", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--curated_file", type=str, default="data/synthetic/curated/traces_curated_sft.jsonl")
-    parser.add_argument("--val_file", type=str, default="data/splits/val.parquet")
+    parser.add_argument("--curated_file", "--curated_data_path", type=str, dest="curated_file", default="data/synthetic/curated/traces_curated_sft.jsonl")
+    parser.add_argument("--val_file", "--val_data_path", type=str, dest="val_file", default="data/splits/val.parquet")
     parser.add_argument(
         "--learning_rates",
         nargs="+",
@@ -335,30 +344,88 @@ def main() -> None:
     parser.add_argument("--reports_dir", type=str, default="reports")
     parser.add_argument("--best_adapter_dir", type=str, default="outputs/sft/adapter_model_dev")
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"])
+    parser.add_argument("--load_in_4bit", action="store_true", default=False, help="Load model in 4-bit NF4 quantization.")
+    parser.add_argument("--load_in_8bit", action="store_true", default=False, help="Load model in 8-bit quantization.")
+    parser.add_argument("--profile", type=str, default=None, help="Runtime profile name (e.g. colab, local).")
     args = parser.parse_args()
+
+    try:
+        from src.config import ConfigManager, get_default_profile
+        mgr = ConfigManager()
+        active_prof = args.profile or get_default_profile()
+        prof_data_dir = mgr.get_profile_dir("data_dir", profile_name=active_prof)
+        stage_paths = mgr.get_stage_paths("sft", profile_name=active_prof)
+    except Exception:
+        active_prof = "local"
+        prof_data_dir = PROJECT_ROOT / "data"
+        stage_paths = {}
 
     c_path = Path(args.curated_file)
     if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+        drive_curated = prof_data_dir / "synthetic" / "curated" / c_path.name
+        local_curated = PROJECT_ROOT / c_path
+        if drive_curated.exists() and local_curated.exists():
+            c_path = drive_curated if drive_curated.stat().st_size >= local_curated.stat().st_size else local_curated
+        elif drive_curated.exists():
+            c_path = drive_curated
+        elif local_curated.exists():
+            c_path = local_curated
+        elif (prof_data_dir / c_path).exists():
+            c_path = prof_data_dir / c_path
+        else:
+            c_path = local_curated
 
     if not c_path.exists():
-        fallback = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
-        if fallback.exists():
-            c_path = fallback
+        for fallback in [
+            PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl",
+            PROJECT_ROOT / "data" / "sample" / "train_sample.parquet",
+        ]:
+            if fallback.exists():
+                logger.warning(f"Curated dataset not found at {args.curated_file}. Falling back to sample set: {fallback}")
+                c_path = fallback
+                break
+
+    v_path = Path(args.val_file)
+    if not v_path.is_absolute():
+        drive_val = prof_data_dir / "splits" / v_path.name
+        local_val = PROJECT_ROOT / v_path
+        if drive_val.exists():
+            v_path = drive_val
+        elif local_val.exists():
+            v_path = local_val
+        elif (prof_data_dir / v_path).exists():
+            v_path = prof_data_dir / v_path
+        else:
+            v_path = local_val
+
+    if not v_path.exists():
+        fallback_val = PROJECT_ROOT / "data" / "sample" / "val_sample.parquet"
+        if fallback_val.exists():
+            v_path = fallback_val
+
+    output_base_dir = args.output_base_dir
+    best_adapter_dir = args.best_adapter_dir
+    if (args.profile == "colab" or active_prof == "colab") and stage_paths:
+        if output_base_dir == "outputs/sft/lr_sweep":
+            output_base_dir = str(stage_paths["outputs"] / "lr_sweep")
+        if best_adapter_dir == "outputs/sft/adapter_model_dev":
+            best_adapter_dir = str(stage_paths["outputs"] / "adapter_model_dev")
 
     run_learning_rate_sweep(
         model_name_or_path=args.model_name_or_path,
         curated_data_path=c_path,
-        val_data_path=args.val_file,
+        val_data_path=v_path,
         learning_rates=args.learning_rates,
         max_steps=args.max_steps,
         eval_steps=args.eval_steps,
         eval_limit=args.eval_limit,
         sample_limit=args.sample_limit if args.sample_mode else None,
-        output_base_dir=args.output_base_dir,
+        output_base_dir=output_base_dir,
         reports_dir=args.reports_dir,
-        best_adapter_dir=args.best_adapter_dir,
+        best_adapter_dir=best_adapter_dir,
         device=args.device,
+        load_in_4bit=args.load_in_4bit,
+        load_in_8bit=args.load_in_8bit,
     )
 
 
