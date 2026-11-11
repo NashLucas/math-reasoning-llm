@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -30,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.config import ConfigManager  # noqa: E402
 from src.data.sft_dataset import (  # noqa: E402
     load_sft_dataset,
     tokenize_sft_example,
@@ -190,9 +192,26 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    cfg_mgr = ConfigManager()
+    profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
+
     c_path = Path(args.curated_file)
     if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
+        local_curated = PROJECT_ROOT / c_path
+        if drive_curated.exists() and local_curated.exists():
+            if drive_curated.stat().st_size >= local_curated.stat().st_size:
+                c_path = drive_curated
+            else:
+                c_path = local_curated
+        elif drive_curated.exists():
+            c_path = drive_curated
+        elif local_curated.exists():
+            c_path = local_curated
+        elif (profile_data_dir / c_path).exists():
+            c_path = profile_data_dir / c_path
+        else:
+            c_path = PROJECT_ROOT / c_path
 
     if not c_path.exists():
         logger.error(f"Curated dataset not found at: {c_path}")
@@ -261,6 +280,16 @@ def main() -> None:
 
     json_report.write_text(json.dumps(serializable, indent=2) + "\n", encoding="utf-8")
     logger.info(f"Saved JSON verification report to: {json_report}")
+
+    drive_reports = profile_data_dir.parent / "reports"
+    if drive_reports.exists() and drive_reports.resolve() != r_dir.resolve():
+        try:
+            shutil.copy2(md_report, drive_reports / md_report.name)
+            shutil.copy2(json_report, drive_reports / json_report.name)
+            logger.info(f"Synced hand-check reports to Drive: {drive_reports}")
+        except Exception as e:
+            logger.warning(f"Could not copy reports to Drive: {e}")
+
     logger.info("Day 26 SFT Tokenization Hand-Check complete!")
 
 

@@ -446,6 +446,8 @@ def run_sft_training(
     generations_dir: Union[str, Path] = "logs/generations",
     stage: str = "sft",
     use_mock: bool = False,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
 
@@ -494,7 +496,16 @@ def run_sft_training(
                 model_name_or_path,
                 torch_dtype="bfloat16" if device != "cpu" else "float32",
                 device_map="auto" if device != "cpu" else "cpu",
+                load_in_4bit=load_in_4bit,
+                load_in_8bit=load_in_8bit,
             )
+            if (load_in_4bit or load_in_8bit) and HAS_PEFT and not isinstance(model, MockModel):
+                try:
+                    from peft import prepare_model_for_kbit_training
+                    model = prepare_model_for_kbit_training(model)
+                    logger.info("Prepared model for k-bit (4-bit/8-bit) LoRA training.")
+                except Exception as e:
+                    logger.warning(f"prepare_model_for_kbit_training encountered: {e}")
         except Exception as exc:
             logger.warning(f"Could not load real model ({exc}). Using mock model.")
             model = MockModel()

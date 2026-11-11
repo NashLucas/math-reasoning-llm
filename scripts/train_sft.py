@@ -86,6 +86,18 @@ def main() -> None:
         help="Number of examples to use in sample mode (default: 20).",
     )
     parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load model in 4-bit NF4 quantization for memory-constrained GPUs (e.g. T4/L4/V100).",
+    )
+    parser.add_argument(
+        "--load_in_8bit",
+        action="store_true",
+        default=False,
+        help="Load model in 8-bit quantization.",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="auto",
@@ -145,6 +157,7 @@ def main() -> None:
     mgr = ConfigManager()
     active_profile = args.profile or get_default_profile()
     stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
+    profile_data_dir = mgr.get_profile_dir("data_dir", profile_name=active_profile)
 
     # Resolve output_dir, adapter_dir, generations_dir if using colab profile or defaults
     output_dir = args.output_dir
@@ -160,7 +173,21 @@ def main() -> None:
 
     c_path = Path(args.curated_file)
     if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
+        local_curated = PROJECT_ROOT / c_path
+        if drive_curated.exists() and local_curated.exists():
+            if drive_curated.stat().st_size >= local_curated.stat().st_size:
+                c_path = drive_curated
+            else:
+                c_path = local_curated
+        elif drive_curated.exists():
+            c_path = drive_curated
+        elif local_curated.exists():
+            c_path = local_curated
+        elif (profile_data_dir / c_path).exists():
+            c_path = profile_data_dir / c_path
+        else:
+            c_path = PROJECT_ROOT / c_path
 
     # Fallback to sample data if curated dataset is missing
     if not c_path.exists():
@@ -168,6 +195,22 @@ def main() -> None:
         if sample_path.exists():
             logger.warning(f"Curated dataset not found at {c_path}. Falling back to sample set: {sample_path}")
             c_path = sample_path
+
+    # Auto-detect VRAM constraint for 7B models when on CUDA
+    load_4bit = args.load_in_4bit
+    if not load_4bit and not args.load_in_8bit and args.device != "cpu":
+        try:
+            import torch
+            if torch.cuda.is_available():
+                total_mem = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                if total_mem <= 16.5 and "7b" in args.model_name_or_path.lower():
+                    logger.info(
+                        f"Detected GPU with {total_mem:.1f} GiB VRAM (<= 16 GiB). "
+                        "Auto-enabling --load_in_4bit (QLoRA) to prevent CUDA OOM."
+                    )
+                    load_4bit = True
+        except Exception:
+            pass
 
     logger.info("==================================================")
     logger.info("Starting SFT Training Workflow (Phase 4 Day 26)")
@@ -177,6 +220,7 @@ def main() -> None:
     logger.info(f"Final Adapter Dir: {adapter_dir}")
     logger.info(f"Sample Mode: {args.sample_mode} (limit: {args.sample_limit if args.sample_mode else 'all'})")
     logger.info(f"Device: {args.device}")
+    logger.info(f"4-bit QLoRA: {load_4bit}, 8-bit: {args.load_in_8bit}")
     logger.info(f"Resume: {not args.no_resume}")
     logger.info(f"Eval Steps: {args.eval_steps} (limit: {args.eval_limit})")
     logger.info(f"Generations Dir: {generations_dir}")
@@ -198,6 +242,8 @@ def main() -> None:
         eval_limit=args.eval_limit,
         val_path=args.val_file,
         generations_dir=generations_dir,
+        load_in_4bit=load_4bit,
+        load_in_8bit=args.load_in_8bit,
     )
 
     logger.info("SFT Training Run completed successfully!")
