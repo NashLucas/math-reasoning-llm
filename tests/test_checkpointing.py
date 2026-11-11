@@ -149,7 +149,9 @@ class TestCheckpointing(unittest.TestCase):
                 cleanup_old_checkpoints(tmp_dir, keep_last_n=0)
 
     def test_require_weights_skips_checkpoints_without_weight_files(self):
-        """Checkpoints with trainer_state.json but NO weights file must be skipped when require_weights=True."""
+        """Checkpoints with trainer_state.json but NO valid weights file must be skipped when require_weights=True."""
+        import struct
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             base = Path(tmp_dir)
             # Checkpoint 5 has only trainer_state.json (like a corrupt or mock checkpoint)
@@ -162,8 +164,14 @@ class TestCheckpointing(unittest.TestCase):
             # With require_weights, checkpoint-5 is skipped because it lacks model/adapter weights
             self.assertIsNone(get_latest_checkpoint(base, require_weights=True))
 
-            # When adapter_model.safetensors is added, it becomes valid
-            (ckpt5 / "adapter_model.safetensors").write_bytes(b"mock_weights")
+            # Mock placeholder bytes (b"mock_safetensors_weights") must ALSO be rejected
+            (ckpt5 / "adapter_model.safetensors").write_bytes(b"mock_safetensors_weights")
+            self.assertFalse(is_complete_checkpoint(ckpt5, require_weights=True))
+            self.assertIsNone(get_latest_checkpoint(base, require_weights=True))
+
+            # When a valid safetensors header is present, it becomes valid
+            hdr = b'{"__metadata__":{"format":"pt"}}'
+            (ckpt5 / "adapter_model.safetensors").write_bytes(struct.pack("<Q", len(hdr)) + hdr)
             self.assertTrue(is_complete_checkpoint(ckpt5, require_weights=True))
             self.assertEqual(get_latest_checkpoint(base, require_weights=True).name, "checkpoint-5")
 

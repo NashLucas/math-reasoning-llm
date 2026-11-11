@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import struct
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -39,10 +40,33 @@ def parse_checkpoint_step(path: Union[str, Path]) -> int:
     return -1
 
 
+def _is_valid_weight_file(file_path: Path) -> bool:
+    """Return True if file_path exists, is non-empty, is not a mock placeholder, and has a valid header."""
+    if not file_path.is_file():
+        return False
+    try:
+        file_size = file_path.stat().st_size
+        if file_size <= 8:
+            return False
+        with open(file_path, "rb") as f:
+            head = f.read(32)
+        if head.startswith(b"mock_") or head.startswith(b"mock"):
+            return False
+        if file_path.suffix == ".safetensors":
+            header_len = struct.unpack("<Q", head[:8])[0]
+            if header_len == 0 or header_len > file_size - 8 or header_len > 100_000_000:
+                return False
+            if head[8:9] != b"{":
+                return False
+        return True
+    except OSError:
+        return False
+
+
 def has_checkpoint_weights(path: Union[str, Path]) -> bool:
     """True if directory contains valid model or adapter weight files loadable by Trainer/PEFT."""
     p = Path(path)
-    return any((p / name).is_file() for name in WEIGHT_FILENAMES)
+    return any(_is_valid_weight_file(p / name) for name in WEIGHT_FILENAMES)
 
 
 def is_complete_checkpoint(path: Union[str, Path], require_weights: bool = False) -> bool:

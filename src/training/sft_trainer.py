@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -22,6 +23,7 @@ from src.run_info import collect_run_info, make_json_serializable, save_run_info
 from src.training.checkpointing import (
     find_latest_checkpoint,
     get_checkpoints,
+    has_checkpoint_weights,
     parse_checkpoint_step,
     prune_checkpoints,
 )
@@ -668,9 +670,22 @@ def run_sft_training(
     )
 
     # 4. Check for Checkpoint Resumption
+    is_mock_model = (
+        isinstance(model, MockModel)
+        or getattr(model, "__class__", None).__name__ == "MockModel"
+        or use_mock
+    )
+    if not is_mock_model and out_dir_path.exists():
+        for ckpt in get_checkpoints(out_dir_path, complete_only=False):
+            if (ckpt / "trainer_state.json").is_file() and not has_checkpoint_weights(ckpt):
+                logger.warning(f"Removing mock or corrupt checkpoint directory before real training: {ckpt}")
+                shutil.rmtree(ckpt, ignore_errors=True)
+
     latest_checkpoint: Optional[Path] = None
     if resume and out_dir_path.exists():
-        latest_checkpoint = find_latest_checkpoint(out_dir_path, complete_only=True, require_weights=True)
+        latest_checkpoint = find_latest_checkpoint(
+            out_dir_path, complete_only=True, require_weights=(not is_mock_model)
+        )
         if latest_checkpoint:
             logger.info(f"Found completed checkpoint to resume from: {latest_checkpoint}")
         else:
@@ -704,11 +719,29 @@ def run_sft_training(
     try:
         train_result = trainer.train(resume_from_checkpoint=str(latest_checkpoint) if latest_checkpoint else None)
     except Exception as exc:
-        if latest_checkpoint is not None and ("valid checkpoint" in str(exc).lower()):
-            logger.warning(
-                f"Checkpoint {latest_checkpoint} was rejected by Trainer ({exc}). "
-                "Falling back to starting training from scratch (step 0)..."
+        err_msg = f"{type(exc).__name__}: {exc}".lower()
+        ckpt_load_Failure = (
+            getattr(getattr(trainer, "state", None), "global_step", 0) == 0
+            or any(
+                token in err_msg
+                for token in (
+                    "valid checkpoint",
+                    "safetensor",
+                    "header too large",
+                    "deserializing",
+                    "load_state_dict",
+                    "unpickling",
+                    "eof",
+                )
             )
+        )
+        if latest_checkpoint is not None and ckpt_load_Failure:
+            logger.warning(
+                f"Checkpoint {latest_checkpoint} failed to load ({type(exc).__name__}: {exc}). "
+                "Removing corrupt checkpoint and starting training from scratch (step 0)..."
+            )
+            shutil.rmtree(latest_checkpoint, ignore_errors=True)
+            latest_checkpoint = None
             train_result = trainer.train(resume_from_checkpoint=None)
         else:
             raise
