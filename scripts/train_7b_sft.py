@@ -42,6 +42,12 @@ from src.training.checkpointing import (  # noqa: E402
 )
 from src.training.sft_trainer import run_sft_training  # noqa: E402
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("train_7b_sft")
 
@@ -135,11 +141,14 @@ def run_day29_7b_training(
     sample_limit: int = 20,
     use_mock: bool = False,
     overwrite: bool = False,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
 ) -> Dict[str, Any]:
     """Execute Day 29 7B SFT training pipeline with resumption and report generation."""
     mgr = ConfigManager()
     active_profile = profile or get_default_profile()
     stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
+    profile_data_dir = mgr.get_profile_dir("data_dir", profile_name=active_profile)
 
     # Resolve output directories
     out_dir_path = Path(output_dir) if output_dir else stage_paths["checkpoints"]
@@ -161,6 +170,20 @@ def run_day29_7b_training(
 
     # Resolve dataset paths
     c_path = Path(curated_file) if curated_file else (PROJECT_ROOT / "data" / "synthetic" / "curated" / "traces_curated_sft.jsonl")
+    if not c_path.is_absolute():
+        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
+        local_curated = PROJECT_ROOT / c_path
+        if drive_curated.exists() and local_curated.exists():
+            c_path = drive_curated if drive_curated.stat().st_size >= local_curated.stat().st_size else local_curated
+        elif drive_curated.exists():
+            c_path = drive_curated
+        elif local_curated.exists():
+            c_path = local_curated
+        elif (profile_data_dir / c_path).exists():
+            c_path = profile_data_dir / c_path
+        else:
+            c_path = local_curated
+
     if not c_path.exists():
         fallback_sample = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
         if fallback_sample.exists():
@@ -168,11 +191,43 @@ def run_day29_7b_training(
             c_path = fallback_sample
 
     v_path = Path(val_file) if val_file else (PROJECT_ROOT / "data" / "splits" / "val.parquet")
+    if not v_path.is_absolute():
+        drive_val = profile_data_dir / "splits" / v_path.name
+        local_val = PROJECT_ROOT / v_path
+        if drive_val.exists():
+            v_path = drive_val
+        elif local_val.exists():
+            v_path = local_val
+        elif (profile_data_dir / v_path).exists():
+            v_path = profile_data_dir / v_path
+        else:
+            v_path = local_val
+
+    if not v_path.exists():
+        fallback_val = PROJECT_ROOT / "data" / "sample" / "val_sample.parquet"
+        if fallback_val.exists():
+            v_path = fallback_val
 
     # 1. Resumption Check
     out_dir_path.mkdir(parents=True, exist_ok=True)
-    existing_ckpts = get_checkpoints(out_dir_path, complete_only=True)
-    latest_ckpt = find_latest_checkpoint(out_dir_path, complete_only=True) if (not overwrite) else None
+    existing_ckpts = get_checkpoints(out_dir_path, complete_only=True, require_weights=True)
+    latest_ckpt = find_latest_checkpoint(out_dir_path, complete_only=True, require_weights=True) if (not overwrite) else None
+
+    # Auto-detect VRAM constraint for 7B models when on CUDA
+    load_4bit = load_in_4bit
+    if not load_4bit and not load_in_8bit and device != "cpu":
+        try:
+            import torch
+            if torch.cuda.is_available():
+                total_mem = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                if total_mem <= 16.5 and "7b" in model_name_or_path.lower():
+                    logger.info(
+                        f"Detected GPU with {total_mem:.1f} GiB VRAM (<= 16 GiB). "
+                        "Auto-enabling load_in_4bit (QLoRA) to prevent CUDA OOM."
+                    )
+                    load_4bit = True
+        except Exception:
+            pass
 
     logger.info("==================================================")
     logger.info("Launching Phase 4 Day 29: 7B SFT Training Workflow")
@@ -185,6 +240,7 @@ def run_day29_7b_training(
     logger.info(f"Learning Rate: {learning_rate} (Winning LR from Day 28)")
     logger.info(f"Evaluation Steps: {eval_steps} (Limit: {eval_limit})")
     logger.info(f"Sample Mode: {sample_mode} (Limit: {sample_limit if sample_mode else 'All'})")
+    logger.info(f"4-bit QLoRA: {load_4bit}, 8-bit: {load_in_8bit}")
     logger.info(f"Existing Checkpoints: {len(existing_ckpts)} found")
     if latest_ckpt and not overwrite:
         step_num = parse_checkpoint_step(latest_ckpt)
@@ -223,6 +279,8 @@ def run_day29_7b_training(
         val_path=v_path,
         generations_dir=gen_dir_path,
         use_mock=should_use_mock,
+        load_in_4bit=load_4bit,
+        load_in_8bit=load_in_8bit,
     )
 
     # 3. Collect Results and Metrics
@@ -450,6 +508,18 @@ def main() -> None:
         action="store_true",
         help="Do not resume from existing checkpoints; start fresh from step 0.",
     )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load model in 4-bit NF4 quantization for memory-constrained GPUs (e.g. T4/L4).",
+    )
+    parser.add_argument(
+        "--load_in_8bit",
+        action="store_true",
+        default=False,
+        help="Load model in 8-bit quantization.",
+    )
     args = parser.parse_args()
 
     run_day29_7b_training(
@@ -472,6 +542,8 @@ def main() -> None:
         sample_limit=args.sample_limit,
         use_mock=args.use_mock,
         overwrite=args.overwrite,
+        load_in_4bit=args.load_in_4bit,
+        load_in_8bit=args.load_in_8bit,
     )
 
 
