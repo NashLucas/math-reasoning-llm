@@ -164,9 +164,21 @@ def load_model(
     if load_in_4bit:
         try:
             from transformers import BitsAndBytesConfig
-            compute_dtype = resolved_dtype if isinstance(resolved_dtype, torch.dtype) else (
-                torch.bfloat16 if (HAS_TORCH and torch.cuda.is_available() and torch.cuda.is_bf16_supported()) else torch.float16
+
+            bf16_ok = (
+                HAS_TORCH
+                and torch.cuda.is_available()
+                and hasattr(torch.cuda, "is_bf16_supported")
+                and torch.cuda.is_bf16_supported()
             )
+            if isinstance(resolved_dtype, torch.dtype):
+                if resolved_dtype == torch.bfloat16 and not bf16_ok:
+                    compute_dtype = torch.float16
+                else:
+                    compute_dtype = resolved_dtype
+            else:
+                compute_dtype = torch.bfloat16 if bf16_ok else torch.float16
+
             from_pretrained_kwargs["quantization_config"] = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
@@ -181,6 +193,16 @@ def load_model(
         logger.info(f"Loading base model '{model_path_str}' in 8-bit (device={resolved_device})")
         from_pretrained_kwargs["load_in_8bit"] = True
     else:
+        bf16_ok = (
+            HAS_TORCH
+            and torch.cuda.is_available()
+            and hasattr(torch.cuda, "is_bf16_supported")
+            and torch.cuda.is_bf16_supported()
+        )
+        if HAS_TORCH and resolved_dtype == torch.bfloat16 and not bf16_ok:
+            logger.info("bfloat16 requested but CUDA device does not support it (compute < 8.0). Falling back to float16.")
+            resolved_dtype = torch.float16
+
         logger.info(f"Loading base model '{model_path_str}' (dtype={resolved_dtype}, device={resolved_device})")
         from_pretrained_kwargs["dtype"] = resolved_dtype
 

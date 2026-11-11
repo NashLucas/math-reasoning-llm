@@ -98,6 +98,18 @@ def main() -> None:
         help="Load model in 8-bit quantization.",
     )
     parser.add_argument(
+        "--fp16",
+        action="store_true",
+        default=False,
+        help="Force fp16 mixed precision training (recommended for Tesla T4).",
+    )
+    parser.add_argument(
+        "--bf16",
+        action="store_true",
+        default=False,
+        help="Force bf16 mixed precision training (requires compute capability >= 8.0, e.g. A100/L4).",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="auto",
@@ -244,6 +256,8 @@ def main() -> None:
         generations_dir=generations_dir,
         load_in_4bit=load_4bit,
         load_in_8bit=args.load_in_8bit,
+        fp16=args.fp16 if args.fp16 else None,
+        bf16=args.bf16 if args.bf16 else None,
     )
 
     logger.info("SFT Training Run completed successfully!")

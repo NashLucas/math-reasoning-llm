@@ -139,6 +139,21 @@ def load_training_arguments(
         args_dict["bf16"] = False
         args_dict["fp16"] = False
         args_dict["gradient_checkpointing"] = False
+    elif HAS_TORCH and torch.cuda.is_available():
+        bf16_supported = False
+        if hasattr(torch.cuda, "is_bf16_supported"):
+            try:
+                bf16_supported = torch.cuda.is_bf16_supported()
+            except Exception:
+                bf16_supported = False
+
+        if not bf16_supported and args_dict.get("bf16", False):
+            logger.info(
+                "Current CUDA device does NOT support bfloat16 GEMM (compute capability < 8.0, e.g. Tesla T4). "
+                "Switching training arguments to fp16=True, bf16=False."
+            )
+            args_dict["bf16"] = False
+            args_dict["fp16"] = True
 
     if HAS_TRANSFORMERS and TrainingArguments is not None:
         import inspect
@@ -512,6 +527,8 @@ def run_sft_training(
     use_mock: bool = False,
     load_in_4bit: bool = False,
     load_in_8bit: bool = False,
+    fp16: Optional[bool] = None,
+    bf16: Optional[bool] = None,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
 
@@ -556,9 +573,23 @@ def run_sft_training(
 
         try:
             from src.model import load_model
+
+            bf16_supported = False
+            if HAS_TORCH and torch.cuda.is_available() and hasattr(torch.cuda, "is_bf16_supported"):
+                try:
+                    bf16_supported = torch.cuda.is_bf16_supported()
+                except Exception:
+                    bf16_supported = False
+
+            if device != "cpu":
+                model_dtype = "bfloat16" if bf16_supported else "float16"
+            else:
+                model_dtype = "float32"
+
+            logger.info(f"Loading model '{model_name_or_path}' with torch_dtype={model_dtype} (bf16_supported={bf16_supported})")
             model = load_model(
                 model_name_or_path,
-                torch_dtype="bfloat16" if device != "cpu" else "float32",
+                torch_dtype=model_dtype,
                 device_map="auto" if device != "cpu" else "cpu",
                 load_in_4bit=load_in_4bit,
                 load_in_8bit=load_in_8bit,
@@ -595,6 +626,10 @@ def run_sft_training(
     extra_train_kwargs: Dict[str, Any] = {}
     if learning_rate is not None:
         extra_train_kwargs["learning_rate"] = learning_rate
+    if fp16 is not None:
+        extra_train_kwargs["fp16"] = fp16
+    if bf16 is not None:
+        extra_train_kwargs["bf16"] = bf16
 
     train_args = load_training_arguments(
         args_path=training_args_path,
