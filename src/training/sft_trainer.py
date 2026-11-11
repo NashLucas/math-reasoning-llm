@@ -467,6 +467,29 @@ def build_sft_trainer(
             model = get_peft_model(model, lora_config)
             model.print_trainable_parameters()
 
+    # Hardware dtype safety: Ensure all trainable parameters match the training precision.
+    # On GPUs where bf16 is not supported (or when fp16 is enabled), trainable parameters
+    # must NOT be bfloat16 because PyTorch GradScaler does not support bfloat16.
+    if HAS_TORCH and torch is not None and isinstance(model, torch.nn.Module):
+        try:
+            from src.model import is_bf16_supported_cuda
+            bf16_ok = is_bf16_supported_cuda()
+        except Exception:
+            bf16_ok = False
+
+        training_fp16 = getattr(training_args, "fp16", False) if training_args is not None else False
+        if not bf16_ok or training_fp16:
+            converted_count = 0
+            for name, param in model.named_parameters():
+                if param.requires_grad and param.dtype == torch.bfloat16:
+                    param.data = param.data.to(torch.float16)
+                    converted_count += 1
+            if converted_count > 0:
+                logger.info(
+                    f"Converted {converted_count} trainable parameters from bfloat16 to torch.float16 "
+                    "for compatibility with PyTorch fp16 GradScaler."
+                )
+
     import inspect
 
     # Try TRL SFTTrainer first if available and using SFTConfig

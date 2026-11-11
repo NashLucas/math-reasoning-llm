@@ -225,6 +225,18 @@ def load_model(
         **from_pretrained_kwargs,
     )
 
+    # Ensure model.config.torch_dtype matches the target compute/training dtype
+    target_dtype = from_pretrained_kwargs.get("torch_dtype", resolved_dtype)
+    if hasattr(model, "config") and target_dtype is not None:
+        model.config.torch_dtype = target_dtype
+
+    # Hardware dtype safety: on CUDA devices without native bf16 GEMM (compute < 8.0, e.g. T4),
+    # ensure no unquantized module weights remain in bfloat16
+    if not bf16_ok and HAS_TORCH and torch is not None and isinstance(model, torch.nn.Module):
+        for name, param in model.named_parameters():
+            if param.dtype == torch.bfloat16:
+                param.data = param.data.to(torch.float16)
+
     # Attach LoRA adapter if provided
     if adapter_path is not None:
         if not HAS_PEFT:
