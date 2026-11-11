@@ -214,8 +214,13 @@ def main() -> None:
             c_path = PROJECT_ROOT / c_path
 
     if not c_path.exists():
-        logger.error(f"Curated dataset not found at: {c_path}")
-        sys.exit(1)
+        sample_path = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
+        if sample_path.exists():
+            logger.warning(f"Curated dataset not found at {c_path}. Falling back to sample set: {sample_path}")
+            c_path = sample_path
+        else:
+            logger.error(f"Curated dataset not found at: {c_path}")
+            sys.exit(1)
 
     # 1. Load Tokenizer
     try:
