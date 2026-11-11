@@ -36,6 +36,39 @@ except ImportError:
     HAS_PEFT = False
 
 
+def patch_peft_torchao_compatibility() -> None:
+    """Ensure peft does not crash if an incompatible version of torchao is detected in the environment.
+
+    In environments like Google Colab, torchao may be installed at an older version (e.g. 0.10.0),
+    causing peft.import_utils.is_torchao_available() to raise an ImportError instead of returning False.
+    This helper safely wraps is_torchao_available so that dispatch_torchao returns None and skips torchao.
+    """
+    try:
+        import peft.import_utils
+
+        orig_fn = getattr(peft.import_utils, "is_torchao_available", None)
+        if orig_fn is not None:
+            def _safe_is_torchao_available(*args: Any, **kwargs: Any) -> bool:
+                try:
+                    return bool(orig_fn(*args, **kwargs))
+                except Exception:
+                    return False
+
+            peft.import_utils.is_torchao_available = _safe_is_torchao_available
+
+        try:
+            import peft.tuners.lora.torchao as peft_torchao
+            if hasattr(peft_torchao, "is_torchao_available"):
+                peft_torchao.is_torchao_available = _safe_is_torchao_available
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+patch_peft_torchao_compatibility()
+
+
 def is_bf16_supported_cuda() -> bool:
     """Return True only if the CUDA device supports native bfloat16 GEMM (compute capability >= 8.0).
 

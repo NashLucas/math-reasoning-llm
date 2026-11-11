@@ -43,6 +43,12 @@ from src.training.sft_trainer import (  # noqa: E402
     load_training_arguments,
 )
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("test_sft_overfit")
 

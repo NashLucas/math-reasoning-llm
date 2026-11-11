@@ -464,6 +464,11 @@ def build_sft_trainer(
 
     # If PEFT and LoraConfig are available, apply LoRA to model
     if HAS_PEFT and lora_config is not None and get_peft_model is not None:
+        try:
+            from src.model import patch_peft_torchao_compatibility
+            patch_peft_torchao_compatibility()
+        except Exception:
+            pass
         if isinstance(lora_config, LoraConfig):
             logger.info("Applying LoRA adapter to base model via PEFT...")
             model = get_peft_model(model, lora_config)
@@ -626,6 +631,8 @@ def run_sft_training(
             )
             if (load_in_4bit or load_in_8bit) and HAS_PEFT and not isinstance(model, MockModel):
                 try:
+                    from src.model import patch_peft_torchao_compatibility
+                    patch_peft_torchao_compatibility()
                     from peft import prepare_model_for_kbit_training
                     model = prepare_model_for_kbit_training(model)
                     logger.info("Prepared model for k-bit (4-bit/8-bit) LoRA training.")

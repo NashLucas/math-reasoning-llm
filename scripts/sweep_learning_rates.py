@@ -35,6 +35,12 @@ from src.training.callbacks import ValidationEvalCallback  # noqa: E402
 from src.training.sft_trainer import run_sft_training  # noqa: E402
 
 try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
+try:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
