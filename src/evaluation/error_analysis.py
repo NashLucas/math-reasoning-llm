@@ -451,6 +451,56 @@ def classify_semantic_heuristic(
     )
 
 
+def reconcile_llm_with_heuristics(
+    llm_cat: ErrorCategory,
+    llm_rationale: str,
+    question: str,
+    gold_answer: str,
+    generated_text: str,
+    extracted_answer: Optional[str],
+    gold_solution: Optional[str] = None,
+) -> Tuple[ErrorCategory, str, str]:
+    """Reconcile 7B LLM classification with deterministic mathematical and structural checks (Design Rule 4).
+
+    7B math models exhibit strong position bias toward the first option ('arithmetic_slip') when
+    acting as zero-shot meta-classifiers. This function verifies arithmetic claims against an
+    exact equation evaluator and preserves deterministic structural triggers while retaining
+    LLM rationales and genuine semantic classifications.
+    """
+    heur_cat, heur_rat = classify_semantic_heuristic(
+        question=question,
+        gold_answer=gold_answer,
+        generated_text=generated_text,
+        extracted_answer=extracted_answer,
+        gold_solution=gold_solution,
+    )
+    calc_err = check_equation_arithmetic_error(generated_text)
+
+    # 1. If LLM and heuristic agree, keep LLM classification and rationale
+    if llm_cat == heur_cat:
+        return llm_cat, llm_rationale, "llm_classifier"
+
+    # 2. Deterministic equation arithmetic verification:
+    # If an explicit equation X op Y = Z is mathematically wrong, it is definitely an arithmetic_slip
+    if calc_err is not None:
+        return ErrorCategory.ARITHMETIC_SLIP, f"{calc_err} (LLM note: {llm_rationale})", "hybrid_classifier"
+
+    # 3. Deterministic degenerate repetition / non-English check
+    if heur_cat == ErrorCategory.OTHER:
+        return ErrorCategory.OTHER, f"{heur_rat} (LLM note: {llm_rationale})", "hybrid_classifier"
+
+    # 4. Deterministic misread question or incomplete reasoning structural rules
+    if heur_cat in (ErrorCategory.MISREAD_QUESTION, ErrorCategory.INCOMPLETE_REASONING):
+        return heur_cat, f"{heur_rat} (LLM note: {llm_rationale})", "hybrid_classifier"
+
+    # 5. If LLM claimed arithmetic_slip (position bias) or other (unparsed),
+    # but no equation in the student trace has a calculation error, resolve to heuristic category
+    if llm_cat in (ErrorCategory.ARITHMETIC_SLIP, ErrorCategory.OTHER) and calc_err is None:
+        return heur_cat, f"{heur_rat} (LLM note: {llm_rationale})", "hybrid_classifier"
+
+    return llm_cat, llm_rationale, "llm_classifier"
+
+
 # ==============================================================================
 # Unified Classifier Interface
 # ==============================================================================
@@ -616,20 +666,16 @@ class ErrorClassifier:
                 gold_solution=gold_solution,
             )
             response_text = self.backend(prompt)
-            cat, rationale = parse_llm_classification(response_text)
-            source = "llm_classifier"
-            if cat == ErrorCategory.OTHER:
-                heur_cat, heur_rat = classify_semantic_heuristic(
-                    question=question,
-                    gold_answer=gold_answer,
-                    generated_text=generated_text,
-                    extracted_answer=extracted_answer,
-                    gold_solution=gold_solution,
-                )
-                if heur_cat != ErrorCategory.OTHER:
-                    cat = heur_cat
-                    rationale = f"{rationale} (Heuristic resolution: {heur_rat})"
-                    source = "hybrid_classifier"
+            llm_cat, llm_rationale = parse_llm_classification(response_text)
+            cat, rationale, source = reconcile_llm_with_heuristics(
+                llm_cat=llm_cat,
+                llm_rationale=llm_rationale,
+                question=question,
+                gold_answer=gold_answer,
+                generated_text=generated_text,
+                extracted_answer=extracted_answer,
+                gold_solution=gold_solution,
+            )
         elif not self.use_mock and self._llm_pipeline is not None:
             prompt = format_error_classification_prompt(
                 question=question,
@@ -645,29 +691,16 @@ class ErrorClassifier:
             try:
                 out = self._llm_pipeline(messages)
                 response_text = out[0]["generated_text"][-1]["content"]
-                cat, rationale = parse_llm_classification(response_text)
-                source = "llm_classifier"
-
-                # If LLM returned OTHER or unrecognized format, cross-verify with heuristic signals
-                if cat == ErrorCategory.OTHER:
-                    heur_cat, heur_rat = classify_semantic_heuristic(
-                        question=question,
-                        gold_answer=gold_answer,
-                        generated_text=generated_text,
-                        extracted_answer=extracted_answer,
-                        gold_solution=gold_solution,
-                    )
-                    if heur_cat != ErrorCategory.OTHER:
-                        cat = heur_cat
-                        rationale = f"{rationale} (Heuristic resolution: {heur_rat})"
-                        source = "hybrid_classifier"
-                else:
-                    # High-confidence verification: if student wrote an explicit calculation error in an equation
-                    calc_err = check_equation_arithmetic_error(generated_text)
-                    if calc_err and cat == ErrorCategory.INCOMPLETE_REASONING:
-                        cat = ErrorCategory.ARITHMETIC_SLIP
-                        rationale = f"{calc_err} (LLM note: {rationale})"
-                        source = "hybrid_classifier"
+                llm_cat, llm_rationale = parse_llm_classification(response_text)
+                cat, rationale, source = reconcile_llm_with_heuristics(
+                    llm_cat=llm_cat,
+                    llm_rationale=llm_rationale,
+                    question=question,
+                    gold_answer=gold_answer,
+                    generated_text=generated_text,
+                    extracted_answer=extracted_answer,
+                    gold_solution=gold_solution,
+                )
             except Exception as e:
                 logger.warning("LLM inference failed (%s); falling back to heuristic.", e)
                 cat, rationale = classify_semantic_heuristic(

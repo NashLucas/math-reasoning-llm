@@ -102,6 +102,19 @@ class TestDay32Calibration(unittest.TestCase):
         self.assertIn("`arithmetic_slip`", md)
         self.assertIn("`parse_error`", md)
 
+    def test_position_biased_llm_reconciliation_passes_gate(self):
+        """Verify Design Rule 4 reconciliation when 7B LLM exhibits position bias toward arithmetic_slip."""
+        biased_backend = lambda _prompt: "Classification: arithmetic_slip\nRationale: Calculation mistake."
+        classifier = ErrorClassifier(backend=biased_backend)
+        classifications = classifier.classify_records(self.records)
+        report = compute_label_agreement(
+            classifications=classifications,
+            manual_labeled_records=self.records,
+            min_agreement_threshold=0.80,
+        )
+        self.assertGreaterEqual(report.agreement_percent, 80.0)
+        self.assertTrue(report.passed_calibration)
+
     def test_test_set_wall_enforced(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
