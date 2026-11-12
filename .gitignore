@@ -56,11 +56,16 @@ reports/eval_*/
 # Data: Keep small sample data tracked if needed, ignore large datasets
 data/raw/
 data/processed/
-data/synthetic/
+data/synthetic/*
+!data/synthetic/curated/
+data/synthetic/curated/*
+!data/synthetic/curated/traces_curated_sft.jsonl
 !data/synthetic/curated/traces_curated_sft_manifest.json
 !data/processed/sft_round2/manifest.json
-!data/processed/grpo/manifest.json
-data/targeted/
+!data/processed/grpo/manifest.json
+data/targeted/*
+!data/targeted/targeted_examples.jsonl
+!data/targeted/manifest.json
 data/safety/
 
 # IDE / Editor folders

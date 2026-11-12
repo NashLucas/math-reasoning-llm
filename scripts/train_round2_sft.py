@@ -55,6 +55,38 @@ except ImportError:
     HAS_MATPLOTLIB = False
 
 
+def resolve_path(path: Path, profile: Optional[str] = None) -> Path:
+    """Resolve a file or directory path across local workspace, project root, and Colab Drive."""
+    if path.exists():
+        return path
+
+    if not path.is_absolute() and (PROJECT_ROOT / path).exists():
+        return PROJECT_ROOT / path
+
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        drive_root = mgr.get_profile_dir("outputs_dir", profile_name=active_profile).parent
+
+        # 1. Check relative to drive root
+        drive_candidate = drive_root / path
+        if drive_candidate.exists():
+            return drive_candidate
+
+        # 2. Check under drive data_dir if path starts with data/
+        if str(path).startswith("data"):
+            rel_parts = path.parts[1:] if len(path.parts) > 1 else ()
+            data_cand = mgr.get_profile_dir("data_dir", profile_name=active_profile).joinpath(*rel_parts)
+            if data_cand.exists():
+                return data_cand
+    except Exception:
+        pass
+
+    return path
+
+
 def plot_round2_training_curves(
     loss_history: List[Dict[str, Any]],
     val_history: List[Dict[str, Any]],
@@ -128,6 +160,8 @@ def run_day36_round2_training(
     sample_limit: int = 20,
     use_mock: bool = False,
     overwrite: bool = False,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
 ) -> Dict[str, Any]:
     """Execute Day 36 Round-2 SFT training pipeline with resumption and report generation."""
     mgr = ConfigManager()
@@ -152,15 +186,17 @@ def run_day36_round2_training(
         rep_path = PROJECT_ROOT / rep_path
     rep_path.mkdir(parents=True, exist_ok=True)
 
-    # Resolve dataset paths
-    t_path = Path(train_file) if train_file else (PROJECT_ROOT / "data" / "processed" / "sft_round2" / "train_round2.jsonl")
+    # Resolve dataset paths across local and Colab Drive profiles
+    raw_train = train_file or (PROJECT_ROOT / "data" / "processed" / "sft_round2" / "train_round2.jsonl")
+    t_path = resolve_path(Path(raw_train), profile=active_profile)
     if not t_path.exists():
         fallback_sample = PROJECT_ROOT / "data" / "sample" / "train_sample.parquet"
         if fallback_sample.exists():
             logger.warning("Round-2 dataset not found at %s. Falling back to sample dataset: %s", t_path, fallback_sample)
             t_path = fallback_sample
 
-    v_path = Path(val_file) if val_file else (PROJECT_ROOT / "data" / "splits" / "val.parquet")
+    raw_val = val_file or (PROJECT_ROOT / "data" / "splits" / "val.parquet")
+    v_path = resolve_path(Path(raw_val), profile=active_profile)
     if not v_path.exists():
         fallback_val = PROJECT_ROOT / "data" / "sample" / "val_sample.parquet"
         if fallback_val.exists():
@@ -168,8 +204,26 @@ def run_day36_round2_training(
 
     # 1. Resumption Check
     out_dir_path.mkdir(parents=True, exist_ok=True)
-    existing_ckpts = get_checkpoints(out_dir_path, complete_only=True)
-    latest_ckpt = find_latest_checkpoint(out_dir_path, complete_only=True) if (not overwrite) else None
+    existing_ckpts = get_checkpoints(out_dir_path, complete_only=True, require_weights=True)
+    latest_ckpt = find_latest_checkpoint(out_dir_path, complete_only=True, require_weights=True) if (not overwrite) else None
+
+    # Auto-detect VRAM constraint for 7B models when on CUDA
+    load_4bit = load_in_4bit
+    if not load_4bit and not load_in_8bit and device != "cpu":
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                total_mem = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                if total_mem <= 16.5 and "7b" in model_name_or_path.lower():
+                    logger.info(
+                        "Detected GPU with %.1f GiB VRAM (<= 16.5 GiB). "
+                        "Auto-enabling load_in_4bit (QLoRA) to prevent CUDA OOM.",
+                        total_mem,
+                    )
+                    load_4bit = True
+        except Exception:
+            pass
 
     logger.info("==================================================")
     logger.info("Launching Phase 5 Day 36: Round-2 SFT Training Workflow")
@@ -182,6 +236,8 @@ def run_day36_round2_training(
     logger.info("Learning Rate:               %s (Round 1 optimal)", learning_rate)
     logger.info("Evaluation Steps:            %d (Limit: %d)", eval_steps, eval_limit)
     logger.info("Sample Mode:                 %s (Limit: %s)", sample_mode, sample_limit if sample_mode else "All")
+    logger.info("Load in 4-bit (QLoRA):       %s", load_4bit)
+    logger.info("Load in 8-bit:               %s", load_in_8bit)
     logger.info("Existing Checkpoints:        %d found", len(existing_ckpts))
     if latest_ckpt and not overwrite:
         step_num = parse_checkpoint_step(latest_ckpt)
@@ -221,6 +277,8 @@ def run_day36_round2_training(
         generations_dir=gen_dir_path,
         stage="sft_targeted",
         use_mock=should_use_mock,
+        load_in_4bit=load_4bit,
+        load_in_8bit=load_in_8bit,
     )
 
     # 3. Collect Results and Metrics
@@ -360,6 +418,32 @@ def run_day36_round2_training(
         f.write("\n".join(md_lines))
     logger.info("Saved Day 36 Markdown report to: %s", report_md_path)
 
+    # 6. Mirror adapter model and reports to Google Drive if in Colab environment
+    try:
+        if active_profile == "colab":
+            drive_root = mgr.get_profile_dir("outputs_dir", profile_name="colab").parent
+            drive_adapter_dir = drive_root / "outputs" / "sft_targeted" / "adapter_model"
+            drive_reports_dir = drive_root / "reports"
+            drive_adapter_dir.mkdir(parents=True, exist_ok=True)
+            drive_reports_dir.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            # Mirror adapter files
+            if adapter_out_path.exists():
+                for f in adapter_out_path.glob("*"):
+                    if f.is_file():
+                        shutil.copy2(f, drive_adapter_dir / f.name)
+                logger.info("Mirrored Round-2 adapter artifacts to Drive at: %s", drive_adapter_dir)
+
+            # Mirror reports
+            for rep_name in ["day36_round2_sft_report.json", "day36_round2_sft_report.md", "day36_round2_sft_curves.png"]:
+                rep_file = rep_path / rep_name
+                if rep_file.exists():
+                    shutil.copy2(rep_file, drive_reports_dir / rep_name)
+            logger.info("Mirrored Round-2 reports to Drive at: %s", drive_reports_dir)
+    except Exception as e:
+        logger.warning("Could not mirror Round-2 adapter/reports to Drive: %s", e)
+
     return report_dict
 
 
@@ -480,6 +564,18 @@ def main(args_list: Optional[List[str]] = None) -> int:
         action="store_true",
         help="Overwrite existing checkpoints and restart training from Step 0.",
     )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load model in 4-bit NF4 quantization for memory-constrained GPUs (e.g. T4/L4).",
+    )
+    parser.add_argument(
+        "--load_in_8bit",
+        action="store_true",
+        default=False,
+        help="Load model in 8-bit quantization.",
+    )
 
     args = parser.parse_args(args_list)
 
@@ -504,6 +600,8 @@ def main(args_list: Optional[List[str]] = None) -> int:
             sample_limit=args.sample_limit,
             use_mock=args.use_mock,
             overwrite=args.overwrite,
+            load_in_4bit=args.load_in_4bit,
+            load_in_8bit=args.load_in_8bit,
         )
         return 0
     except Exception as exc:

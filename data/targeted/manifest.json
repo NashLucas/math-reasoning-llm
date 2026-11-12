@@ -1,0 +1,16 @@
+{
+  "total_selected": 20,
+  "examples_per_category": {
+    "incomplete_reasoning": 20
+  },
+  "sources_count": {
+    "cleaned_gold_solution": 20
+  },
+  "embedding_backend": "tfidf_fallback",
+  "output_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\data\\targeted",
+  "target_categories": [
+    "incomplete_reasoning"
+  ],
+  "timestamp_utc": "2026-11-12T11:47:09.277011+00:00",
+  "contamination_check": "PASSED (0 validation/test problems)"
+}
