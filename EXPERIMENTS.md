@@ -4,6 +4,50 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 31 — Mathematical Error Analysis & Taxonomy Classification
+
+- **Date:** 2026-11-12
+- **Run ID:** `error_analysis-20261112_day31_taxonomy_classification`
+- **Branch:** `main` / `phase-4-sft` (Commit: `6076f16`)
+- **Hardware / Platform:** Google Colab GPU (Tesla T4) & Local Workstation (Python 3.13)
+- **Hours & Compute Units:** ~0.2 GPU hours (7B Instruct error categorization across 500 validation problems)
+
+### Objectives & Scope Completed
+1. **Tiered 7-Category Mathematical Error Taxonomy (`src/evaluation/error_analysis.py`):**
+   - Implemented rule-based pre-filters prioritizing `parse_error` (missing/non-numeric answer) and `truncation` (unclosed `\boxed{}` tags or abrupt sentence cutoff without punctuation).
+   - Applied semantic reasoning classifier utilizing 7B teacher LLM (`deepseek-ai/deepseek-math-7b-instruct`) in 4-bit NF4 precision or heuristic fallback for 5 core failure modes: `arithmetic_slip`, `misread_question`, `wrong_setup`, `incomplete_reasoning`, and `other`.
+2. **GPU Memory & Quantization Optimization:**
+   - Auto-enabled 4-bit NF4 quantization for GPUs $\le 16.5$ GiB VRAM via `src.model.load_model`, plus PEFT `torchao` compatibility patching to prevent OOM on Tesla T4.
+3. **Cross-Platform Drive Path Resolution (`scripts/error_analysis.py`):**
+   - Implemented `resolve_input_path()` supporting local, Colab Google Drive profile (`/content/drive/MyDrive/...`), latest checkpoints, and sample fallbacks.
+   - Handled sibling path resolution for cross-environment paths in `eval_results.json`'s `generations_file`.
+
+### Empirical Error Distribution Results (500 Validation Problems)
+- **Total Evaluated:** 500 problems
+- **Correct Predictions:** 243 (48.60% accuracy)
+- **Errors Analyzed:** 257 (51.40% error rate)
+- **Rule-Based Errors:** 54 (21.01% of all errors)
+  - `parse_error`: 6 (2.33%)
+  - `truncation`: 48 (18.68%)
+- **Semantic Errors:** 203 (78.99% of all errors)
+  - `arithmetic_slip`: 169 (65.76%)
+  - `misread_question`: 2 (0.78%)
+  - `wrong_setup`: 2 (0.78%)
+  - `incomplete_reasoning`: 0 (0.00%)
+  - `other`: 30 (11.67%)
+
+### Key Mathematical Insights & Strategic Takeaways
+- **Dominance of Arithmetic Slips (65.76%):** The vast majority of failures stem not from incorrect conceptual formulas or misinterpreting the problem, but from elementary calculation slips along an otherwise valid reasoning chain.
+- **Truncation Token Limits (18.68%):** The second-largest failure mode is token budget exhaustion, where the model was cut off before producing the final `#### <number>` answer contract line.
+- **Targeted SFT & RL Justification:** These empirical findings directly confirm the necessity of Phase 5 targeted example selection (Day 34) and Phase 6 GRPO reinforcement learning to reward verified terminal numeric correctness.
+
+### Deliverables & Reports
+- Deliverables: `src/evaluation/error_analysis.py`, `scripts/error_analysis.py`, `notebooks/00_colab_launcher.ipynb` (Step 28).
+- Audit Reports: `reports/error_analysis_sft.json`, `reports/error_analysis_sft.md`.
+- Tests: 22/22 unit tests passing in `tests/test_error_analysis.py`.
+
+---
+
 ## Run Entry: Phase 8 Day 52 — Model Quantization, Traffic Monitoring & High-Concurrency Benchmarking
 
 - **Date:** 2026-11-05
