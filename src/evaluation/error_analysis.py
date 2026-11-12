@@ -423,24 +423,32 @@ class ErrorClassifier:
         """Initialize Hugging Face text-generation pipeline if hardware and packages permit."""
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+            from transformers import pipeline
 
             if not torch.cuda.is_available() and self.device != "cpu":
                 logger.info("CUDA unavailable; running ErrorClassifier in mock/heuristic mode.")
                 self.use_mock = True
                 return
 
-            device_map = "auto" if torch.cuda.is_available() else "cpu"
-            torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+            try:
+                from src.model import patch_peft_torchao_compatibility, load_model, load_tokenizer
+                patch_peft_torchao_compatibility()
+                logger.info("Loading ErrorClassifier model: %s", self.model_name_or_path)
+                tokenizer = load_tokenizer(self.model_name_or_path, padding_side="left")
+                model = load_model(self.model_name_or_path)
+            except Exception as load_err:
+                from transformers import AutoModelForCausalLM, AutoTokenizer
+                device_map = "auto" if torch.cuda.is_available() else "cpu"
+                torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+                logger.info("Direct model load failed (%s); trying AutoModelForCausalLM on %s", load_err, device_map)
+                tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, trust_remote_code=True)
+                model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name_or_path,
+                    torch_dtype=torch_dtype,
+                    device_map=device_map,
+                    trust_remote_code=True,
+                )
 
-            logger.info("Loading ErrorClassifier model: %s on %s", self.model_name_or_path, device_map)
-            tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, trust_remote_code=True)
-            model = AutoModelForCausalLM.from_pretrained(
-                self.model_name_or_path,
-                torch_dtype=torch_dtype,
-                device_map=device_map,
-                trust_remote_code=True,
-            )
             self._llm_pipeline = pipeline(
                 "text-generation",
                 model=model,

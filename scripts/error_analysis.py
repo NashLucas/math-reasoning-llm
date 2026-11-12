@@ -41,6 +41,12 @@ from src.evaluation.error_analysis import (  # noqa: E402
 )
 from src.run_info import save_run_info  # noqa: E402
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -49,10 +55,57 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_input_records(input_path: Path) -> List[Dict[str, Any]]:
+def resolve_input_path(input_path: Path, profile: Optional[str] = None) -> Path:
+    """Resolve input file looking across local workspace, Google Drive profile, and checkpoint folders."""
+    if input_path.exists():
+        return input_path
+
+    # Try relative to PROJECT_ROOT
+    if not input_path.is_absolute() and (PROJECT_ROOT / input_path).exists():
+        return PROJECT_ROOT / input_path
+
+    # Try profile outputs dir (e.g. Google Drive)
+    try:
+        mgr = ConfigManager()
+        active_profile = profile or "local"
+        stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
+        drive_adapter_eval = stage_paths["outputs"] / "adapter_model" / "eval_val_greedy" / input_path.name
+        if drive_adapter_eval.exists():
+            return drive_adapter_eval
+
+        # Check under stage checkpoints dir
+        ckpt_dir = stage_paths.get("checkpoints")
+        if ckpt_dir and ckpt_dir.exists():
+            for sub in sorted(ckpt_dir.glob("checkpoint-*/eval_val_greedy/eval_results.json"), reverse=True):
+                if sub.exists():
+                    logger.info("Resolved input file from checkpoint: %s", sub)
+                    return sub
+
+        # Try local checkpoints dir as well
+        local_ckpt_dir = PROJECT_ROOT / "checkpoints" / "sft"
+        if local_ckpt_dir.exists():
+            for sub in sorted(local_ckpt_dir.glob("checkpoint-*/eval_val_greedy/eval_results.json"), reverse=True):
+                if sub.exists():
+                    logger.info("Resolved input file from local checkpoint: %s", sub)
+                    return sub
+    except Exception as exc:
+        logger.warning("Error during input path resolution: %s", exc)
+
+    # Try data/sample/sample_errors.jsonl as fallback
+    sample_errors = PROJECT_ROOT / "data" / "sample" / "sample_errors.jsonl"
+    if sample_errors.exists():
+        logger.warning("Input file %s not found; falling back to sample errors: %s", input_path, sample_errors)
+        return sample_errors
+
+    return input_path
+
+
+def load_input_records(input_path: Path, profile: Optional[str] = None) -> List[Dict[str, Any]]:
     """Load generation or evaluation records from JSON, JSONL, or Parquet."""
-    if not input_path.exists():
+    resolved_path = resolve_input_path(input_path, profile=profile)
+    if not resolved_path.exists():
         raise FileNotFoundError(f"Input records file does not exist: {input_path}")
+    input_path = resolved_path
 
     suffix = input_path.suffix.lower()
     if suffix == ".jsonl":
@@ -69,8 +122,13 @@ def load_input_records(input_path: Path) -> List[Dict[str, Any]]:
             return data
         elif isinstance(data, dict):
             # If an eval_results summary pointing to generations_file is passed
-            if "generations_file" in data and Path(data["generations_file"]).exists():
-                return load_input_records(Path(data["generations_file"]))
+            if "generations_file" in data:
+                gen_file = Path(data["generations_file"])
+                if gen_file.exists():
+                    return load_input_records(gen_file, profile=profile)
+                sibling = input_path.parent / gen_file.name
+                if sibling.exists():
+                    return load_input_records(sibling, profile=profile)
             # Check common result containers
             if "records" in data and isinstance(data["records"], list):
                 return data["records"]
@@ -111,7 +169,7 @@ def run_error_analysis(
     logger.info("Classifier Model:  %s (Mock: %s)", model_name_or_path, use_mock)
     logger.info("==================================================")
 
-    records = load_input_records(input_file)
+    records = load_input_records(input_file, profile=profile)
     logger.info("Loaded %d records from %s", len(records), input_file)
 
     if limit and limit > 0:

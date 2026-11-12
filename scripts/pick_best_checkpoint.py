@@ -261,6 +261,8 @@ def evaluate_and_pick_best_checkpoint(
         for item in best_src_path.iterdir():
             if item.is_file() and not item.name.startswith("eval_"):
                 shutil.copy2(item, adapter_out_path / item.name)
+        if (best_src_path / "eval_val_greedy").exists():
+            shutil.copytree(best_src_path / "eval_val_greedy", adapter_out_path / "eval_val_greedy", dirs_exist_ok=True)
         logger.info(f"Copied best adapter files from {best_src_path} to {adapter_out_path}")
     else:
         logger.info(f"Best adapter files already located in destination: {adapter_out_path}")
