@@ -42,8 +42,31 @@ logging.basicConfig(
 logger = logging.getLogger("run_day33_clustering")
 
 
-def load_error_records(input_path: Path) -> List[Dict[str, Any]]:
+def resolve_error_input_file(input_file: Path, profile: Optional[str] = None) -> Path:
+    """Resolve error input file across local workspace and profile directories."""
+    if input_file.exists():
+        return input_file
+
+    if not input_file.is_absolute() and (PROJECT_ROOT / input_file).exists():
+        return PROJECT_ROOT / input_file
+
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        drive_path = mgr.get_profile_dir("outputs_dir", profile_name=active_profile).parent / "reports" / input_file.name
+        if drive_path.exists():
+            return drive_path
+    except Exception:
+        pass
+
+    return input_file
+
+
+def load_error_records(input_path: Path, profile: Optional[str] = None) -> List[Dict[str, Any]]:
     """Load error records from a JSON file, JSONL file, or analysis report."""
+    input_path = resolve_error_input_file(input_path, profile=profile)
     if not input_path.exists():
         raise FileNotFoundError(f"Input errors file not found: {input_path}")
 
@@ -96,8 +119,11 @@ def run_day33_clustering(
     use_mock: bool = False,
     sample_mode: bool = False,
     existing_analysis_file: Optional[Path] = None,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute Day 33 question semantic clustering and report generation."""
+    input_file = resolve_error_input_file(Path(input_file), profile=profile)
+
     logger.info("==================================================")
     logger.info("Phase 5 Day 33: Error Question Semantic Clustering & Topic Reporting")
     logger.info("Input Error File:       %s", input_file)
@@ -131,11 +157,11 @@ def run_day33_clustering(
             raise FileNotFoundError(f"Input file not found: {input_file}")
 
     # 2. Load Error Records
-    records = load_error_records(input_file)
+    records = load_error_records(input_file, profile=profile)
     if not records and (sample_mode or use_mock):
         sample_candidate = PROJECT_ROOT / "data" / "sample" / "labeled_30_errors.jsonl"
         logger.warning("No errors found in %s; falling back to %s.", input_file, sample_candidate)
-        records = load_error_records(sample_candidate)
+        records = load_error_records(sample_candidate, profile=profile)
 
     if not records:
         raise ValueError(f"No error records found in {input_file} to cluster.")
@@ -273,6 +299,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run quickly on sample error benchmarks in mock mode.",
     )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Configuration profile (e.g. 'local', 'colab').",
+    )
     return parser
 
 
@@ -294,6 +326,7 @@ def main(args_list: Optional[List[str]] = None) -> int:
             embedding_model=args.embedding_model,
             use_mock=args.use_mock or args.sample_mode,
             sample_mode=args.sample_mode,
+            profile=args.profile,
         )
         return 0 if res["passed"] else 1
     except Exception as e:
