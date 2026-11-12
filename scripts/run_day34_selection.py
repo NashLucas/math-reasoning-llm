@@ -35,24 +35,68 @@ logging.basicConfig(
 logger = logging.getLogger("run_day34_selection")
 
 
-def load_input_errors(error_file: Path, sample_mode: bool = False) -> List[Dict[str, Any]]:
+def resolve_path(path: Path, profile: Optional[str] = None) -> Path:
+    """Resolve a file or directory path across local workspace, project root, and Colab Drive."""
+    if path.exists():
+        return path
+
+    if not path.is_absolute() and (PROJECT_ROOT / path).exists():
+        return PROJECT_ROOT / path
+
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        drive_root = mgr.get_profile_dir("outputs_dir", profile_name=active_profile).parent
+
+        # 1. Check relative to drive root
+        drive_candidate = drive_root / path
+        if drive_candidate.exists():
+            return drive_candidate
+
+        # 2. Check under drive reports/ if it's a report file
+        if "report" in str(path) or path.name.endswith(".json") or path.name.endswith(".md"):
+            report_cand = drive_root / "reports" / path.name
+            if report_cand.exists():
+                return report_cand
+
+        # 3. Check under drive data_dir if path starts with data/
+        if str(path).startswith("data"):
+            rel_parts = path.parts[1:] if len(path.parts) > 1 else ()
+            data_cand = mgr.get_profile_dir("data_dir", profile_name=active_profile).joinpath(*rel_parts)
+            if data_cand.exists():
+                return data_cand
+    except Exception:
+        pass
+
+    return path
+
+
+def load_input_errors(
+    error_file: Path,
+    sample_mode: bool = False,
+    profile: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Load error records from error analysis JSON or labeled JSONL."""
-    if not error_file.exists():
+    resolved_file = resolve_path(error_file, profile=profile)
+
+    if not resolved_file.exists():
         if sample_mode:
             sample_candidate = PROJECT_ROOT / "data" / "sample" / "labeled_30_errors.jsonl"
             if sample_candidate.exists():
                 logger.warning("Error file %s not found; falling back to %s.", error_file, sample_candidate)
-                error_file = sample_candidate
+                resolved_file = sample_candidate
             else:
                 raise FileNotFoundError(f"Neither {error_file} nor {sample_candidate} exists.")
         else:
-            raise FileNotFoundError(f"Error file not found: {error_file}")
+            raise FileNotFoundError(f"Error file not found: {error_file} (resolved: {resolved_file})")
 
-    suffix = error_file.suffix.lower()
+    suffix = resolved_file.suffix.lower()
     records: List[Dict[str, Any]] = []
 
     if suffix == ".jsonl":
-        with open(error_file, "r", encoding="utf-8") as f:
+        with open(resolved_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -66,7 +110,7 @@ def load_input_errors(error_file: Path, sample_mode: bool = False) -> List[Dict[
                             item["category"] = item["manual_label"]
                         records.append(item)
     elif suffix == ".json":
-        data = json.loads(error_file.read_text(encoding="utf-8"))
+        data = json.loads(resolved_file.read_text(encoding="utf-8"))
         if isinstance(data, list):
             for item in data:
                 if item.get("is_error", True):
@@ -81,7 +125,7 @@ def load_input_errors(error_file: Path, sample_mode: bool = False) -> List[Dict[
                     if not item.get("is_correct", False):
                         records.append(item)
 
-    logger.info("Loaded %d error records from %s", len(records), error_file)
+    logger.info("Loaded %d error records from %s", len(records), resolved_file)
     return records
 
 
@@ -94,16 +138,28 @@ def run_day34_pipeline(
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     use_mock: bool = False,
     sample_mode: bool = False,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute Day 34 targeted example selection pipeline."""
+    error_file = resolve_path(Path(error_file), profile=profile)
+    if train_pool_path:
+        train_pool_path = resolve_path(Path(train_pool_path), profile=profile)
+    if curated_traces_path:
+        curated_traces_path = resolve_path(Path(curated_traces_path), profile=profile)
+
+    out_path = Path(output_dir) if output_dir else (PROJECT_ROOT / "data" / "targeted")
+    if not out_path.is_absolute():
+        out_path = PROJECT_ROOT / out_path
+
     logger.info("==================================================")
     logger.info("Phase 5 Day 34: Targeted Example Selection for SFT Round 2")
     logger.info("Error File:           %s", error_file)
     logger.info("Train Pool Path:      %s", train_pool_path)
     logger.info("Curated Traces Path:  %s", curated_traces_path)
-    logger.info("Output Directory:     %s", output_dir)
+    logger.info("Output Directory:     %s", out_path)
     logger.info("Target Per Category:  %d", target_per_category)
     logger.info("Embedding Model:      %s (Mock: %s)", embedding_model, use_mock or sample_mode)
+    logger.info("Profile:              %s", profile or "auto")
     logger.info("==================================================")
 
     # 1. Enforce Test-Set Wall
@@ -113,13 +169,11 @@ def run_day34_pipeline(
             "Validation analysis errors only."
         )
 
-    out_path = output_dir or (PROJECT_ROOT / "data" / "targeted")
-
     # 2. Load Error Records
-    errors = load_input_errors(error_file, sample_mode=(sample_mode or use_mock))
+    errors = load_input_errors(error_file, sample_mode=(sample_mode or use_mock), profile=profile)
     if not errors and (sample_mode or use_mock):
         sample_candidate = PROJECT_ROOT / "data" / "sample" / "labeled_30_errors.jsonl"
-        errors = load_input_errors(sample_candidate, sample_mode=True)
+        errors = load_input_errors(sample_candidate, sample_mode=True, profile=profile)
 
     if not errors:
         raise ValueError(f"No error records found to target from {error_file}.")
@@ -146,6 +200,31 @@ def run_day34_pipeline(
         examples=targeted_examples,
         output_dir=out_path,
     )
+
+    # 6. Mirror artifacts to Google Drive if in Colab environment
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        if active_profile == "colab":
+            drive_root = mgr.get_profile_dir("outputs_dir", profile_name="colab").parent
+            drive_target_dir = drive_root / "data" / "targeted"
+            drive_target_dir.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            for artifact_name in [
+                "targeted_examples.jsonl",
+                "targeted_examples.parquet",
+                "manifest.json",
+                "run_info.json",
+            ]:
+                src_f = out_path / artifact_name
+                if src_f.exists():
+                    shutil.copy2(src_f, drive_target_dir / artifact_name)
+            logger.info("Mirrored targeted artifacts to Drive at: %s", drive_target_dir)
+    except Exception as e:
+        logger.warning("Could not mirror targeted artifacts to Drive: %s", e)
 
     return {
         "passed": True,
@@ -197,6 +276,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model checkpoint for semantic embeddings.",
     )
     parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Execution profile ('local' or 'colab').",
+    )
+    parser.add_argument(
         "--use_mock",
         action="store_true",
         help="Use deterministic mock/TF-IDF embedder instead of loading transformer model.",
@@ -228,6 +313,7 @@ def main(args_list: Optional[List[str]] = None) -> int:
             embedding_model=args.embedding_model,
             use_mock=args.use_mock or args.sample_mode,
             sample_mode=args.sample_mode,
+            profile=args.profile,
         )
         logger.info(
             "Targeted example selection completed successfully: %d examples selected.",

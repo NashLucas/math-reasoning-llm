@@ -251,6 +251,34 @@ class TestDay34CLIExecution(unittest.TestCase):
             self.assertGreater(manifest["total_selected"], 0)
             self.assertEqual(manifest["contamination_check"], "PASSED (0 validation/test problems)")
 
+    def test_run_day34_selection_cli_with_profile_arg(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            out_dir = tmp_path / "targeted_profile"
+
+            cmd = [
+                sys.executable,
+                "scripts/run_day34_selection.py",
+                "--sample_mode",
+                "--profile",
+                "local",
+                "--error_file",
+                "data/sample/labeled_30_errors.jsonl",
+                "--train_pool",
+                "data/sample/train_sample.parquet",
+                "--curated_traces",
+                "data/synthetic/curated/traces_curated_sft.jsonl",
+                "--output_dir",
+                str(out_dir),
+                "--target_per_category",
+                "2",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"CLI error:\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}")
+
+            self.assertTrue((out_dir / "targeted_examples.jsonl").exists())
+            self.assertTrue((out_dir / "manifest.json").exists())
+
     def test_error_analysis_cli_with_select_targeted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
