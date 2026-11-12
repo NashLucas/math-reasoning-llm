@@ -38,6 +38,12 @@ from src.evaluation.error_analysis import (  # noqa: E402
 )
 from src.run_info import save_run_info  # noqa: E402
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -48,6 +54,8 @@ logger = logging.getLogger("calibrate_error_labels")
 
 def load_labeled_records(path: Path) -> List[Dict[str, Any]]:
     """Load reference labeled records from JSONL or JSON."""
+    if not path.exists() and not path.is_absolute() and (PROJECT_ROOT / path).exists():
+        path = PROJECT_ROOT / path
     if not path.exists():
         raise FileNotFoundError(f"Calibration file not found: {path}")
 

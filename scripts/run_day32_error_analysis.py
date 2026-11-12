@@ -35,12 +35,84 @@ from src.evaluation.error_analysis import (  # noqa: E402
 from src.evaluation.evaluator import MathEvaluator, TestSetWallError  # noqa: E402
 from src.run_info import save_run_info  # noqa: E402
 
+try:
+    from src.model import patch_peft_torchao_compatibility
+    patch_peft_torchao_compatibility()
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("run_day32")
+
+
+def resolve_adapter_dir(adapter_dir: Path, profile: Optional[str] = None) -> Path:
+    """Resolve adapter directory across local workspace, Google Drive profile, and checkpoint folders."""
+    if adapter_dir.exists():
+        return adapter_dir
+
+    if not adapter_dir.is_absolute() and (PROJECT_ROOT / adapter_dir).exists():
+        return PROJECT_ROOT / adapter_dir
+
+    try:
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
+        drive_adapter = stage_paths["outputs"] / "adapter_model"
+        if drive_adapter.exists():
+            logger.info("Resolved adapter directory from profile outputs: %s", drive_adapter)
+            return drive_adapter
+
+        ckpt_dir = stage_paths.get("checkpoints")
+        if ckpt_dir and ckpt_dir.exists():
+            for sub in sorted(ckpt_dir.glob("checkpoint-*"), reverse=True):
+                if (sub / "adapter_model.safetensors").exists() or (sub / "adapter_model.bin").exists():
+                    logger.info("Resolved adapter directory from profile checkpoint: %s", sub)
+                    return sub
+
+        local_ckpt_dir = PROJECT_ROOT / "checkpoints" / "sft"
+        if local_ckpt_dir.exists():
+            for sub in sorted(local_ckpt_dir.glob("checkpoint-*"), reverse=True):
+                if (sub / "adapter_model.safetensors").exists() or (sub / "adapter_model.bin").exists():
+                    logger.info("Resolved adapter directory from local checkpoint: %s", sub)
+                    return sub
+    except Exception as exc:
+        logger.warning("Error during adapter dir resolution: %s", exc)
+
+    return adapter_dir
+
+
+def resolve_val_analysis_file(val_file: Path, profile: Optional[str] = None) -> Path:
+    """Resolve validation analysis split across local workspace and profile data directories."""
+    if val_file.exists():
+        return val_file
+
+    if not val_file.is_absolute() and (PROJECT_ROOT / val_file).exists():
+        return PROJECT_ROOT / val_file
+
+    try:
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        data_dir = mgr.get_profile_dir("data_dir", profile_name=active_profile)
+        candidate = data_dir / "processed" / "val" / "val_analysis.parquet"
+        if candidate.exists():
+            return candidate
+    except Exception:
+        pass
+
+    return val_file
+
+
+def resolve_calibration_file(calib_file: Path) -> Path:
+    """Resolve calibration benchmark file."""
+    if calib_file.exists():
+        return calib_file
+    if not calib_file.is_absolute() and (PROJECT_ROOT / calib_file).exists():
+        return PROJECT_ROOT / calib_file
+    return calib_file
 
 
 def run_day32_pipeline(
@@ -56,6 +128,10 @@ def run_day32_pipeline(
     profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute Day 32 evaluation, error classification, and 30-sample calibration."""
+    val_analysis_file = resolve_val_analysis_file(Path(val_analysis_file), profile=profile)
+    calibration_file = resolve_calibration_file(Path(calibration_file))
+    adapter_dir = resolve_adapter_dir(Path(adapter_dir), profile=profile)
+
     logger.info("==================================================")
     logger.info("Phase 5 Day 32: SFT Error Analysis on Validation Analysis Half")
     logger.info("Analysis Split:     %s", val_analysis_file)
@@ -109,17 +185,18 @@ def run_day32_pipeline(
 
     # Load evaluated problem records
     generations_file = eval_stage_dir / f"generations_{split_name}_greedy.jsonl"
-    if not generations_file.exists():
+    if not generations_file.exists() and eval_results_file.exists():
         # Fallback to eval_results.json records
-        if eval_results_file.exists():
-            try:
-                data = json.loads(eval_results_file.read_text(encoding="utf-8"))
-                if "generations_file" in data:
-                    candidate = Path(data["generations_file"])
-                    if candidate.exists():
-                        generations_file = candidate
-            except Exception:
-                pass
+        try:
+            data = json.loads(eval_results_file.read_text(encoding="utf-8"))
+            if "generations_file" in data:
+                candidate = Path(data["generations_file"])
+                if candidate.exists():
+                    generations_file = candidate
+                elif (eval_stage_dir / candidate.name).exists():
+                    generations_file = eval_stage_dir / candidate.name
+        except Exception:
+            pass
     if not generations_file.exists():
         # Search for any generations_*.jsonl in eval_stage_dir
         matches = list(eval_stage_dir.glob("generations_*.jsonl"))
