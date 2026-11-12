@@ -4,6 +4,73 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 5 Day 34 — Targeted Example Selection for SFT Round 2
+
+- **Date:** 2026-11-12
+- **Run ID:** `targeted_selection-20261112_day34_error_mitigation`
+- **Branch:** `main` / `phase-4-sft` (Commit: `abfa755`)
+- **Hardware / Platform:** Google Colab GPU (Tesla T4) & Local Workstation (Python 3.13)
+- **Hours & Compute Units:** ~0.05 GPU hours (semantic embedding of 6,973 training pool problems & error centroids)
+
+### Objectives & Implementation Scope
+1. **Targeted Mathematical Example Selection (`src/data/selection.py`, `scripts/run_day34_selection.py`):**
+   - Filtered candidate training pool (`data/processed/train/train.parquet`, 6,973 problems) using semantic cosine similarity against active error category centroids.
+   - Selected 120 targeted training problems (30 examples per category across 4 active error classes: `wrong_setup`, `arithmetic_slip`, `misread_question`, and `other`).
+2. **Strict Test-Set Wall Enforcement (Design Rule 2):**
+   - Verified 0 validation and 0 test problem leakage against all 1,819 forbidden problem IDs (`val_ids.json`, `val_analysis_ids.json`, `val_gating_ids.json`, `test_ids.json`).
+3. **Reasoning Trace Attachment & Canonical Answer Contract (Design Rule 1):**
+   - Attached curated reasoning traces from `data/synthetic/curated/traces_curated_sft.jsonl` where available; seamlessly fell back to canonical `cleaned_solution` ending in `#### <number>`.
+4. **Cross-Platform Drive Persistence & Mirroring:**
+   - Supported `--profile "colab"` path resolution across Drive mounts (`/content/drive/MyDrive/...`) and local environments.
+   - Automatically mirrored dataset artifacts (`targeted_examples.jsonl`, `targeted_examples.parquet`, `manifest.json`, `run_info.json`) to Google Drive.
+
+### Deliverables & Output Datasets
+- Dataset Outputs: `data/targeted/targeted_examples.jsonl`, `data/targeted/targeted_examples.parquet` (120 examples).
+- Manifest: `data/targeted/manifest.json` (`contamination_check: PASSED (0 validation/test problems)`).
+- Tests: 9/9 unit tests passing in `tests/test_selection.py`.
+
+---
+
+## Run Entry: Phase 5 Day 33 — Error Question Semantic Clustering & Topic Reporting
+
+- **Date:** 2026-11-12
+- **Run ID:** `clustering-20261112_day33_topic_modeling`
+- **Branch:** `main` / `phase-4-sft` (Commit: `cf51aa7`)
+- **Hardware / Platform:** Google Colab GPU (Tesla T4)
+- **Hours & Compute Units:** ~0.05 GPU hours (`sentence-transformers/all-MiniLM-L6-v2`)
+
+### Objectives & Implementation Scope
+1. **Semantic Topic Clustering (`src/evaluation/error_analysis.py`, `scripts/run_day33_clustering.py`):**
+   - Embedded 77 mathematical error questions using `sentence-transformers/all-MiniLM-L6-v2`.
+   - Applied K-Means clustering ($K=5$) to partition errors into distinct mathematical problem domains: percentages, rates/speed, money/costs, time/scheduling, and discrete counting.
+2. **Centroid Exemplar Identification & Reporting:**
+   - Selected the 2 most representative problems closest to each cluster centroid for qualitative auditing.
+   - Generated `reports/error_clusters.json` and enriched `reports/error_analysis_sft.md` with complete topic profiles and diagnostic recommendations.
+3. **Tests:**
+   - 11/11 unit tests passing in `tests/test_day33_clustering.py`.
+
+---
+
+## Run Entry: Phase 5 Day 32 — Error Analysis Calibration & Agreement Verification
+
+- **Date:** 2026-11-12
+- **Run ID:** `calibration-20261112_day32_agreement_gate`
+- **Branch:** `main` / `phase-4-sft` (Commit: `20ccc9f`)
+- **Hardware / Platform:** Google Colab GPU (Tesla T4) & Local Workstation
+- **Hours & Compute Units:** ~0.2 GPU hours (7B Teacher LLM inference over `val_analysis.parquet`)
+
+### Objectives & Calibration Achievements
+1. **SFT Adapter Evaluation on Validation Analysis Half:**
+   - Evaluated SFT adapter on `val_analysis.parquet` (250 problems): 173 correct (69.2% accuracy), 77 errors analyzed.
+2. **Reconciliation & Elimination of LLM Position Bias (Design Rule 4):**
+   - Diagnosed 7B LLM classification bias favoring `arithmetic_slip` on markdown inputs.
+   - Implemented `reconcile_llm_with_heuristics()` enforcing equation verification via `check_equation_arithmetic_error`, repetition/premature stop checks, and markdown whitespace normalization.
+   - Achieved 100% agreement on calibration benchmark (30/30 verified), successfully passing Day 32 Gate.
+3. **Tests:**
+   - 29/29 unit tests passing across `tests/test_error_analysis.py` and `tests/test_day32_error_analysis.py`.
+
+---
+
 ## Run Entry: Phase 5 Day 31 — Mathematical Error Analysis & Taxonomy Classification
 
 - **Date:** 2026-11-12
