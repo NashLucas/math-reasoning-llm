@@ -234,31 +234,89 @@ Model Output:
 Extracted Model Answer:
 {extracted_answer if extracted_answer is not None else 'None'}
 
-Please classify the error into exactly one of: arithmetic_slip, misread_question, wrong_setup, incomplete_reasoning, other.
+Task: Classify the reasoning error into exactly ONE of the following 5 categories:
+- arithmetic_slip: Setup and formulas are completely correct, but a calculation mistake occurred.
+- misread_question: Solved for wrong quantity, misread numbers, or introduced numbers not in the problem.
+- wrong_setup: Conceptually incorrect formula, wrong mathematical operations, or flawed approach.
+- incomplete_reasoning: Stopped midway, skipped critical steps, or guessed without full derivation.
+- other: Incoherent rambling, degenerate repetition, or non-English failure.
+
+Respond STRICTLY in this exact format:
+Classification: <category>
+Rationale: <concise explanation>
 """
     return prompt
 
 
 def parse_llm_classification(response_text: str) -> Tuple[ErrorCategory, str]:
     """Parse classification and rationale from 7B instruct output."""
-    if not response_text:
+    if not response_text or not response_text.strip():
         return ErrorCategory.OTHER, "Empty response from classifier model"
 
-    # Match 'Classification: <category>'
-    match = re.search(r"Classification:\s*([a-z_]+)", response_text, re.IGNORECASE)
-    category_str = match.group(1).lower() if match else ""
+    clean_text = response_text.strip()
 
-    rationale_match = re.search(r"Rationale:\s*([^\n\r]+(?:\n[^\n\r]+)?)", response_text, re.IGNORECASE)
-    rationale = rationale_match.group(1).strip() if rationale_match else response_text.strip()
+    # 1. Match explicit Classification / Category / Class / Error Type header
+    # Supports markdown bolding (**Classification:**, **Classification**:, etc.)
+    header_pattern = (
+        r"(?:\*\*|#+)?\s*(?:Classification|Category|Class|Error\s*Type|Label)\s*(?:\*\*|#+)?"
+        r"\s*[:=-]\s*(?:\*\*|#+)?\s*([a-zA-Z_ ]+)"
+    )
+    match = re.search(header_pattern, clean_text, re.IGNORECASE)
 
-    # Map to ErrorCategory enum
-    for cat in SEMANTIC_CATEGORIES:
-        if cat.value == category_str:
+    category_str = ""
+    if match:
+        category_str = match.group(1).strip().lower().replace("-", "_").replace(" ", "_")
+
+    # 2. Extract rationale
+    rationale_pattern = (
+        r"(?:\*\*|#+)?\s*(?:Rationale|Reason|Explanation|Root\s*Cause)\s*(?:\*\*|#+)?"
+        r"\s*[:=-]\s*(?:\*\*|#+)?\s*([^\n\r]+(?:\n[^\n\r]+)?)"
+    )
+    rat_match = re.search(rationale_pattern, clean_text, re.IGNORECASE)
+    rationale = rat_match.group(1).strip() if rat_match else clean_text.strip()
+    rationale = re.sub(r"^\*+|\*+$", "", rationale).strip()
+
+    def resolve_category(s: str) -> Optional[ErrorCategory]:
+        if not s:
+            return None
+        s = s.lower().strip()
+        if "arithmetic" in s or "calculation" in s or "computation" in s or "math_slip" in s:
+            return ErrorCategory.ARITHMETIC_SLIP
+        if "misread" in s or "misunderstood" in s or "wrong_variable" in s or "wrong_entity" in s:
+            return ErrorCategory.MISREAD_QUESTION
+        if "wrong_setup" in s or "wrong_formula" in s or "bad_setup" in s or s.startswith("wrong"):
+            return ErrorCategory.WRONG_SETUP
+        if "incomplete" in s or "premature" in s or "stopped_early" in s:
+            return ErrorCategory.INCOMPLETE_REASONING
+        if "other" in s or "hallucination" in s or "repetition" in s:
+            return ErrorCategory.OTHER
+        return None
+
+    cat = resolve_category(category_str)
+    if cat is not None:
+        return cat, rationale
+
+    # 3. Look for bolded category names anywhere in response: **<category>**
+    bold_pattern = r"\*\*(arithmetic[\s_]slip|misread[\s_]question|wrong[\s_]setup|incomplete[\s_]reasoning|other)\*\*"
+    bold_match = re.search(bold_pattern, clean_text, re.IGNORECASE)
+    if bold_match:
+        cat = resolve_category(bold_match.group(1))
+        if cat is not None:
             return cat, rationale
 
-    # Fallback search for any of the 5 semantic category keywords
-    for cat in SEMANTIC_CATEGORIES:
-        if re.search(r"\b" + re.escape(cat.value) + r"\b", response_text, re.IGNORECASE):
+    # 4. Search in the concluding lines (last 3 non-empty lines) in reverse order (last mention wins)
+    lines = [line.strip() for line in clean_text.splitlines() if line.strip()]
+    tail = "\n".join(lines[-3:]) if len(lines) >= 3 else clean_text
+    matches = list(
+        re.finditer(
+            r"\b(arithmetic[\s_]slip|misread[\s_]question|wrong[\s_]setup|incomplete[\s_]reasoning|other)\b",
+            tail,
+            re.IGNORECASE,
+        )
+    )
+    if matches:
+        cat = resolve_category(matches[-1].group(1))
+        if cat is not None:
             return cat, rationale
 
     return ErrorCategory.OTHER, f"Unrecognized category '{category_str}'; classified as other"
@@ -560,6 +618,18 @@ class ErrorClassifier:
             response_text = self.backend(prompt)
             cat, rationale = parse_llm_classification(response_text)
             source = "llm_classifier"
+            if cat == ErrorCategory.OTHER:
+                heur_cat, heur_rat = classify_semantic_heuristic(
+                    question=question,
+                    gold_answer=gold_answer,
+                    generated_text=generated_text,
+                    extracted_answer=extracted_answer,
+                    gold_solution=gold_solution,
+                )
+                if heur_cat != ErrorCategory.OTHER:
+                    cat = heur_cat
+                    rationale = f"{rationale} (Heuristic resolution: {heur_rat})"
+                    source = "hybrid_classifier"
         elif not self.use_mock and self._llm_pipeline is not None:
             prompt = format_error_classification_prompt(
                 question=question,
@@ -577,6 +647,27 @@ class ErrorClassifier:
                 response_text = out[0]["generated_text"][-1]["content"]
                 cat, rationale = parse_llm_classification(response_text)
                 source = "llm_classifier"
+
+                # If LLM returned OTHER or unrecognized format, cross-verify with heuristic signals
+                if cat == ErrorCategory.OTHER:
+                    heur_cat, heur_rat = classify_semantic_heuristic(
+                        question=question,
+                        gold_answer=gold_answer,
+                        generated_text=generated_text,
+                        extracted_answer=extracted_answer,
+                        gold_solution=gold_solution,
+                    )
+                    if heur_cat != ErrorCategory.OTHER:
+                        cat = heur_cat
+                        rationale = f"{rationale} (Heuristic resolution: {heur_rat})"
+                        source = "hybrid_classifier"
+                else:
+                    # High-confidence verification: if student wrote an explicit calculation error in an equation
+                    calc_err = check_equation_arithmetic_error(generated_text)
+                    if calc_err and cat == ErrorCategory.INCOMPLETE_REASONING:
+                        cat = ErrorCategory.ARITHMETIC_SLIP
+                        rationale = f"{calc_err} (LLM note: {rationale})"
+                        source = "hybrid_classifier"
             except Exception as e:
                 logger.warning("LLM inference failed (%s); falling back to heuristic.", e)
                 cat, rationale = classify_semantic_heuristic(
