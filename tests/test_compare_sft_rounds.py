@@ -14,6 +14,7 @@ from src.evaluation.round_comparator import (
     compare_problem_level_results,
     compute_comparison_decision,
     evaluate_round,
+    resolve_round_adapter,
     run_round_comparison,
     stage_advancing_adapter,
 )
@@ -278,6 +279,50 @@ class TestRoundComparator(unittest.TestCase):
 
         self.assertTrue((self.reports_dir / "round_comparison.json").exists())
         self.assertTrue((self.reports_dir / "round_comparison.md").exists())
+
+    def test_resolve_round_adapter_explicit(self):
+        """Verify resolve_round_adapter discovers an explicit adapter directory."""
+        resolved = resolve_round_adapter(
+            stage="sft",
+            adapter_path=str(self.r1_adapter_dir),
+            allow_mock_fallback=False,
+        )
+        self.assertEqual(resolved, self.r1_adapter_dir.resolve())
+
+    def test_resolve_round_adapter_mock_fallback(self):
+        """Verify resolve_round_adapter generates simulated adapter when allowed."""
+        non_existent = self.test_dir / "missing_stage" / "adapter_model"
+        resolved = resolve_round_adapter(
+            stage="missing_stage",
+            adapter_path=str(non_existent),
+            allow_mock_fallback=True,
+        )
+        self.assertTrue(resolved.exists())
+        self.assertTrue((resolved / "adapter_config.json").exists())
+
+    def test_resolve_round_adapter_checkpoint_fallback(self):
+        """Verify resolve_round_adapter discovers completed checkpoint when outputs missing."""
+        ckpt_stage_dir = self.test_dir / "checkpoints" / "sft_ckpt_stage"
+        ckpt_10 = ckpt_stage_dir / "checkpoint-10"
+        ckpt_20 = ckpt_stage_dir / "checkpoint-20"
+        ckpt_10.mkdir(parents=True, exist_ok=True)
+        ckpt_20.mkdir(parents=True, exist_ok=True)
+        (ckpt_20 / "adapter_model.safetensors").write_bytes(b"SAFETENSORS")
+
+        with tempfile.TemporaryDirectory() as tmp_prof:
+            # Stage paths where checkpoints points to ckpt_stage_dir
+            from unittest.mock import patch
+            mock_stage_paths = {
+                "outputs": Path(tmp_prof) / "outputs",
+                "checkpoints": ckpt_stage_dir,
+            }
+            with patch("src.config.ConfigManager.get_stage_paths", return_value=mock_stage_paths):
+                resolved = resolve_round_adapter(
+                    stage="sft_ckpt_stage",
+                    adapter_path=None,
+                    allow_mock_fallback=False,
+                )
+                self.assertEqual(resolved, ckpt_20)
 
 
 if __name__ == "__main__":

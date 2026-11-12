@@ -134,6 +134,9 @@ def main() -> None:
     # If backend is mock, force use_mock
     use_mock = args.use_mock or (args.backend == "mock")
 
+    # Auto-detect profile if not explicitly specified
+    active_profile = args.profile or ("colab" if Path("/content").exists() else "local")
+
     logger.info("==================================================")
     logger.info("Phase 5 Day 37: SFT Round Comparison (Gating Split)")
     logger.info("Base Model:        %s", args.base_model)
@@ -143,6 +146,7 @@ def main() -> None:
     logger.info("Problem Limit:     %s", args.limit or "Full (250 problems)")
     logger.info("Inference Backend: %s", args.backend)
     logger.info("Mock Mode:         %s", use_mock)
+    logger.info("Profile:           %s", active_profile)
     logger.info("Tie Margin:        +/-%.1f%% (+/-%d problems)", args.tie_margin_pct, args.tie_margin_count)
     logger.info("==================================================")
 
@@ -159,7 +163,7 @@ def main() -> None:
             staging_dir=args.staging_dir,
             tie_margin_pct=args.tie_margin_pct,
             tie_margin_count=args.tie_margin_count,
-            profile=args.profile,
+            profile=active_profile,
         )
     except TestSetWallError as err:
         logger.error("Test-Set Wall violation: %s", err)

@@ -142,55 +142,114 @@ def resolve_round_adapter(
     profile: Optional[str] = None,
     allow_mock_fallback: bool = True,
 ) -> Path:
-    """Resolve adapter directory for a specific training stage.
+    """Resolve adapter directory for a specific training stage across local and profile storage.
 
     Searches in:
-    1. Explicit adapter_path (if supplied).
-    2. outputs/<stage>/adapter_model
-    3. Latest checkpoint in checkpoints/<stage>/checkpoint-*
-    4. If allow_mock_fallback is True, creates simulated adapter.
+    1. Explicit adapter_path (checked in working dir, repo root, profile outputs, and Google Drive).
+    2. Profile stage output: <outputs_dir>/<stage>/adapter_model or <outputs_dir>/<stage>
+    3. Local stage output: outputs/<stage>/adapter_model or outputs/<stage>
+    4. Latest checkpoint in profile or local checkpoints/<stage>/checkpoint-*
+    5. Fallback to simulated adapter if allow_mock_fallback is True.
     """
     mgr = ConfigManager()
-    active_profile = profile or get_default_profile()
+    active_profile = profile or ("colab" if Path("/content").exists() else get_default_profile())
     stage_paths = mgr.get_stage_paths(stage, profile_name=active_profile)
 
+    candidates: List[Path] = []
+
+    # 1. If explicit adapter_path supplied, construct candidate locations
     if adapter_path is not None:
         p = Path(adapter_path)
-        if not p.is_absolute():
-            p = PROJECT_ROOT / p
-        if p.exists():
-            return p
-        if allow_mock_fallback:
-            logger.warning(
-                "Adapter path %s does not exist. Initializing simulated adapter.",
-                p,
+        if p.is_absolute():
+            candidates.append(p)
+        else:
+            candidates.append(p.resolve())
+            candidates.append((PROJECT_ROOT / p).resolve())
+            try:
+                prof_out = mgr.get_profile_dir("outputs_dir", profile_name=active_profile)
+                if str(p).startswith("outputs/") or str(p).startswith("outputs\\"):
+                    rel = Path(*p.parts[1:])
+                    candidates.append((prof_out / rel).resolve())
+                candidates.append((prof_out / p).resolve())
+                candidates.append((prof_out / stage / "adapter_model").resolve())
+            except Exception:
+                pass
+            drive_root = Path("/content/drive/MyDrive/math-reasoning-llm")
+            if drive_root.exists():
+                candidates.append((drive_root / p).resolve())
+                candidates.append((drive_root / "outputs" / stage / "adapter_model").resolve())
+
+    # 2. Stage outputs from config
+    out_dir = stage_paths.get("outputs")
+    if out_dir:
+        candidates.append((out_dir / "adapter_model").resolve())
+        candidates.append(out_dir.resolve())
+
+    # 3. Local default stage outputs
+    candidates.append((PROJECT_ROOT / "outputs" / stage / "adapter_model").resolve())
+    candidates.append((PROJECT_ROOT / "outputs" / stage).resolve())
+
+    # 4. Google Drive default stage outputs
+    drive_out = Path("/content/drive/MyDrive/math-reasoning-llm/outputs") / stage
+    candidates.append((drive_out / "adapter_model").resolve())
+    candidates.append(drive_out.resolve())
+
+    # Test candidate directories: prioritize directories that contain adapter weight / config files
+    valid_dirs: List[Path] = []
+    seen: set = set()
+    for cand in candidates:
+        cand_str = str(cand)
+        if cand_str in seen:
+            continue
+        seen.add(cand_str)
+        if cand.exists() and cand.is_dir():
+            has_adapter_files = (
+                (cand / "adapter_config.json").exists()
+                or (cand / "adapter_model.safetensors").exists()
+                or (cand / "adapter_model.bin").exists()
             )
-            return ensure_simulated_adapter(p)
-        raise FileNotFoundError(f"Specified adapter directory not found: {p}")
+            if has_adapter_files:
+                logger.info("Resolved adapter for stage '%s' with valid weights at: %s", stage, cand)
+                return cand
+            valid_dirs.append(cand)
 
-    # Check outputs/<stage>/adapter_model
-    out_adapter = stage_paths.get("outputs", PROJECT_ROOT / "outputs" / stage) / "adapter_model"
-    if out_adapter.exists() and (out_adapter / "adapter_config.json").exists():
-        return out_adapter
+    if valid_dirs:
+        logger.info("Resolved adapter directory for stage '%s' at: %s", stage, valid_dirs[0])
+        return valid_dirs[0]
 
-    # Check checkpoints/<stage>
-    ckpt_dir = stage_paths.get("checkpoints", PROJECT_ROOT / "checkpoints" / stage)
-    if ckpt_dir.exists():
-        completed = get_checkpoints(ckpt_dir, complete_only=True)
-        if completed:
-            # Pick latest / highest step checkpoint
-            return completed[-1]
+    # 5. Check checkpoints
+    ckpt_dirs = [
+        stage_paths.get("checkpoints"),
+        PROJECT_ROOT / "checkpoints" / stage,
+        Path("/content/drive/MyDrive/math-reasoning-llm/checkpoints") / stage,
+    ]
+    for cd in ckpt_dirs:
+        if cd and cd.exists():
+            completed = get_checkpoints(cd, complete_only=False)
+            if completed:
+                for ckpt in reversed(completed):
+                    if (
+                        (ckpt / "adapter_config.json").exists()
+                        or (ckpt / "adapter_model.safetensors").exists()
+                        or (ckpt / "adapter_model.bin").exists()
+                    ):
+                        logger.info("Resolved adapter for stage '%s' from checkpoint: %s", stage, ckpt)
+                        return ckpt
+                return completed[-1]
 
+    # 6. Fallback or error
     if allow_mock_fallback:
-        logger.info(
-            "No existing adapter found for stage '%s'. Setting up simulated adapter at %s",
+        target_dir = candidates[0] if candidates else (PROJECT_ROOT / "outputs" / stage / "adapter_model")
+        logger.warning(
+            "No existing adapter found for stage '%s' across local and Drive paths. Initializing simulated adapter at %s",
             stage,
-            out_adapter,
+            target_dir,
         )
-        return ensure_simulated_adapter(out_adapter)
+        return ensure_simulated_adapter(target_dir)
 
     raise FileNotFoundError(
-        f"No adapter or completed checkpoint found for stage '{stage}' in {out_adapter} or {ckpt_dir}"
+        f"No adapter or completed checkpoint found for stage '{stage}'. Checked candidate locations:\n"
+        + "\n".join(f"  - {c}" for c in candidates[:6])
     )
 
 
@@ -862,6 +921,20 @@ def run_round_comparison(
         plot_path=plot_file if has_plot else None,
         run_info=run_info,
     )
+
+    # 10. Mirror comparison reports to Google Drive if running in Colab
+    if active_profile == "colab" or Path("/content/drive/MyDrive/math-reasoning-llm").exists():
+        drive_reports = Path("/content/drive/MyDrive/math-reasoning-llm/reports")
+        try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            for rf in [json_path, md_path]:
+                if rf and Path(rf).exists():
+                    shutil.copy2(rf, drive_reports / Path(rf).name)
+            if has_plot and plot_file.exists():
+                shutil.copy2(plot_file, drive_reports / plot_file.name)
+            logger.info("Mirrored comparison reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror comparison reports to Drive: %s", exc)
 
     return {
         "round1": r1_metrics.to_dict(),
