@@ -39,6 +39,38 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("freeze_round2_dataset")
 
 
+def resolve_path(path: Path, profile: Optional[str] = None) -> Path:
+    """Resolve a file or directory path across local workspace, project root, and Colab Drive."""
+    if path.exists():
+        return path
+
+    if not path.is_absolute() and (PROJECT_ROOT / path).exists():
+        return PROJECT_ROOT / path
+
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        drive_root = mgr.get_profile_dir("outputs_dir", profile_name=active_profile).parent
+
+        # 1. Check relative to drive root
+        drive_candidate = drive_root / path
+        if drive_candidate.exists():
+            return drive_candidate
+
+        # 2. Check under drive data_dir if path starts with data/
+        if str(path).startswith("data"):
+            rel_parts = path.parts[1:] if len(path.parts) > 1 else ()
+            data_cand = mgr.get_profile_dir("data_dir", profile_name=active_profile).joinpath(*rel_parts)
+            if data_cand.exists():
+                return data_cand
+    except Exception:
+        pass
+
+    return path
+
+
 def prepare_sample_datasets(sample_dir: Path) -> Tuple[Path, Path]:
     """Create lightweight sample curated and targeted datasets for CI / testing."""
     sample_dir.mkdir(parents=True, exist_ok=True)
@@ -102,11 +134,23 @@ def run_freeze_round2_pipeline(
     sample_mode: bool = False,
     splits_dir: Optional[Path] = None,
     test_file: Optional[Path] = None,
+    profile: Optional[str] = None,
 ) -> Round2DatasetManifest:
     """Execute complete Round-2 dataset creation, safety verification, and freezing."""
-    out_dir = output_dir or (PROJECT_ROOT / "data" / "processed" / "sft_round2")
-    c_file = curated_file or (PROJECT_ROOT / "data" / "synthetic" / "curated" / "traces_curated_sft.jsonl")
-    t_file = targeted_file or (PROJECT_ROOT / "data" / "targeted" / "targeted_examples.jsonl")
+    out_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "data" / "processed" / "sft_round2")
+    if not out_dir.is_absolute():
+        out_dir = PROJECT_ROOT / out_dir
+
+    raw_c = curated_file or (PROJECT_ROOT / "data" / "synthetic" / "curated" / "traces_curated_sft.jsonl")
+    raw_t = targeted_file or (PROJECT_ROOT / "data" / "targeted" / "targeted_examples.jsonl")
+
+    c_file = resolve_path(Path(raw_c), profile=profile)
+    t_file = resolve_path(Path(raw_t), profile=profile)
+
+    if splits_dir:
+        splits_dir = resolve_path(Path(splits_dir), profile=profile)
+    if test_file:
+        test_file = resolve_path(Path(test_file), profile=profile)
 
     if sample_mode or not c_file.exists() or not t_file.exists():
         logger.info("Executing in sample/mock mode for Round-2 dataset freezing...")
@@ -120,6 +164,7 @@ def run_freeze_round2_pipeline(
     logger.info("Output Directory:    %s", out_dir)
     logger.info("Duplicate Targeted:  %s (2x representation)", duplicate_targeted)
     logger.info("Interleave Seed:     %d", seed)
+    logger.info("Profile:             %s", profile or "auto")
     logger.info("==================================================")
 
     jsonl_path, parquet_path, manifest = freeze_round2_dataset(
@@ -131,6 +176,31 @@ def run_freeze_round2_pipeline(
         splits_dir=splits_dir,
         test_file=test_file,
     )
+
+    # Mirror artifacts to Google Drive if in Colab environment
+    try:
+        from src.config import ConfigManager
+
+        mgr = ConfigManager()
+        active_profile = profile or ("colab" if Path("/content").exists() else "local")
+        if active_profile == "colab":
+            drive_root = mgr.get_profile_dir("outputs_dir", profile_name="colab").parent
+            drive_target_dir = drive_root / "data" / "processed" / "sft_round2"
+            drive_target_dir.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            for artifact_name in [
+                "train_round2.jsonl",
+                "train_round2.parquet",
+                "manifest.json",
+                "run_info.json",
+            ]:
+                src_f = out_dir / artifact_name
+                if src_f.exists():
+                    shutil.copy2(src_f, drive_target_dir / artifact_name)
+            logger.info("Mirrored Round-2 dataset artifacts to Drive at: %s", drive_target_dir)
+    except Exception as e:
+        logger.warning("Could not mirror Round-2 dataset artifacts to Drive: %s", e)
 
     # Print summary dashboard
     print("\n" + "=" * 65)
@@ -195,6 +265,12 @@ def main(args_list: Optional[List[str]] = None) -> int:
         help="Random seed for deterministic interleaving/shuffling (default: 42).",
     )
     parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Execution profile ('local' or 'colab').",
+    )
+    parser.add_argument(
         "--sample_mode",
         action="store_true",
         help="Run quickly on sample data for CI / development testing.",
@@ -230,6 +306,7 @@ def main(args_list: Optional[List[str]] = None) -> int:
             sample_mode=args.sample_mode,
             splits_dir=splits_dir,
             test_file=test_file,
+            profile=args.profile,
         )
         return 0
     except Exception as e:

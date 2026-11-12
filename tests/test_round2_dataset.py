@@ -204,6 +204,23 @@ class TestRound2Dataset(unittest.TestCase):
         self.assertTrue((cli_out_dir / "train_round2.parquet").exists())
         self.assertTrue((cli_out_dir / "manifest.json").exists())
 
+    def test_cli_runner_with_profile(self):
+        """Verify that CLI runner succeeds with exit code 0 when given --profile."""
+        cli_out_dir = self.test_dir / "cli_profile_out"
+        exit_code = cli_main([
+            "--sample_mode",
+            "--profile",
+            "local",
+            "--output_dir",
+            str(cli_out_dir),
+            "--duplicate_targeted",
+            "--seed",
+            "42",
+        ])
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((cli_out_dir / "train_round2.jsonl").exists())
+        self.assertTrue((cli_out_dir / "manifest.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

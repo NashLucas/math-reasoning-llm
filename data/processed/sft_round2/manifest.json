@@ -1,8 +1,8 @@
 {
   "dataset_file": "train_round2.jsonl",
   "parquet_file": "train_round2.parquet",
-  "sha256_jsonl": "c59e69b35b364a6dce208b72cc328f7e76fc8ecf7d4fdae18fc0a9f5fa9f31d0",
-  "sha256_parquet": "20b2a469800854519b924f25b39a2530209ab754820ba9d4b6b89b08bead08a9",
+  "sha256_jsonl": "015ff36bebd9e992482598f326803267060c628afb272c6b5677557b3e717695",
+  "sha256_parquet": "2c9929269c1670521752584ae1db02a931f6e9c931ff181ca7d9092f8c7cc4b7",
   "total_examples": 440,
   "curated_count": 400,
   "targeted_raw_count": 20,
@@ -17,15 +17,15 @@
     "targeted_error_mitigation": 40
   },
   "token_statistics": {
-    "min": 23,
+    "min": 22,
     "median": 57,
-    "mean": 57.2,
+    "mean": 56.75,
     "p95": 60,
-    "max": 115
+    "max": 128
   },
   "contamination_verified": true,
   "exact_matches_test": 0,
   "forbidden_id_leaks": 0,
   "frozen": true,
-  "created_at": "2026-11-04T04:41:54.678118+00:00"
+  "created_at": "2026-11-12T12:19:41.316741+00:00"
 }
