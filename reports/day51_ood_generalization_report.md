@@ -1,12 +1,12 @@
 # Phase 8 Day 51: Out-of-Distribution Mathematical Generalization Report
 
-- **Evaluation Timestamp:** `2026-11-05T03:33:40.690903+00:00`
+- **Evaluation Timestamp:** `2026-11-13T12:39:07.627848+00:00`
 - **Target Model:** `deepseek-ai/deepseek-math-7b-base`
 - **Advancing LoRA Adapter:** `outputs/grpo/adapter_model`
 - **Total OOD Problems Evaluated:** 25
 - **Overall Greedy Accuracy:** **100.0%** [100.0%, 100.0%]
 - **Answer Contract Adherence:** `100.0%`
-- **Mean Serving Latency:** `0.11 ms`
+- **Mean Serving Latency:** `0.12 ms`
 
 ---
 
@@ -28,7 +28,7 @@ problems spanning five reasoning archetypes:
 
 | Reasoning Archetype | Problem Count | Accuracy (%) | Answer Contract (%) | Mean Latency (ms) | Tokens / Problem |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Multi Rate Work** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
+| **Multi Rate Work** | 5 | **100.0%** | 100.0% | 0.2 ms | 59.0 tok |
 | **Linguistic Perturbation** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
 | **Compound Finance** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |
 | **Algebraic System** | 5 | **100.0%** | 100.0% | 0.1 ms | 59.0 tok |

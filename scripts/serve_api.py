@@ -42,18 +42,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8000, help="Network port (default: 8000)")
     parser.add_argument(
         "--adapter_path",
+        "--adapter-path",
+        dest="adapter_path",
         type=str,
         default="outputs/grpo/adapter_model",
         help="Path to post-GRPO policy adapter",
     )
     parser.add_argument(
         "--use_mock",
+        "--use-mock",
+        dest="use_mock",
         action="store_true",
         default=True,
         help="Use deterministic mock backend for local testing",
     )
     parser.add_argument(
         "--log_dir",
+        "--log-dir",
+        dest="log_dir",
         type=str,
         default="logs/production",
         help="Directory to save request traffic JSONL logs",

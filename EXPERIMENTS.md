@@ -4,6 +4,35 @@ This file tracks every experimental run, training phase, baseline evaluation, an
 
 ---
 
+## Run Entry: Phase 8 Day 51 — Production REST API & Out-of-Distribution Generalization
+
+- **Date:** 2026-11-13
+- **Run ID:** `ood_generalization-20261113_day51_rest_api_and_ood`
+- **Branch:** `main` / `phase-4-sft`
+- **Hardware / Platform:** Google Colab GPU (Tesla T4) & Local Workstation (Python 3.13)
+- **Hours & Compute Units:** ~0.1 GPU hours (REST API validation and zero-shot OOD evaluation)
+
+### Objectives & Implementation Scope
+1. **Production FastAPI Service (`app/api.py`, `scripts/serve_api.py`):**
+   - Implemented asynchronous REST endpoints: `/v1/predict` (single-query greedy, sampled, maj@k), `/v1/predict/batch` (concurrent multi-query), `/v1/health` (uptime, backend mode, adapter status), `/v1/metrics` (traffic, throughput, contract adherence rate), and `/v1/logs` (traffic log tail).
+   - Strict Pydantic v2 schemas and validation for request parameters and response serialization.
+2. **Containerization Packaging (`Dockerfile`, `docker-compose.yml`):**
+   - Authored multi-stage lightweight production `Dockerfile` with healthcheck probing and dual-port exposure (8000 for REST API, 7860 for Gradio Web UI).
+   - Configured `docker-compose.yml` defining isolated services with automatic restart policies and volume mounts for `logs/production/` and `reports/`.
+3. **Out-of-Distribution (OOD) Mathematical Generalization Suite (`src/evaluation/ood_evaluator.py`, `scripts/evaluate_ood.py`):**
+   - Curated 25 out-of-distribution reasoning challenges stratified across five archetypes:
+     1. *Multi-Rate & Combined Work:* Harmonic rate additions, joint fill/drain times.
+     2. *Linguistic & Structural Perturbations:* SVAMP-style distractors and reversed syntactic clauses.
+     3. *Compound Financial & Multi-Tier Percentages:* Sequential discounts, sales taxes, and shipping additions.
+     4. *Algebraic Systems in Natural Language:* Two-variable simultaneous linear constraint problems.
+     5. *Geometric & Spatial Arithmetic:* Area transformations, discrete tile packing, and volume scaling.
+   - Evaluated Post-GRPO Policy model transfer, observing 100.0% Answer Contract compliance (`\n#### <number>`) and perfect distractor resistance.
+4. **Deliverables & Deliverable Reports:**
+   - Reports: `reports/day51_ood_generalization_report.md`, `reports/day51_ood_generalization.json`.
+   - Tests: 14/14 unit tests passing in `tests/test_day51_api.py`.
+
+---
+
 ## Run Entry: Phase 7 Day 50 — Production Serving Verification & Release v1.0 Gate Certification
 
 - **Date:** 2026-11-13
