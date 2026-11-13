@@ -317,6 +317,24 @@ def main() -> int:
 
     logger.info(f"Saved audit reports to {report_md_path} and {report_json_path}")
 
+    # Mirror outputs and reports to Google Drive if running in Colab
+    drive_root = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_root.exists():
+        try:
+            drive_data = drive_root / "data" / "processed" / "grpo"
+            drive_reports = drive_root / "reports"
+            drive_data.mkdir(parents=True, exist_ok=True)
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(result["train_parquet_path"], drive_data / result["train_parquet_path"].name)
+            shutil.copy2(result["val_parquet_path"], drive_data / result["val_parquet_path"].name)
+            shutil.copy2(result["manifest_path"], drive_data / result["manifest_path"].name)
+            shutil.copy2(report_md_path, drive_reports / report_md_path.name)
+            shutil.copy2(report_json_path, drive_reports / report_json_path.name)
+            logger.info("Mirrored GRPO dataset and reports to Google Drive at: %s", drive_root)
+        except Exception as exc:
+            logger.warning("Could not mirror GRPO dataset to Drive: %s", exc)
+
     # Save Run Info
     save_run_info(
         stage="grpo_dataset_prep",

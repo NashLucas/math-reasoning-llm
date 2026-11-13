@@ -1,10 +1,11 @@
-"""Composite reward module."""
-from src.rewards.composite import *  # noqa: F401, F403
-from src.rewards.composite import (
+from src.rewards.composite import (  # noqa: F401
     CompositeGRPOReward,
     RewardBreakdown,
     compute_group_relative_advantages,
     load_reward_config,
+    trl_accuracy_reward_fn,
+    trl_format_reward_fn,
+    trl_reasoning_structure_reward_fn,
 )
 
 __all__ = [
@@ -12,4 +13,7 @@ __all__ = [
     "RewardBreakdown",
     "compute_group_relative_advantages",
     "load_reward_config",
+    "trl_accuracy_reward_fn",
+    "trl_format_reward_fn",
+    "trl_reasoning_structure_reward_fn",
 ]

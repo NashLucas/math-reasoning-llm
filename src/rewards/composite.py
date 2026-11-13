@@ -61,6 +61,18 @@ class RewardBreakdown:
     total_reward: float
     group_advantage: Optional[float] = None
 
+    @property
+    def accuracy(self) -> float:
+        return self.accuracy_reward
+
+    @property
+    def format(self) -> float:
+        return self.format_reward
+
+    @property
+    def reasoning_structure(self) -> float:
+        return self.reasoning_structure_reward
+
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
@@ -200,6 +212,20 @@ class CompositeGRPOReward:
             reasoning_structure_reward=round(struct_score, 4),
             length_penalty=round(len_pen, 4),
             total_reward=round(total, 4),
+        )
+
+    def score(
+        self,
+        question: str = "",
+        completion: str = "",
+        gold_answer: str = "",
+        problem_id: str = "sample",
+    ) -> RewardBreakdown:
+        """Alias for score_single supporting question and completion kwargs."""
+        return self.score_single(
+            completion=completion,
+            gold_answer=gold_answer,
+            problem_id=problem_id,
         )
 
     def score_batch(
