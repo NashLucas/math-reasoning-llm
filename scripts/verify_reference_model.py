@@ -350,6 +350,18 @@ def main() -> int:
 
     logger.info(f"Saved audit reports to {report_md_path} and {report_json_path}")
 
+    # Mirror reports to Google Drive if running in Colab with mounted Drive
+    drive_reports = Path("/content/drive/MyDrive/math-reasoning-llm/reports")
+    if drive_reports.parent.exists():
+        try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(report_json_path, drive_reports / report_json_path.name)
+            shutil.copy2(report_md_path, drive_reports / report_md_path.name)
+            logger.info("Mirrored Day 42 reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
     # 6. Save Run Info
     save_run_info(
         stage="reference_model_kl",

@@ -1,14 +1,14 @@
 {
-  "run_id": "grpo_reward_design-20261113_054105-phase_6_day_40_grpo_reward_verification_and_design",
-  "stage": "grpo_reward_design",
-  "timestamp_utc": "2026-11-13T05:41:05.769791+00:00",
-  "description": "Phase 6 Day 40 GRPO Reward Verification and Design",
+  "run_id": "reference_model_kl-20261113_062257-reference_model_management_&_kl_divergence_tracking_(phase_6_day_42)",
+  "stage": "reference_model_kl",
+  "timestamp_utc": "2026-11-13T06:22:57.862816+00:00",
+  "description": "Reference Model Management & KL Divergence Tracking (Phase 6 Day 42)",
   "git": {
-    "commit_hash": "4249900440ae9577818d6c063b7ff7734364f762",
-    "commit_short": "4249900",
+    "commit_hash": "51befe2209cfe189b48270b9f342e9d95e101e6f",
+    "commit_short": "51befe2",
     "branch": "main",
-    "is_dirty": false,
-    "warning": null
+    "is_dirty": true,
+    "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
   },
   "hardware": {
     "device": "cpu",
@@ -39,38 +39,13 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "reward_config": {
-      "weights": {
-        "accuracy": 1.0,
-        "correctness": 1.0,
-        "format": 0.5,
-        "quality": 0.2,
-        "reasoning_structure": 0.2,
-        "length_penalty": 0.1
-      },
-      "parameters": {
-        "group_size": 4,
-        "epsilon": 1e-08,
-        "max_completion_length": 512,
-        "min_reasoning_tokens": 5,
-        "strict_format_pattern": "(?:\\n|^)####\\s*(-?[0-9]+(?:\\.[0-9]+)?)\\s*$",
-        "allow_partial": false,
-        "partial_credit": 0.25,
-        "unparseable_penalty": 0.0
-      },
-      "repetition_penalty": {
-        "enabled": true,
-        "ngram_size": 8,
-        "max_ngram_repetition": 3,
-        "penalty_scale": 0.2
-      }
-    },
-    "benchmark_cases_count": 10,
-    "all_cases_passed": true,
-    "simulations_passed": true,
-    "reports": {
-      "markdown": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day40_reward_design.md",
-      "json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day40_reward_design.json"
-    }
+    "estimator": "k3",
+    "beta": 0.04,
+    "target_kl": 0.1,
+    "max_kl_threshold": 0.5,
+    "reports": [
+      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day42_reference_model_report.md",
+      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day42_reference_model_report.json"
+    ]
   }
 }

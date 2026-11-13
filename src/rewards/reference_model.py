@@ -345,10 +345,25 @@ class ReferenceModelManager:
                 trust_remote_code=True,
             )
 
-            if self.adapter_path and self.adapter_path.exists():
-                logger.info(f"Loading reference LoRA adapter from: {self.adapter_path}")
-                model = PeftModel.from_pretrained(base_model, str(self.adapter_path))
+            adapter_to_load = None
+            if self.adapter_path:
+                candidates = [
+                    self.adapter_path,
+                    PROJECT_ROOT / self.adapter_path,
+                    Path("/content/drive/MyDrive/math-reasoning-llm") / self.adapter_path,
+                    PROJECT_ROOT / "outputs" / "sft" / "adapter_model",
+                    Path("/content/drive/MyDrive/math-reasoning-llm/outputs/sft/adapter_model"),
+                ]
+                for cand in candidates:
+                    if cand.exists() and (cand / "adapter_config.json").exists():
+                        adapter_to_load = cand
+                        break
+
+            if adapter_to_load:
+                logger.info(f"Loading reference LoRA adapter from: {adapter_to_load}")
+                model = PeftModel.from_pretrained(base_model, str(adapter_to_load))
             else:
+                logger.info("No adapter weights found at candidate paths; using base model directly.")
                 model = base_model
 
             model.eval()
