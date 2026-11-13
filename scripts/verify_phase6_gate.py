@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
 from pathlib import Path
 
@@ -48,27 +49,42 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--reports_dir",
+        "--reports-dir",
+        dest="reports_dir",
         type=str,
         default="reports",
         help="Directory containing milestone audit reports (default: reports).",
     )
     parser.add_argument(
         "--dataset_dir",
+        "--dataset-dir",
+        dest="dataset_dir",
         type=str,
         default="data/processed/grpo",
         help="Directory containing GRPO dataset files and manifest.",
     )
     parser.add_argument(
         "--output_report",
+        "--output-report",
+        dest="output_report",
         type=str,
         default=None,
         help="Output path for Markdown gate report (default: reports/phase6_gate_report.md).",
     )
     parser.add_argument(
         "--summary_json",
+        "--summary-json",
+        dest="summary_json",
         type=str,
         default=None,
         help="Output path for summary JSON (default: reports/phase6_summary.json).",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="local",
+        choices=["local", "colab"],
+        help="Execution profile (default: local).",
     )
     return parser.parse_args()
 
@@ -118,6 +134,23 @@ def main() -> int:
         },
         description="Phase 6 Gate Verification & Release v0.7 Wrap-Up",
     )
+
+    # Mirror reports to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or getattr(args, "profile", None) == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            if out_md.exists():
+                shutil.copy2(out_md, drive_reports / out_md.name)
+            if out_json.exists():
+                shutil.copy2(out_json, drive_reports / out_json.name)
+            run_info_file = rep_dir / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Phase 6 Gate reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
 
     # Print summary table
     logger.info("========================================================================")

@@ -1,11 +1,11 @@
 {
-  "run_id": "grpo_eval-20261113_104019-phase_6_day_46:_post-grpo_greedy_vs._pass@k_evaluation",
-  "stage": "grpo_eval",
-  "timestamp_utc": "2026-11-13T10:40:19.927214+00:00",
-  "description": "Phase 6 Day 46: Post-GRPO Greedy vs. Pass@k Evaluation",
+  "run_id": "phase6_wrapup-20261113_105912-phase_6_gate_verification_&_release_v0.7_wrap-up",
+  "stage": "phase6_wrapup",
+  "timestamp_utc": "2026-11-13T10:59:12.656884+00:00",
+  "description": "Phase 6 Gate Verification & Release v0.7 Wrap-Up",
   "git": {
-    "commit_hash": "094e448f814bf424fce0786a4b6654d83d5bea51",
-    "commit_short": "094e448",
+    "commit_hash": "bf5dff1bd5dbeedc6d324980d51477d0432d99f1",
+    "commit_short": "bf5dff1",
     "branch": "main",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
@@ -39,20 +39,11 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "base_model": "deepseek-ai/deepseek-math-7b-base",
-    "sft_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\sft_targeted\\adapter_model",
-    "grpo_adapter": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\grpo\\adapter_model",
-    "split": "val_gating",
-    "limit": 10,
-    "num_samples": 8,
-    "backend": "auto",
-    "use_mock": true,
-    "gate_verdict": "PASSED",
-    "greedy_accuracy_sft": 1.0,
-    "greedy_accuracy_grpo": 1.0,
-    "pass_at_8_sft": 1.0,
-    "pass_at_8_grpo": 1.0,
-    "mean_reward_sft": 1.25,
-    "mean_reward_grpo": 1.4
+    "verdict": "PASSED",
+    "all_passed": true,
+    "release_tag": "v0.7",
+    "advancing_adapter": "outputs/grpo/adapter_model",
+    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase6_gate_report.md",
+    "summary_json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase6_summary.json"
   }
 }

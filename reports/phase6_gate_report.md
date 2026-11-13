@@ -1,6 +1,6 @@
 # Phase 6 Gate Verification & Release v0.7 Wrap-Up Report
 
-- **Date / Timestamp (UTC):** 2026-11-04T13:45:44.975725+00:00
+- **Date / Timestamp (UTC):** 2026-11-13T10:59:12.650458+00:00
 - **Overall Verdict:** **PASSED**
 - **Release Tag:** `v0.7`
 - **Base Model:** `deepseek-ai/deepseek-math-7b-base`
@@ -14,7 +14,7 @@ Phase 6 has successfully developed, verified, trained, and audited **Group Relat
 
 | Gate Criterion | Target Threshold | Observed Value | Status |
 |---|---|---|---|
-| **Reward Architecture & Advantage Normalization** | Accuracy (1.0), format (0.5), structure (0.2), length penalty (0.1) | Weights: {'accuracy': 1.0, 'format': 0.5, 'reasoning_structure': 0.2, 'length_penalty': 0.1} | **PASS** |
+| **Reward Architecture & Advantage Normalization** | Accuracy (1.0), format (0.5), structure (0.2), length penalty (0.1) | Weights: {'accuracy': 1.0, 'correctness': 1.0, 'format': 0.5, 'quality': 0.2, 'reasoning_structure': 0.2, 'length_penalty': 0.1} | **PASS** |
 | **Intermediate Dataset & Test-Set Wall** | 1,000 problems, [0.20, 0.80] pass rate, 0 test leaks, frozen manifest | 1000 problems, bounds=[0.2, 0.8], test_leaks=0, frozen=True | **PASS** |
 | **Reference Model & Schulman k3 KL** | disable_adapter() sharing, beta=0.04, non-negative k3 estimator | Estimator: k3, Safe: True, Completion valid: True | **PASS** |
 | **GRPO Engine & Zero-Advantage Invariance** | DeepSeekMath length-normalized clipped loss & zero-advantage invariance | Zero-advantage invariance: True, Clipping functional: True | **PASS** |
@@ -28,7 +28,7 @@ Phase 6 has successfully developed, verified, trained, and audited **Group Relat
 
 ### Day 40: Reward Architecture & Advantage Normalization [PASS]
 - **Threshold Requirement:** `Accuracy (1.0), format (0.5), structure (0.2), length penalty (0.1)`
-- **Observed Finding:** Weights: {'accuracy': 1.0, 'format': 0.5, 'reasoning_structure': 0.2, 'length_penalty': 0.1}
+- **Observed Finding:** Weights: {'accuracy': 1.0, 'correctness': 1.0, 'format': 0.5, 'quality': 0.2, 'reasoning_structure': 0.2, 'length_penalty': 0.1}
 - **Audit Details:** Verified from day40_reward_design.json
 
 ### Day 41: Intermediate Dataset & Test-Set Wall [PASS]

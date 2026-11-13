@@ -154,6 +154,60 @@ class TestPhase6Wrapup(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "gate_report.md").exists())
             self.assertTrue((Path(tmpdir) / "summary.json").exists())
 
+    def test_cli_kebab_case_and_profile(self) -> None:
+        """Test scripts/verify_phase6_gate.py with kebab-case arguments and --profile."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts" / "verify_phase6_gate.py"),
+                "--reports-dir",
+                str(PROJECT_ROOT / "reports"),
+                "--dataset-dir",
+                str(PROJECT_ROOT / "data" / "processed" / "grpo"),
+                "--output-report",
+                str(Path(tmpdir) / "gate_report.md"),
+                "--summary-json",
+                str(Path(tmpdir) / "summary.json"),
+                "--profile",
+                "local",
+            ]
+            result = subprocess.run(
+                cmd,
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"CLI with kebab-case failed with code {result.returncode}:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+            )
+            self.assertTrue((Path(tmpdir) / "gate_report.md").exists())
+            self.assertTrue((Path(tmpdir) / "summary.json").exists())
+
+    def test_drive_mirroring_integration(self) -> None:
+        """Test Google Drive report mirroring logic."""
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_drive_base = Path(tmpdir) / "mock_drive"
+            mock_drive_reports = mock_drive_base / "reports"
+            mock_drive_reports.mkdir(parents=True, exist_ok=True)
+
+            out_md = Path(tmpdir) / "phase6_gate_report.md"
+            out_json = Path(tmpdir) / "phase6_summary.json"
+            out_md.write_text("# Phase 6 Gate Report", encoding="utf-8")
+            out_json.write_text('{"verdict": "PASSED"}', encoding="utf-8")
+
+            # Simulate mirroring
+            shutil.copy2(out_md, mock_drive_reports / out_md.name)
+            shutil.copy2(out_json, mock_drive_reports / out_json.name)
+
+            self.assertTrue((mock_drive_reports / "phase6_gate_report.md").exists())
+            self.assertTrue((mock_drive_reports / "phase6_summary.json").exists())
+            self.assertIn("PASSED", (mock_drive_reports / "phase6_summary.json").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

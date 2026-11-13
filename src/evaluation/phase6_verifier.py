@@ -28,6 +28,21 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 logger = logging.getLogger(__name__)
 
 
+def _resolve_report_path(rep_dir: Path, filename: str) -> Path:
+    """Resolve report file path with Google Drive and project root fallbacks."""
+    target = rep_dir / filename
+    if target.exists():
+        return target
+    drive_target = Path("/content/drive/MyDrive/math-reasoning-llm/reports") / filename
+    if drive_target.exists():
+        return drive_target
+    fallback_target = PROJECT_ROOT / "reports" / filename
+    if fallback_target.exists():
+        return fallback_target
+    return target
+
+
+
 @dataclass
 class GateCriterionStatus:
     """Status record for a single Phase 6 gate criterion."""
@@ -69,7 +84,7 @@ def verify_reward_and_advantages(
 ) -> GateCriterionStatus:
     """Verify Criterion 1: Reward architecture & group advantage normalization."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day40_reward_design.json"
+    json_path = _resolve_report_path(rep_dir, "day40_reward_design.json")
 
     if not json_path.exists():
         try:
@@ -177,7 +192,7 @@ def verify_reference_model_and_kl(
 ) -> GateCriterionStatus:
     """Verify Criterion 3: Reference model policy & Schulman k3 non-negative KL."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day42_reference_model_report.json"
+    json_path = _resolve_report_path(rep_dir, "day42_reference_model_report.json")
 
     if not json_path.exists():
         try:
@@ -236,7 +251,7 @@ def verify_grpo_engine_and_invariance(
 ) -> GateCriterionStatus:
     """Verify Criterion 4: GRPO rollout generation & policy update engine."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day43_grpo_engine_report.json"
+    json_path = _resolve_report_path(rep_dir, "day43_grpo_engine_report.json")
 
     if not json_path.exists():
         try:
@@ -295,7 +310,7 @@ def verify_smoke_test_and_vram(
 ) -> GateCriterionStatus:
     """Verify Criterion 5: 6-stage pre-flight integration smoke test & VRAM budget."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day44_grpo_smoke_test_report.json"
+    json_path = _resolve_report_path(rep_dir, "day44_grpo_smoke_test_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -340,7 +355,7 @@ def verify_training_execution_and_convergence(
 ) -> GateCriterionStatus:
     """Verify Criterion 6: Full GRPO post-training execution & convergence."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day45_grpo_training_report.json"
+    json_path = _resolve_report_path(rep_dir, "day45_grpo_training_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -386,7 +401,7 @@ def verify_post_grpo_evaluation_and_contract(
 ) -> GateCriterionStatus:
     """Verify Criterion 7: Post-GRPO comparative evaluation & Answer Contract preservation."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day46_grpo_evaluation_report.json"
+    json_path = _resolve_report_path(rep_dir, "day46_grpo_evaluation_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -457,7 +472,7 @@ def verify_all_phase6_gates(
     verdict = "PASSED" if all_passed else "FAILED"
 
     # Extract summary metrics from reports
-    d46_path = rep_dir / "day46_grpo_evaluation_report.json"
+    d46_path = _resolve_report_path(rep_dir, "day46_grpo_evaluation_report.json")
 
     metrics: Dict[str, Any] = {}
     if d46_path.exists():

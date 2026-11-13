@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-04T13:45:44.975725+00:00",
+  "timestamp": "2026-11-13T10:59:12.650458+00:00",
   "verdict": "PASSED",
   "all_passed": true,
   "release_tag": "v0.7",
@@ -11,7 +11,7 @@
       "name": "Reward Architecture & Advantage Normalization",
       "passed": true,
       "threshold": "Accuracy (1.0), format (0.5), structure (0.2), length penalty (0.1)",
-      "observed": "Weights: {'accuracy': 1.0, 'format': 0.5, 'reasoning_structure': 0.2, 'length_penalty': 0.1}",
+      "observed": "Weights: {'accuracy': 1.0, 'correctness': 1.0, 'format': 0.5, 'quality': 0.2, 'reasoning_structure': 0.2, 'length_penalty': 0.1}",
       "details": "Verified from day40_reward_design.json"
     },
     {
