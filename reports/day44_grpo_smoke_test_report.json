@@ -1,6 +1,6 @@
 {
   "milestone": "Phase 6 Day 44: Local Smoke Test & Verification Pipeline",
-  "date_utc": "2026-11-04T11:28:33.200779+00:00",
+  "date_utc": "2026-11-13T09:48:17.547647+00:00",
   "overall_status": "PASSED",
   "stages": {
     "stage1_config": {
@@ -40,7 +40,7 @@
     },
     "stage5_resumption": {
       "status": "PASSED",
-      "resumed_from": "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmp416pqexl\\checkpoints\\checkpoint-3",
+      "resumed_from": "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmpf7lcw9x9\\checkpoints\\checkpoint-3",
       "resumed_start_step": 3,
       "resumed_final_step": 6,
       "steps_executed_after_resume": 3,

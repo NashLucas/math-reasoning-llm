@@ -231,6 +231,26 @@ class TestGRPOSmokeTest(unittest.TestCase):
             self.assertTrue((rep_dir / "day44_grpo_smoke_test_report.md").exists())
             self.assertTrue((rep_dir / "day44_grpo_smoke_test_report.json").exists())
 
+    def test_cli_execution_with_flags(self):
+        """Verify CLI execution via subprocess supports --config and --report_dir."""
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            rep_dir = Path(tmp_dir_str) / "reports"
+            cmd = [
+                sys.executable,
+                "scripts/run_grpo_smoke_test.py",
+                "--sample_mode",
+                "--config",
+                "configs/grpo_args.json",
+                "--report_dir",
+                str(rep_dir),
+            ]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0, f"CLI failed:\nStdout: {proc.stdout}\nStderr: {proc.stderr}")
+            self.assertTrue((rep_dir / "day44_grpo_smoke_test_report.md").exists())
+            self.assertTrue((rep_dir / "day44_grpo_smoke_test_report.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

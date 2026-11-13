@@ -446,6 +446,18 @@ def run_full_smoke_test(
     # Generate Reports
     md_path, json_path = generate_smoke_test_reports(stage_results, rep_dir)
 
+    # Mirror reports to Google Drive if running in Colab with mounted Drive
+    drive_reports = Path("/content/drive/MyDrive/math-reasoning-llm/reports")
+    if drive_reports.parent.exists():
+        try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(json_path, drive_reports / json_path.name)
+            shutil.copy2(md_path, drive_reports / md_path.name)
+            logger.info("Mirrored Day 44 reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
     # Provenance tracking (Design Rule 5)
     save_run_info(
         stage="grpo_smoke_test",
@@ -468,8 +480,29 @@ def run_full_smoke_test(
 def main() -> int:
     """CLI Entrypoint."""
     parser = argparse.ArgumentParser(description="GRPO Local Smoke Test & Verification Pipeline")
-    parser.add_argument("--sample_mode", action="store_true", help="Allow fallback to sample dataset")
-    parser.add_argument("--reports_dir", type=str, default="reports", help="Reports directory")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=str(PROJECT_ROOT / "configs" / "grpo_args.json"),
+        help="Path to GRPO configuration JSON file.",
+    )
+    parser.add_argument(
+        "--sample_mode",
+        action="store_true",
+        help="Allow fallback to sample dataset",
+    )
+    parser.add_argument(
+        "--reports_dir",
+        "--reports-dir",
+        "--report_dir",
+        "--report-dir",
+        "--output_dir",
+        "--output-dir",
+        dest="reports_dir",
+        type=str,
+        default="reports",
+        help="Reports directory",
+    )
     args = parser.parse_args()
 
     return run_full_smoke_test(
