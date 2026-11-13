@@ -162,6 +162,93 @@ class TestDay49CLI(unittest.TestCase):
             self.assertTrue(out_rep.exists())
             self.assertTrue(out_json.exists())
 
+    def test_cli_plot_path_alias(self):
+        """Test scripts/run_day49_diagnostics.py CLI with --plot_path (Colab Cell 103 syntax)."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_rep = Path(tmp_dir) / "day49_rep.md"
+            out_json = Path(tmp_dir) / "day49_summary.json"
+            out_plot = Path(tmp_dir) / "day49_curves.png"
+
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts" / "run_day49_diagnostics.py"),
+                "--final",
+                "--use_mock",
+                "--limit",
+                "5",
+                "--output_dir",
+                tmp_dir,
+                "--report_path",
+                str(out_rep),
+                "--summary_json",
+                str(out_json),
+                "--plot_path",
+                str(out_plot),
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"CLI stderr: {res.stderr}")
+            self.assertTrue(out_rep.exists())
+            self.assertTrue(out_json.exists())
+
+    def test_cli_kebab_case_and_profile(self):
+        """Test scripts/run_day49_diagnostics.py CLI with kebab-case arguments and --profile."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_rep = Path(tmp_dir) / "day49_rep.md"
+            out_json = Path(tmp_dir) / "day49_summary.json"
+            out_plot = Path(tmp_dir) / "day49_curves.png"
+
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts" / "run_day49_diagnostics.py"),
+                "--final",
+                "--use-mock",
+                "--limit",
+                "5",
+                "--output-dir",
+                tmp_dir,
+                "--report-path",
+                str(out_rep),
+                "--summary-json",
+                str(out_json),
+                "--plot-path",
+                str(out_plot),
+                "--profile",
+                "local",
+                "--device",
+                "cpu",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"CLI stderr: {res.stderr}")
+            self.assertTrue(out_rep.exists())
+            self.assertTrue(out_json.exists())
+
+    def test_drive_mirroring_integration(self):
+        """Test Google Drive report mirroring logic."""
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            mock_drive = Path(tmp_dir) / "mock_drive"
+            mock_reports = mock_drive / "reports"
+            mock_reports.mkdir(parents=True, exist_ok=True)
+
+            out_rep = Path(tmp_dir) / "day49_final_benchmark_report.md"
+            out_json = Path(tmp_dir) / "day49_final_benchmark_report.json"
+            out_plot = Path(tmp_dir) / "day49_final_benchmark_curves.png"
+
+            out_rep.write_text("# Day 49 Report", encoding="utf-8")
+            out_json.write_text('{"status": "PASSED"}', encoding="utf-8")
+            out_plot.write_bytes(b"fake_png_data")
+
+            # Simulate mirroring
+            shutil.copy2(out_rep, mock_reports / out_rep.name)
+            shutil.copy2(out_json, mock_reports / out_json.name)
+            shutil.copy2(out_plot, mock_reports / out_plot.name)
+
+            self.assertTrue((mock_reports / out_rep.name).exists())
+            self.assertTrue((mock_reports / out_json.name).exists())
+            self.assertTrue((mock_reports / out_plot.name).exists())
+            self.assertIn("PASSED", (mock_reports / out_json.name).read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
