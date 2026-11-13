@@ -1,6 +1,6 @@
 # Phase 8 Day 52: Serving Engine High-Concurrency Load Stress Report
 
-- **Benchmark Timestamp:** `2026-11-05T03:50:51.208190+00:00`
+- **Benchmark Timestamp:** `2026-11-13T12:53:00.037256+00:00`
 - **Serving Backend:** `Deterministic Mock Engine`
 - **Total Queries Executed:** `40`
 - **Global Answer Contract Adherence:** `100.00%`
@@ -12,10 +12,10 @@
 
 | Concurrency (Workers) | Dispatched Queries | Queries/sec (QPS) | Streamed Tokens/sec | Mean Latency (ms) | p95 Latency (ms) | Contract Adherence (%) |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1** | 10 | **635.6** | **37503.2** | 0.11 ms | 0.16 ms | 100.0% |
-| **5** | 10 | **3577.0** | **211045.9** | 0.10 ms | 0.10 ms | 100.0% |
-| **10** | 10 | **4968.7** | **293153.1** | 0.10 ms | 0.10 ms | 100.0% |
-| **20** | 10 | **4893.1** | **288692.1** | 0.10 ms | 0.10 ms | 100.0% |
+| **1** | 10 | **523.3** | **30877.3** | 0.12 ms | 0.20 ms | 100.0% |
+| **5** | 10 | **2946.5** | **173841.3** | 0.11 ms | 0.19 ms | 100.0% |
+| **10** | 10 | **3633.7** | **214389.5** | 0.11 ms | 0.16 ms | 100.0% |
+| **20** | 10 | **5426.8** | **320182.3** | 0.10 ms | 0.10 ms | 100.0% |
 
 ---
 

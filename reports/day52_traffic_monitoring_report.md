@@ -1,10 +1,10 @@
 # Phase 8 Day 52: Production Traffic Observability & Drift Report
 
-- **Audit Timestamp:** `2026-11-05T03:50:02.100846+00:00`
+- **Audit Timestamp:** `2026-11-13T12:52:50.123224+00:00`
 - **Health & Drift Status:** **✅ ALL SYSTEMS NOMINAL**
-- **Total Analyzed Requests:** `20`
+- **Total Analyzed Requests:** `42`
 - **Answer Contract Compliance:** `100.00%`
-- **Latency Profile:** mean=`0.29 ms`, p50=`0.26 ms`, p95=`0.53 ms`, p99=`0.77 ms`
+- **Latency Profile:** mean=`0.24 ms`, p50=`0.20 ms`, p95=`0.50 ms`, p99=`0.77 ms`
 - **Token Footprint:** prompt=`35.0 tok`, completion=`147.5 tok`
 
 ---
@@ -13,8 +13,8 @@
 
 | Decoding Regime | Handled Request Count | Share (%) |
 | :--- | :---: | :---: |
-| `greedy` | 10 | `50.0%` |
-| `self_consistency` | 10 | `50.0%` |
+| `greedy` | 21 | `50.0%` |
+| `self_consistency` | 21 | `50.0%` |
 
 ---
 

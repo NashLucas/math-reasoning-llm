@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-05T03:49:27.625961+00:00",
+  "timestamp": "2026-11-13T12:52:37.778758+00:00",
   "base_model": "deepseek-ai/deepseek-math-7b-base",
   "adapter_path": "outputs/grpo/adapter_model",
   "profiles_evaluated": [
@@ -11,7 +11,7 @@
       "compression_ratio": 1.0,
       "accuracy": 1.0,
       "format_compliance": 1.0,
-      "mean_latency_ms": 0.15,
+      "mean_latency_ms": 0.11,
       "status": "CERTIFIED"
     },
     {

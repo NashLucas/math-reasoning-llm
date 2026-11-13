@@ -22,6 +22,7 @@ import argparse
 import concurrent.futures
 import json
 import logging
+import shutil
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -34,6 +35,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.run_info import save_run_info  # noqa: E402
 from src.serving.engine import ReasoningServingEngine, ServingConfig  # noqa: E402
 
 logging.basicConfig(
@@ -230,20 +232,48 @@ def generate_load_markdown_report(report: LoadBenchmarkReport, output_path: Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="High-concurrency load stress benchmarking CLI.")
-    parser.add_argument("--queries_per_tier", type=int, default=20, help="Number of queries to fire per concurrency tier")
-    parser.add_argument("--use_mock", action="store_true", default=True, help="Use mock serving engine")
+    parser = argparse.ArgumentParser(
+        description="High-concurrency load stress benchmarking CLI.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--queries_per_tier",
+        "--queries-per-tier",
+        dest="queries_per_tier",
+        type=int,
+        default=20,
+        help="Number of queries to fire per concurrency tier",
+    )
+    parser.add_argument(
+        "--use_mock",
+        "--use-mock",
+        dest="use_mock",
+        action="store_true",
+        default=True,
+        help="Use mock serving engine",
+    )
     parser.add_argument(
         "--output_report",
+        "--output-report",
+        dest="output_report",
         type=Path,
         default=PROJECT_ROOT / "reports" / "day52_load_stress_report.md",
         help="Path where markdown report will be written",
     )
     parser.add_argument(
         "--output_json",
+        "--output-json",
+        dest="output_json",
         type=Path,
         default=PROJECT_ROOT / "reports" / "day52_load_stress.json",
         help="Path where JSON summary will be written",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="auto",
+        choices=["local", "colab", "auto"],
+        help="Execution environment profile",
     )
     parser.add_argument("--quiet", action="store_true", help="Suppress console summary")
     return parser.parse_args()
@@ -252,24 +282,64 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
+    out_report = Path(args.output_report)
+    if not out_report.is_absolute():
+        out_report = PROJECT_ROOT / out_report
+
+    out_json = Path(args.output_json)
+    if not out_json.is_absolute():
+        out_json = PROJECT_ROOT / out_json
+
+    out_dir = out_report.parent
+
     logger.info("========================================================================")
     logger.info("PHASE 8 DAY 52: SERVING ENGINE HIGH-CONCURRENCY LOAD BENCHMARK")
     logger.info("========================================================================")
     logger.info("Queries per Tier: %d", args.queries_per_tier)
-    logger.info("Target Markdown:  %s", args.output_report)
-    logger.info("Target JSON:      %s", args.output_json)
+    logger.info("Target Markdown:  %s", out_report)
+    logger.info("Target JSON:      %s", out_json)
+    logger.info("Backend Mode:     %s", "Deterministic Mock" if args.use_mock else "CUDA GPU")
+    logger.info("Environment:      %s", args.profile)
     logger.info("========================================================================")
 
     try:
         report = run_load_stress_benchmark(
             queries_per_tier=args.queries_per_tier,
             use_mock=args.use_mock,
-            output_report_path=args.output_report,
-            output_json_path=args.output_json,
+            output_report_path=out_report,
+            output_json_path=out_json,
         )
     except Exception as err:
         logger.error("Load stress benchmark failed: %s", err, exc_info=True)
         return 1
+
+    # Record run provenance
+    try:
+        save_run_info(
+            stage="load_stress_benchmark",
+            output_dir=out_dir,
+            config=report.to_dict(),
+            description="Phase 8 Day 52 Serving Engine High-Concurrency Load Stress Benchmark",
+        )
+    except Exception as exc:
+        logger.warning("Could not save run_info: %s", exc)
+
+    # Mirror deliverables to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or args.profile == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            if out_report.exists():
+                shutil.copy2(out_report, drive_reports / out_report.name)
+            if out_json.exists():
+                shutil.copy2(out_json, drive_reports / out_json.name)
+            run_info_file = out_dir / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Day 52 load stress reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
 
     if not args.quiet:
         print("\n" + "=" * 80)
@@ -289,8 +359,8 @@ def main() -> int:
             )
         print("=" * 80)
         print("Reports Generated:")
-        print(f"  Markdown: {args.output_report}")
-        print(f"  JSON:     {args.output_json}")
+        print(f"  Markdown: {out_report}")
+        print(f"  JSON:     {out_json}")
         print("=" * 80 + "\n")
 
     return 0 if report.status == "PASSED" else 1
