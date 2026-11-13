@@ -311,6 +311,78 @@ class TestDay46Evaluation(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "reports" / "day46_grpo_evaluation_report.md").exists())
             self.assertTrue((Path(tmpdir) / "reports" / "day46_grpo_evaluation_report.json").exists())
 
+    def test_cli_execution_with_colab_flags(self) -> None:
+        """Test scripts/evaluate_grpo.py execution with Colab launcher style flags."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = Path(tmpdir) / "eval_out"
+            rep_dir = Path(tmpdir) / "reports"
+
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts" / "evaluate_grpo.py"),
+                "--base-model", "deepseek-ai/deepseek-math-7b-base",
+                "--sft-adapter", "outputs/sft_targeted/adapter_model",
+                "--grpo-adapter", "outputs/grpo/adapter_model",
+                "--val-split", "sample",
+                "--num-samples", "4",
+                "--limit", "2",
+                "--output-dir", str(out_dir),
+                "--reports-dir", str(rep_dir),
+                "--sample-mode",
+                "--force-mock",
+            ]
+            result = subprocess.run(
+                cmd,
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"CLI execution failed with code {result.returncode}:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+            )
+            self.assertTrue((rep_dir / "day46_grpo_evaluation_report.md").exists())
+            self.assertTrue((rep_dir / "day46_grpo_evaluation_report.json").exists())
+
+    def test_drive_mirroring_logic(self) -> None:
+        """Verify that reports are mirrored when Drive path is available."""
+        import unittest.mock as mock
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_drive_base = Path(tmpdir) / "drive" / "MyDrive" / "math-reasoning-llm"
+            mock_drive_base.mkdir(parents=True, exist_ok=True)
+            out_dir = Path(tmpdir) / "eval_out"
+            rep_dir = Path(tmpdir) / "reports"
+
+            from scripts.evaluate_grpo import parse_args, main
+            test_args = [
+                "evaluate_grpo.py",
+                "--sample_mode",
+                "--force_mock",
+                "--limit", "2",
+                "--val_split", "sample",
+                "--output_dir", str(out_dir),
+                "--reports_dir", str(rep_dir),
+                "--profile", "colab",
+            ]
+
+            with mock.patch("sys.argv", test_args):
+                with mock.patch("scripts.evaluate_grpo.Path") as mock_path_cls:
+                    orig_path = Path
+                    def fake_path(arg):
+                        if str(arg) == "/content/drive/MyDrive/math-reasoning-llm":
+                            return mock_drive_base
+                        return orig_path(arg)
+                    mock_path_cls.side_effect = fake_path
+
+                    ret = main()
+                    self.assertEqual(ret, 0)
+                    drive_rep = mock_drive_base / "reports"
+                    self.assertTrue((drive_rep / "day46_grpo_evaluation_report.md").exists())
+                    self.assertTrue((drive_rep / "day46_grpo_evaluation_report.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

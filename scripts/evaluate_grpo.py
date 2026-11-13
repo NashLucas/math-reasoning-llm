@@ -21,7 +21,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import shutil
 import sys
 from pathlib import Path
 
@@ -53,13 +55,23 @@ def ensure_adapter_path(
     allow_mock: bool = False,
 ) -> Path:
     """Resolve an adapter path, trying fallbacks, or create simulated adapter if in mock mode."""
-    if adapter_path.exists():
+    if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
         return adapter_path
 
+    # Check fallbacks
     for fb in fallback_paths:
-        if fb.exists():
+        if fb.exists() and (fb / "adapter_config.json").exists():
             logger.info("Found fallback %s adapter at: %s", label, fb)
             return fb
+
+    # Check Drive fallbacks if running in Colab
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists():
+        rel_path = adapter_path.relative_to(PROJECT_ROOT) if adapter_path.is_relative_to(PROJECT_ROOT) else Path(adapter_path.name)
+        drive_cand = drive_base / rel_path
+        if drive_cand.exists() and (drive_cand / "adapter_config.json").exists():
+            logger.info("Found Drive %s adapter at: %s", label, drive_cand)
+            return drive_cand
 
     if allow_mock:
         logger.warning("No existing %s adapter found at %s. Creating simulated adapter for mock evaluation.", label, adapter_path)
@@ -72,7 +84,6 @@ def ensure_adapter_path(
             "target_modules": ["q_proj", "v_proj"],
             "simulated": True,
         }
-        import json
         with open(adapter_path / "adapter_config.json", "w", encoding="utf-8") as f:
             json.dump(adapter_config, f, indent=2)
         return adapter_path
@@ -87,24 +98,28 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base_model",
+        "--base-model",
         type=str,
         default="deepseek-ai/deepseek-math-7b-base",
         help="Base model ID or path.",
     )
     parser.add_argument(
         "--sft_adapter",
+        "--sft-adapter",
         type=str,
         default="outputs/sft_targeted/adapter_model",
         help="Path to SFT baseline adapter (default: outputs/sft_targeted/adapter_model).",
     )
     parser.add_argument(
         "--grpo_adapter",
+        "--grpo-adapter",
         type=str,
         default="outputs/grpo/adapter_model",
         help="Path to GRPO policy adapter (default: outputs/grpo/adapter_model).",
     )
     parser.add_argument(
         "--val_split",
+        "--val-split",
         type=str,
         default="val_gating",
         choices=["val_gating", "val_analysis", "val", "sample"],
@@ -112,6 +127,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--num_samples",
+        "--num-samples",
         type=int,
         default=8,
         help="Number of candidate completions to sample per problem for pass@k (default: 8).",
@@ -131,25 +147,40 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample_mode",
+        "--sample-mode",
         action="store_true",
         help="Fast sample evaluation mode using mock generation and small subset.",
     )
     parser.add_argument(
         "--force_mock",
+        "--force-mock",
+        "--use_mock",
+        "--use-mock",
         action="store_true",
         help="Force deterministic mock generation even if GPU/PyTorch is available.",
     )
     parser.add_argument(
         "--output_dir",
+        "--output-dir",
         type=str,
         default="outputs/eval_grpo",
         help="Output directory for generation logs and evaluations.",
     )
     parser.add_argument(
         "--reports_dir",
+        "--reports-dir",
+        "--report_dir",
+        "--report-dir",
         type=str,
         default="reports",
         help="Directory to save audit reports and plots.",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        choices=["local", "colab"],
+        default=None,
+        help="Runtime profile (local or colab for Google Drive persistence).",
     )
     return parser.parse_args()
 
@@ -257,7 +288,24 @@ def main() -> int:
         description="Phase 6 Day 46: Post-GRPO Greedy vs. Pass@k Evaluation",
     )
 
-    # 5. Print Executive Summary
+    # 5. Mirror reports to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or drive_base.parent.exists() or getattr(args, "profile", None) == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(md_report, drive_reports / md_report.name)
+            shutil.copy2(json_report, drive_reports / json_report.name)
+            if plot_file.exists():
+                shutil.copy2(plot_file, drive_reports / plot_file.name)
+            run_info_file = rep_dir / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Day 46 evaluation reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
+    # 6. Print Executive Summary
     sft = comparison.sft_baseline
     grpo = comparison.grpo_policy
     logger.info("========================================================================")
