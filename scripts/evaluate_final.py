@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
 from typing import List
@@ -85,39 +86,65 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--bootstrap_resamples",
+        "--bootstrap-resamples",
+        dest="bootstrap_resamples",
         type=int,
         default=1000,
         help="Number of bootstrap resamples for 95% confidence intervals.",
     )
     parser.add_argument(
         "--use_mock",
+        "--use-mock",
+        dest="use_mock",
         action="store_true",
         default=False,
         help="Run using high-fidelity deterministic mock generator (no GPU weights needed).",
     )
     parser.add_argument(
         "--output_dir",
+        "--output-dir",
+        dest="output_dir",
         type=str,
         default="outputs/final_eval",
         help="Directory to save raw evaluation records and summaries.",
     )
     parser.add_argument(
         "--report_path",
+        "--report-path",
+        dest="report_path",
         type=str,
         default="reports/day48_evaluation_infrastructure_report.md",
         help="Destination markdown report path.",
     )
     parser.add_argument(
         "--summary_json",
+        "--summary-json",
+        dest="summary_json",
         type=str,
         default="reports/day48_evaluation_infrastructure_report.json",
         help="Destination summary JSON path.",
     )
     parser.add_argument(
         "--unfreeze_manifest",
+        "--unfreeze-manifest",
+        dest="unfreeze_manifest",
         type=str,
         default="reports/day48_test_unfreeze_manifest.json",
         help="Destination test unfreeze audit manifest path.",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="local",
+        choices=["local", "colab"],
+        help="Execution environment profile (default: local).",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        choices=["auto", "cuda", "cpu"],
+        help="Hardware execution device target (default: auto).",
     )
     return parser.parse_args()
 
@@ -202,7 +229,27 @@ def main() -> int:
     except Exception as exc:
         logger.warning(f"Failed to record run info: {exc}")
 
-    # 7. Print Console Summary
+    # 7. Mirror reports to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or getattr(args, "profile", None) == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            if rep_path.exists():
+                shutil.copy2(rep_path, drive_reports / rep_path.name)
+            if json_path.exists():
+                shutil.copy2(json_path, drive_reports / json_path.name)
+            unfreeze_file = Path(args.unfreeze_manifest)
+            if unfreeze_file.exists():
+                shutil.copy2(unfreeze_file, drive_reports / unfreeze_file.name)
+            run_info_file = Path(args.output_dir) / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Day 48 evaluation reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
+    # 8. Print Console Summary
     print("\n" + "=" * 80)
     print("FINAL BENCHMARK EVALUATION SUMMARY (GSM8K TEST SPLIT)")
     print("=" * 80)

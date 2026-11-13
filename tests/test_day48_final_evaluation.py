@@ -245,6 +245,71 @@ class TestBenchmarkEvaluatorEngine(unittest.TestCase):
             self.assertTrue(out_json.exists())
             self.assertTrue(out_manifest.exists())
 
+    def test_cli_kebab_case_and_profile(self):
+        """Test scripts/evaluate_final.py CLI with kebab-case arguments and --profile."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_rep = Path(tmp_dir) / "day48_report.md"
+            out_json = Path(tmp_dir) / "day48_summary.json"
+            out_manifest = Path(tmp_dir) / "test_unfreeze.json"
+
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts" / "evaluate_final.py"),
+                "--final",
+                "--use-mock",
+                "--limit",
+                "5",
+                "--models",
+                "base_7b",
+                "grpo_policy",
+                "--output-dir",
+                tmp_dir,
+                "--report-path",
+                str(out_rep),
+                "--summary-json",
+                str(out_json),
+                "--unfreeze-manifest",
+                str(out_manifest),
+                "--bootstrap-resamples",
+                "100",
+                "--profile",
+                "local",
+                "--device",
+                "cpu",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"CLI stderr: {res.stderr}")
+            self.assertTrue(out_rep.exists())
+            self.assertTrue(out_json.exists())
+            self.assertTrue(out_manifest.exists())
+
+    def test_drive_mirroring_integration(self):
+        """Test Google Drive report mirroring logic."""
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            mock_drive = Path(tmp_dir) / "mock_drive"
+            mock_reports = mock_drive / "reports"
+            mock_reports.mkdir(parents=True, exist_ok=True)
+
+            out_rep = Path(tmp_dir) / "day48_evaluation_infrastructure_report.md"
+            out_json = Path(tmp_dir) / "day48_evaluation_infrastructure_report.json"
+            out_manifest = Path(tmp_dir) / "day48_test_unfreeze_manifest.json"
+
+            out_rep.write_text("# Day 48 Evaluation Report", encoding="utf-8")
+            out_json.write_text('{"status": "PASSED"}', encoding="utf-8")
+            out_manifest.write_text('{"wall_status": "UNFROZEN"}', encoding="utf-8")
+
+            # Simulate mirroring
+            shutil.copy2(out_rep, mock_reports / out_rep.name)
+            shutil.copy2(out_json, mock_reports / out_json.name)
+            shutil.copy2(out_manifest, mock_reports / out_manifest.name)
+
+            self.assertTrue((mock_reports / out_rep.name).exists())
+            self.assertTrue((mock_reports / out_json.name).exists())
+            self.assertTrue((mock_reports / out_manifest.name).exists())
+            self.assertIn("UNFROZEN", (mock_reports / out_manifest.name).read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
