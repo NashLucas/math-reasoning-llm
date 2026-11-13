@@ -1,14 +1,14 @@
 {
-  "run_id": "phase6_wrapup-20261113_053052-phase_6_gate_verification_&_release_v0.7_wrap-up",
-  "stage": "phase6_wrapup",
-  "timestamp_utc": "2026-11-13T05:30:52.428531+00:00",
-  "description": "Phase 6 Gate Verification & Release v0.7 Wrap-Up",
+  "run_id": "grpo_reward_design-20261113_054105-phase_6_day_40_grpo_reward_verification_and_design",
+  "stage": "grpo_reward_design",
+  "timestamp_utc": "2026-11-13T05:41:05.769791+00:00",
+  "description": "Phase 6 Day 40 GRPO Reward Verification and Design",
   "git": {
-    "commit_hash": "b3bb8f1f135682848a5b32d1c31a2efdb2e59fe1",
-    "commit_short": "b3bb8f1",
+    "commit_hash": "4249900440ae9577818d6c063b7ff7734364f762",
+    "commit_short": "4249900",
     "branch": "main",
-    "is_dirty": true,
-    "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+    "is_dirty": false,
+    "warning": null
   },
   "hardware": {
     "device": "cpu",
@@ -39,11 +39,38 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "verdict": "PASSED",
-    "all_passed": true,
-    "release_tag": "v0.7",
-    "advancing_adapter": "outputs/grpo/adapter_model",
-    "report_file": "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmpdos87ugd\\gate_report.md",
-    "summary_json": "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmpdos87ugd\\summary.json"
+    "reward_config": {
+      "weights": {
+        "accuracy": 1.0,
+        "correctness": 1.0,
+        "format": 0.5,
+        "quality": 0.2,
+        "reasoning_structure": 0.2,
+        "length_penalty": 0.1
+      },
+      "parameters": {
+        "group_size": 4,
+        "epsilon": 1e-08,
+        "max_completion_length": 512,
+        "min_reasoning_tokens": 5,
+        "strict_format_pattern": "(?:\\n|^)####\\s*(-?[0-9]+(?:\\.[0-9]+)?)\\s*$",
+        "allow_partial": false,
+        "partial_credit": 0.25,
+        "unparseable_penalty": 0.0
+      },
+      "repetition_penalty": {
+        "enabled": true,
+        "ngram_size": 8,
+        "max_ngram_repetition": 3,
+        "penalty_scale": 0.2
+      }
+    },
+    "benchmark_cases_count": 10,
+    "all_cases_passed": true,
+    "simulations_passed": true,
+    "reports": {
+      "markdown": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day40_reward_design.md",
+      "json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day40_reward_design.json"
+    }
   }
 }
