@@ -266,3 +266,47 @@ class CompositeGRPOReward:
         golds = gold_answer or kwargs.get("answer") or kwargs.get("gold") or [""] * len(completions)
         breakdowns = self.score_batch(completions=completions, gold_answers=golds, normalize_advantages=False)
         return [b.total_reward for b in breakdowns]
+
+
+# TRL-compatible standalone function adapters
+def trl_accuracy_reward_fn(
+    prompts: Sequence[str],
+    completions: Sequence[str],
+    answer: Optional[Sequence[str]] = None,
+    gold_answer: Optional[Sequence[str]] = None,
+    **kwargs: Any,
+) -> List[float]:
+    """TRL GRPOTrainer-compatible reward function for answer accuracy."""
+    from src.rewards.grpo_rewards import trl_accuracy_reward_fn as _fn
+    return _fn(prompts=prompts, completions=completions, answer=answer, gold_answer=gold_answer, **kwargs)
+
+
+def trl_format_reward_fn(
+    prompts: Sequence[str],
+    completions: Sequence[str],
+    **kwargs: Any,
+) -> List[float]:
+    """TRL GRPOTrainer-compatible reward function for format compliance."""
+    from src.rewards.grpo_rewards import trl_format_reward_fn as _fn
+    return _fn(prompts=prompts, completions=completions, **kwargs)
+
+
+def trl_reasoning_structure_reward_fn(
+    prompts: Sequence[str],
+    completions: Sequence[str],
+    **kwargs: Any,
+) -> List[float]:
+    """TRL GRPOTrainer-compatible reward function for reasoning structure."""
+    from src.rewards.grpo_rewards import trl_reasoning_structure_reward_fn as _fn
+    return _fn(prompts=prompts, completions=completions, **kwargs)
+
+
+__all__ = [
+    "CompositeGRPOReward",
+    "RewardBreakdown",
+    "compute_group_relative_advantages",
+    "load_reward_config",
+    "trl_accuracy_reward_fn",
+    "trl_format_reward_fn",
+    "trl_reasoning_structure_reward_fn",
+]

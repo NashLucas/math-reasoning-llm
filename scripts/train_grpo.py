@@ -737,26 +737,36 @@ def run_grpo_training(
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="GRPO Training with LoRA and Automatic Resumption")
-    parser.add_argument("--config", type=str, default=None, help="Path to grpo_args.json")
-    parser.add_argument("--train_file", type=str, default=None, help="Path to training prompts parquet")
-    parser.add_argument("--val_file", type=str, default=None, help="Path to validation prompts parquet")
-    parser.add_argument("--output_dir", type=str, default=None, help="Checkpoints directory")
-    parser.add_argument("--adapter_dir", type=str, default=None, help="Final adapter directory")
-    parser.add_argument("--reports_dir", type=str, default="reports", help="Reports output directory")
-    parser.add_argument("--generations_dir", type=str, default=None, help="Validation generation logs directory")
-    parser.add_argument("--max_steps", type=int, default=None, help="Total training steps")
-    parser.add_argument("--eval_steps", type=int, default=None, help="Validation evaluation step interval")
-    parser.add_argument("--save_steps", type=int, default=None, help="Checkpoint save step interval")
-    parser.add_argument("--eval_limit", type=int, default=20, help="Max validation problems to evaluate")
-    parser.add_argument("--learning_rate", type=float, default=None, help="Policy learning rate")
+    parser.add_argument("--config", "--config_file", "--config-file", type=str, default=None, help="Path to grpo_args.json")
+    parser.add_argument("--train_file", "--train-file", type=str, default=None, help="Path to training prompts parquet")
+    parser.add_argument("--val_file", "--val-file", type=str, default=None, help="Path to validation prompts parquet")
+    parser.add_argument("--output_dir", "--output-dir", type=str, default=None, help="Checkpoints or output directory")
+    parser.add_argument(
+        "--checkpoints_dir",
+        "--checkpoints-dir",
+        "--checkpoint_dir",
+        "--checkpoint-dir",
+        type=str,
+        default=None,
+        help="Checkpoints output directory",
+    )
+    parser.add_argument("--adapter_dir", "--adapter-dir", type=str, default=None, help="Final adapter directory")
+    parser.add_argument("--reports_dir", "--reports-dir", "--report_dir", "--report-dir", type=str, default="reports", help="Reports output directory")
+    parser.add_argument("--generations_dir", "--generations-dir", type=str, default=None, help="Validation generation logs directory")
+    parser.add_argument("--max_steps", "--max-steps", type=int, default=None, help="Total training steps")
+    parser.add_argument("--eval_steps", "--eval-steps", type=int, default=None, help="Validation evaluation step interval")
+    parser.add_argument("--save_steps", "--save-steps", type=int, default=None, help="Checkpoint save step interval")
+    parser.add_argument("--eval_limit", "--eval-limit", type=int, default=20, help="Max validation problems to evaluate")
+    parser.add_argument("--learning_rate", "--learning-rate", type=float, default=None, help="Policy learning rate")
     parser.add_argument("--beta", type=float, default=None, help="KL penalty weight beta")
-    parser.add_argument("--clip_range", type=float, default=None, help="PPO/GRPO clipping range epsilon")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=None, help="Gradient accumulation steps")
-    parser.add_argument("--group_size", type=int, default=None, help="Number of rollouts per prompt (G)")
-    parser.add_argument("--smoke_test", action="store_true", help="Execute fast CPU smoke test")
-    parser.add_argument("--sample_mode", action="store_true", help="Allow fallback to sample datasets")
-    parser.add_argument("--use_mock", action="store_true", default=True, help="Use mock model generations")
-    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Checkpoint path or 'latest'")
+    parser.add_argument("--clip_range", "--clip-range", type=float, default=None, help="PPO/GRPO clipping range epsilon")
+    parser.add_argument("--gradient_accumulation_steps", "--gradient-accumulation-steps", type=int, default=None, help="Gradient accumulation steps")
+    parser.add_argument("--group_size", "--group-size", type=int, default=None, help="Number of rollouts per prompt (G)")
+    parser.add_argument("--smoke_test", "--smoke-test", action="store_true", help="Execute fast CPU smoke test")
+    parser.add_argument("--sample_mode", "--sample-mode", action="store_true", help="Allow fallback to sample datasets")
+    parser.add_argument("--use_mock", "--use-mock", dest="use_mock", action="store_true", default=True, help="Use mock model generations")
+    parser.add_argument("--no_mock", "--no-mock", dest="use_mock", action="store_false", help="Disable mock model generations")
+    parser.add_argument("--resume_from_checkpoint", "--resume-from-checkpoint", type=str, default=None, help="Checkpoint path or 'latest'")
     parser.add_argument("--seed", type=int, default=42, help="Reproducibility seed")
     return parser.parse_args()
 
@@ -765,12 +775,23 @@ def main() -> int:
     """CLI entrypoint."""
     args = parse_args()
     try:
+        # Resolve output / checkpoint directories
+        if args.checkpoints_dir is not None and args.output_dir is not None and args.adapter_dir is None:
+            actual_checkpoints_dir = args.checkpoints_dir
+            actual_adapter_dir = args.output_dir
+        elif args.checkpoints_dir is not None:
+            actual_checkpoints_dir = args.checkpoints_dir
+            actual_adapter_dir = args.adapter_dir
+        else:
+            actual_checkpoints_dir = args.output_dir
+            actual_adapter_dir = args.adapter_dir
+
         results = run_grpo_training(
             config_file=args.config,
             train_file=args.train_file,
             val_file=args.val_file,
-            output_dir=args.output_dir,
-            adapter_dir=args.adapter_dir,
+            output_dir=actual_checkpoints_dir,
+            adapter_dir=actual_adapter_dir,
             reports_dir=args.reports_dir,
             generations_dir=args.generations_dir,
             max_steps=args.max_steps,

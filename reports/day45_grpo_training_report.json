@@ -1,6 +1,6 @@
 {
   "milestone": "Phase 6 Day 45: GRPO Post-Training Execution & Convergence Diagnostics",
-  "date_utc": "2026-11-04T12:25:15.702365+00:00",
+  "date_utc": "2026-11-13T10:24:03.819396+00:00",
   "status": "success",
   "advancing_adapter": {
     "status": "VALID",
@@ -13,10 +13,10 @@
   },
   "diagnostics": {
     "status": "COMPUTED",
-    "total_steps": 5,
+    "total_steps": 10,
     "initial_total_loss": -0.0001,
-    "final_total_loss": 0.0004,
-    "loss_delta": 0.0004,
+    "final_total_loss": 0.0023,
+    "loss_delta": 0.0024,
     "initial_reward": 1.4,
     "final_reward": 1.4,
     "reward_delta": 0.0,
@@ -33,12 +33,13 @@
   },
   "training_summary": {
     "start_step": 0,
-    "final_step": 5,
-    "total_steps_executed": 5,
+    "final_step": 10,
+    "total_steps_executed": 10,
     "resumed_from": null,
     "checkpoints_saved": [
       "checkpoint-3",
-      "checkpoint-5"
+      "checkpoint-5",
+      "checkpoint-10"
     ],
     "adapter_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\grpo\\adapter_model"
   }

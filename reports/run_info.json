@@ -1,11 +1,11 @@
 {
-  "run_id": "grpo_smoke_test-20261113_094817-phase_6_day_44_grpo_local_smoke_test_&_verification_pipeline",
-  "stage": "grpo_smoke_test",
-  "timestamp_utc": "2026-11-13T09:48:17.551615+00:00",
-  "description": "Phase 6 Day 44 GRPO Local Smoke Test & Verification Pipeline",
+  "run_id": "grpo_training-20261113_102403-phase_6_day_45:_grpo_post-training_execution_(steps=10)",
+  "stage": "grpo_training",
+  "timestamp_utc": "2026-11-13T10:24:03.821501+00:00",
+  "description": "Phase 6 Day 45: GRPO Post-Training Execution (Steps=10)",
   "git": {
-    "commit_hash": "25579b60be0b52f6f5c8e7851813f63c2ed575f3",
-    "commit_short": "25579b6",
+    "commit_hash": "d667b3b923ca070b4ec7330c5ad035069fb71cd0",
+    "commit_short": "d667b3b",
     "branch": "main",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
@@ -39,14 +39,31 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "stages_verified": [
-      "stage1_config",
-      "stage2_data",
-      "stage3_and_4_training",
-      "stage5_resumption",
-      "stage6_memory"
-    ],
-    "overall_status": "PASSED",
-    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day44_grpo_smoke_test_report.md"
+    "max_steps": 10,
+    "final_loss": 0.0023,
+    "final_reward": 1.4,
+    "final_val_accuracy": 1.0,
+    "diagnostics": {
+      "status": "COMPUTED",
+      "total_steps": 10,
+      "initial_total_loss": -0.0001,
+      "final_total_loss": 0.0023,
+      "loss_delta": 0.0024,
+      "initial_reward": 1.4,
+      "final_reward": 1.4,
+      "reward_delta": 0.0,
+      "mean_kl_penalty": 0.0017,
+      "max_kl_penalty": 0.0017,
+      "kl_drift_status": "OPTIMAL_TARGET",
+      "mean_clip_fraction": 0.0,
+      "initial_val_accuracy": 1.0,
+      "final_val_accuracy": 1.0,
+      "val_accuracy_delta": 0.0,
+      "final_format_compliance": 1.0,
+      "format_compliance_status": "PERFECT",
+      "final_structure_score": 1.0
+    },
+    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day45_grpo_training_report.md",
+    "curves_plot": null
   }
 }

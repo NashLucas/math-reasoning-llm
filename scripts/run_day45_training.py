@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -368,6 +369,7 @@ def run_day45_grpo_training(
     train_file: Optional[Union[str, Path]] = None,
     val_file: Optional[Union[str, Path]] = None,
     output_dir: Optional[Union[str, Path]] = None,
+    checkpoints_dir: Optional[Union[str, Path]] = None,
     adapter_dir: Optional[Union[str, Path]] = None,
     reports_dir: Union[str, Path] = "reports",
     max_steps: Optional[int] = None,
@@ -378,6 +380,7 @@ def run_day45_grpo_training(
     use_mock: bool = True,
     resume_from_checkpoint: Optional[str] = None,
     seed: int = 42,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute complete Day 45 GRPO training and convergence diagnostics pipeline."""
     logger.info("=" * 72)
@@ -388,6 +391,17 @@ def run_day45_grpo_training(
     if not rep_dir.is_absolute():
         rep_dir = PROJECT_ROOT / rep_dir
     rep_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve checkpoints and adapter directories
+    if checkpoints_dir is not None and output_dir is not None and adapter_dir is None:
+        actual_checkpoints_dir = checkpoints_dir
+        actual_adapter_dir = output_dir
+    elif checkpoints_dir is not None:
+        actual_checkpoints_dir = checkpoints_dir
+        actual_adapter_dir = adapter_dir
+    else:
+        actual_checkpoints_dir = output_dir
+        actual_adapter_dir = adapter_dir
 
     # 1. Pre-flight verification of advancing adapter
     adapter_meta = verify_advancing_adapter()
@@ -408,8 +422,8 @@ def run_day45_grpo_training(
         config_file=config_file,
         train_file=train_file,
         val_file=val_file,
-        output_dir=output_dir,
-        adapter_dir=adapter_dir,
+        output_dir=actual_checkpoints_dir,
+        adapter_dir=actual_adapter_dir,
         reports_dir=reports_dir,
         max_steps=steps_to_run,
         eval_steps=ev_steps,
@@ -456,6 +470,35 @@ def run_day45_grpo_training(
         description=f"Phase 6 Day 45: GRPO Post-Training Execution (Steps={steps_to_run})",
     )
 
+    # 9. Mirror reports and adapter to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or drive_base.parent.exists() or profile == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(report_json, drive_reports / report_json.name)
+            shutil.copy2(report_md, drive_reports / report_md.name)
+            if has_plot and curves_path.exists():
+                shutil.copy2(curves_path, drive_reports / curves_path.name)
+            run_info_file = rep_dir / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Day 45 reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
+        try:
+            final_adapter_dir = Path(train_res.get("adapter_dir", ""))
+            if final_adapter_dir.exists():
+                drive_adapter = drive_base / "outputs" / "grpo" / "adapter_model"
+                drive_adapter.mkdir(parents=True, exist_ok=True)
+                for item in final_adapter_dir.glob("*"):
+                    if item.is_file():
+                        shutil.copy2(item, drive_adapter / item.name)
+                logger.info("Mirrored trained GRPO adapter model to Google Drive at: %s", drive_adapter)
+        except Exception as exc:
+            logger.warning("Could not mirror adapter model to Drive: %s", exc)
+
     print("\n" + "=" * 72)
     print("PHASE 6 DAY 45: GRPO POST-TRAINING EXECUTION COMPLETE")
     print("=" * 72)
@@ -482,21 +525,65 @@ def run_day45_grpo_training(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments."""
+    """Parse CLI arguments with support for common aliases."""
     parser = argparse.ArgumentParser(description="Phase 6 Day 45: GRPO Post-Training Execution")
-    parser.add_argument("--config", type=str, default=None, help="Path to grpo_args.json")
-    parser.add_argument("--train_file", type=str, default=None, help="Path to training prompts parquet")
-    parser.add_argument("--val_file", type=str, default=None, help="Path to validation prompts parquet")
-    parser.add_argument("--output_dir", type=str, default=None, help="Checkpoints directory")
-    parser.add_argument("--adapter_dir", type=str, default=None, help="Final adapter directory")
-    parser.add_argument("--reports_dir", type=str, default="reports", help="Reports directory")
-    parser.add_argument("--max_steps", type=int, default=None, help="Total training steps")
-    parser.add_argument("--eval_steps", type=int, default=None, help="Validation interval")
-    parser.add_argument("--save_steps", type=int, default=None, help="Checkpoint interval")
-    parser.add_argument("--eval_limit", type=int, default=20, help="Max validation problems to evaluate")
-    parser.add_argument("--sample_mode", action="store_true", help="Fallback to sample datasets")
-    parser.add_argument("--use_mock", action="store_true", default=True, help="Use mock model generation")
-    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Checkpoint to resume")
+    parser.add_argument("--config", "--config_file", "--config-file", type=str, default=None, help="Path to grpo_args.json")
+    parser.add_argument("--train_file", "--train-file", type=str, default=None, help="Path to training prompts parquet")
+    parser.add_argument("--val_file", "--val-file", type=str, default=None, help="Path to validation prompts parquet")
+    parser.add_argument("--output_dir", "--output-dir", type=str, default=None, help="Output or adapter directory")
+    parser.add_argument(
+        "--checkpoints_dir",
+        "--checkpoints-dir",
+        "--checkpoint_dir",
+        "--checkpoint-dir",
+        type=str,
+        default=None,
+        help="Checkpoints output directory",
+    )
+    parser.add_argument("--adapter_dir", "--adapter-dir", type=str, default=None, help="Final adapter directory")
+    parser.add_argument(
+        "--reports_dir",
+        "--reports-dir",
+        "--report_dir",
+        "--report-dir",
+        type=str,
+        default="reports",
+        help="Reports directory",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        choices=["local", "colab"],
+        default=None,
+        help="Runtime profile (local or colab for Google Drive persistence)",
+    )
+    parser.add_argument("--max_steps", "--max-steps", type=int, default=None, help="Total training steps")
+    parser.add_argument("--eval_steps", "--eval-steps", type=int, default=None, help="Validation interval")
+    parser.add_argument("--save_steps", "--save-steps", type=int, default=None, help="Checkpoint interval")
+    parser.add_argument("--eval_limit", "--eval-limit", type=int, default=20, help="Max validation problems to evaluate")
+    parser.add_argument("--sample_mode", "--sample-mode", action="store_true", help="Fallback to sample datasets")
+    parser.add_argument(
+        "--use_mock",
+        "--use-mock",
+        dest="use_mock",
+        action="store_true",
+        default=True,
+        help="Use mock model generation",
+    )
+    parser.add_argument(
+        "--no_mock",
+        "--no-mock",
+        dest="use_mock",
+        action="store_false",
+        help="Disable mock generation (use real GPU model)",
+    )
+    parser.add_argument(
+        "--resume_from_checkpoint",
+        "--resume-from-checkpoint",
+        type=str,
+        default=None,
+        help="Checkpoint to resume",
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     return parser.parse_args()
 
@@ -510,6 +597,7 @@ def main() -> int:
             train_file=args.train_file,
             val_file=args.val_file,
             output_dir=args.output_dir,
+            checkpoints_dir=args.checkpoints_dir,
             adapter_dir=args.adapter_dir,
             reports_dir=args.reports_dir,
             max_steps=args.max_steps,
@@ -520,6 +608,7 @@ def main() -> int:
             use_mock=args.use_mock,
             resume_from_checkpoint=args.resume_from_checkpoint,
             seed=args.seed,
+            profile=args.profile,
         )
         return 0
     except Exception as exc:

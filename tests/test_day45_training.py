@@ -187,6 +187,80 @@ class TestDay45Training(unittest.TestCase):
                 use_mock=True,
             )
 
+    def test_cli_execution_with_flags(self):
+        """Verify CLI execution via subprocess with Colab launcher style arguments."""
+        import subprocess
+        import sys
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            out_ckpt = tmp / "checkpoints"
+            out_adapter = tmp / "adapter"
+            out_rep = tmp / "reports"
+
+            cmd = [
+                sys.executable,
+                str(self.project_root / "scripts" / "run_day45_training.py"),
+                "--config", str(self.project_root / "configs" / "grpo_args.json"),
+                "--output_dir", str(out_adapter),
+                "--checkpoints_dir", str(out_ckpt),
+                "--reports_dir", str(out_rep),
+                "--max_steps", "2",
+                "--eval_steps", "2",
+                "--save_steps", "2",
+                "--sample_mode",
+                "--use_mock",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(self.project_root))
+            self.assertEqual(result.returncode, 0, f"CLI command failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+            self.assertTrue((out_rep / "day45_grpo_training_report.md").exists())
+            self.assertTrue((out_rep / "day45_grpo_training_report.json").exists())
+            self.assertTrue((out_adapter / "adapter_config.json").exists())
+            self.assertTrue((out_ckpt / "checkpoint-2").exists())
+
+    def test_drive_mirroring_logic(self):
+        """Verify that reports and adapter models are copied when Google Drive path is present."""
+        import unittest.mock as mock
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            mock_drive_base = tmp / "drive" / "MyDrive" / "math-reasoning-llm"
+            mock_drive_base.mkdir(parents=True, exist_ok=True)
+
+            out_ckpt = tmp / "checkpoints"
+            out_adapter = tmp / "adapter"
+            out_rep = tmp / "reports"
+
+            with mock.patch("scripts.run_day45_training.Path") as mock_path_cls:
+                # Let Path("/content/drive/MyDrive/math-reasoning-llm") redirect to mock_drive_base
+                orig_path = Path
+                def fake_path(arg):
+                    if str(arg) == "/content/drive/MyDrive/math-reasoning-llm":
+                        return mock_drive_base
+                    return orig_path(arg)
+                mock_path_cls.side_effect = fake_path
+
+                res = run_day45_grpo_training(
+                    output_dir=out_ckpt,
+                    adapter_dir=out_adapter,
+                    reports_dir=out_rep,
+                    max_steps=2,
+                    eval_steps=2,
+                    save_steps=2,
+                    sample_mode=True,
+                    use_mock=True,
+                    profile="colab",
+                )
+
+                self.assertEqual(res["status"], "success")
+                # Verify Drive reports mirrored
+                drive_rep = mock_drive_base / "reports"
+                self.assertTrue((drive_rep / "day45_grpo_training_report.md").exists())
+                self.assertTrue((drive_rep / "day45_grpo_training_report.json").exists())
+                # Verify Drive adapter mirrored
+                drive_adapter = mock_drive_base / "outputs" / "grpo" / "adapter_model"
+                self.assertTrue((drive_adapter / "adapter_config.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
