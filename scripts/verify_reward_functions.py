@@ -126,6 +126,26 @@ BENCHMARK_CASES = [
         "expected_format": 0.0,
         "expected_structure": 0.0,
     },
+    {
+        "case_id": "close_numerical_slip",
+        "description": "Multi-step reasoning ending in close answer (71 vs 72) off by 1 slip",
+        "question": "Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell in April and May altogether?",
+        "gold_answer": "72",
+        "completion": "In April, Natalia sold 48 clips. In May, she sold half as many clips, which is 24. 48 + 24 = 71.\n#### 71",
+        "expected_accuracy": 0.0,
+        "expected_format": 1.0,
+        "expected_structure": 1.0,
+    },
+    {
+        "case_id": "unparseable_rambling",
+        "description": "Unparseable rambling text without mathematical operations or canonical format",
+        "question": "Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell in April and May altogether?",
+        "gold_answer": "72",
+        "completion": "Clips are great items to give to friends during spring and summer months.",
+        "expected_accuracy": 0.0,
+        "expected_format": 0.0,
+        "expected_structure": 0.0,
+    },
 ]
 
 
@@ -317,6 +337,19 @@ def generate_day40_reports(
     md_path.write_text("\n".join(lines), encoding="utf-8")
     logger.info("Saved Day 40 JSON report to %s", json_path)
     logger.info("Saved Day 40 Markdown report to %s", md_path)
+
+    # Mirror reports to Google Drive if running in Colab with mounted Drive
+    drive_reports = Path("/content/drive/MyDrive/math-reasoning-llm/reports")
+    if drive_reports.parent.exists():
+        try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(json_path, drive_reports / json_path.name)
+            shutil.copy2(md_path, drive_reports / md_path.name)
+            logger.info("Mirrored Day 40 reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
     return md_path, json_path
 
 

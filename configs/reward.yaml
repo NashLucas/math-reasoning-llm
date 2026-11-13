@@ -3,7 +3,9 @@
 
 weights:
   accuracy: 1.0           # Primary mathematical correctness objective
+  correctness: 1.0        # Synonymous with accuracy
   format: 0.5             # Canonical Answer Contract enforcement (\n#### <number>)
+  quality: 0.2            # Visible reasoning steps and structural derivation
   reasoning_structure: 0.2 # Preceding derivation steps to prevent answer guessing/hacking
   length_penalty: 0.1     # Penalization for rambling or degenerate repetition
 
@@ -13,6 +15,9 @@ parameters:
   max_completion_length: 512
   min_reasoning_tokens: 5 # Minimum tokens preceding answer required for structure reward
   strict_format_pattern: '(?:\n|^)####\s*(-?[0-9]+(?:\.[0-9]+)?)\s*$'
+  allow_partial: false    # By default strict binary, can be enabled for partial near-miss credit
+  partial_credit: 0.25    # Partial credit for close answers within numerical tolerance
+  unparseable_penalty: 0.0 # Penalty deduction for completions where no answer can be parsed
 
 repetition_penalty:
   enabled: true

@@ -6,7 +6,9 @@
   "reward_configuration": {
     "weights": {
       "accuracy": 1.0,
+      "correctness": 1.0,
       "format": 0.5,
+      "quality": 0.2,
       "reasoning_structure": 0.2,
       "length_penalty": 0.1
     },
@@ -15,7 +17,10 @@
       "epsilon": 1e-08,
       "max_completion_length": 512,
       "min_reasoning_tokens": 5,
-      "strict_format_pattern": "(?:\\n|^)####\\s*(-?[0-9]+(?:\\.[0-9]+)?)\\s*$"
+      "strict_format_pattern": "(?:\\n|^)####\\s*(-?[0-9]+(?:\\.[0-9]+)?)\\s*$",
+      "allow_partial": false,
+      "partial_credit": 0.25,
+      "unparseable_penalty": 0.0
     },
     "repetition_penalty": {
       "enabled": true,
@@ -118,7 +123,7 @@
       "format_reward": 1.0,
       "reasoning_structure_reward": 1.0,
       "length_penalty": 1.0,
-      "total_reward": 1.5999999999999999,
+      "total_reward": 1.6,
       "accuracy_matches_expected": true,
       "format_matches_expected": true,
       "structure_matches_expected": true
@@ -126,6 +131,34 @@
     {
       "case_id": "empty_completion",
       "description": "Empty response",
+      "gold_answer": "72",
+      "extracted_answer": null,
+      "accuracy_reward": 0.0,
+      "format_reward": 0.0,
+      "reasoning_structure_reward": 0.0,
+      "length_penalty": 0.0,
+      "total_reward": 0.0,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "close_numerical_slip",
+      "description": "Multi-step reasoning ending in close answer (71 vs 72) off by 1 slip",
+      "gold_answer": "72",
+      "extracted_answer": "71",
+      "accuracy_reward": 0.0,
+      "format_reward": 1.0,
+      "reasoning_structure_reward": 1.0,
+      "length_penalty": 0.0,
+      "total_reward": 0.7,
+      "accuracy_matches_expected": true,
+      "format_matches_expected": true,
+      "structure_matches_expected": true
+    },
+    {
+      "case_id": "unparseable_rambling",
+      "description": "Unparseable rambling text without mathematical operations or canonical format",
       "gold_answer": "72",
       "extracted_answer": null,
       "accuracy_reward": 0.0,

@@ -33,6 +33,8 @@ $$R(q, o, y^*) = w_{\text{acc}} \cdot R_{\text{acc}} + w_{\text{fmt}} \cdot R_{\
 | `truncated_completion` | Incomplete derivation truncated before reaching a conclusion | `0.0` | `0.0` | `1.0` | `0.00` | **`0.20`** |
 | `degenerate_repetition` | Looping repetitive text penalized by length and n-gram penalty | `1.0` | `1.0` | `1.0` | `1.00` | **`1.60`** |
 | `empty_completion` | Empty response | `0.0` | `0.0` | `0.0` | `0.00` | **`0.00`** |
+| `close_numerical_slip` | Multi-step reasoning ending in close answer (71 vs 72) off by 1 slip | `0.0` | `1.0` | `1.0` | `0.00` | **`0.70`** |
+| `unparseable_rambling` | Unparseable rambling text without mathematical operations or canonical format | `0.0` | `0.0` | `0.0` | `0.00` | **`0.00`** |
 
 ### Key Safeguards Confirmed
 1. **Anti-Hacking Safeguard (Guess Hacking):** A model guessing `#### 72` with no derivation receives $R_{\text{struct}} = 0.0$, yielding `1.50` vs `1.70` for reasoned derivation.

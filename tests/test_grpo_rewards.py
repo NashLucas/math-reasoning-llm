@@ -194,6 +194,63 @@ class TestGRPORewardFunctions(unittest.TestCase):
             self.assertTrue((out_dir / "day40_reward_design.json").exists())
             self.assertTrue((out_dir / "day40_reward_design.md").exists())
 
+    def test_correctness_module_partial_and_penalty(self):
+        """Test rewards/correctness.py partial credit for close answer and unparseable penalty."""
+        from src.rewards.correctness import score_correctness
+
+        # Exact match -> 1.0
+        score, ext = score_correctness("Step: 24 + 48 = 72\n#### 72", gold_answer="72")
+        self.assertEqual(score, 1.0)
+        self.assertEqual(ext, "72")
+
+        # Close answer (slip by 1) with allow_partial=True -> partial_credit
+        score_close, _ = score_correctness(
+            "Step: 24 + 48 = 71\n#### 71",
+            gold_answer="72",
+            allow_partial=True,
+            partial_credit=0.35,
+        )
+        self.assertEqual(score_close, 0.35)
+
+        # Unparseable text with unparseable_penalty -> penalty
+        score_unparseable, ext_none = score_correctness(
+            "Just gibberish with no number",
+            gold_answer="72",
+            unparseable_penalty=-0.5,
+        )
+        self.assertEqual(score_unparseable, -0.5)
+        self.assertIsNone(ext_none)
+
+    def test_top_level_rewards_package_imports(self):
+        """Test importing from top-level rewards package."""
+        import rewards
+        import rewards.composite
+        import rewards.correctness
+        import rewards.format
+        import rewards.quality
+
+        self.assertTrue(hasattr(rewards, "CompositeGRPOReward"))
+        self.assertTrue(hasattr(rewards.correctness, "score_correctness"))
+        self.assertTrue(hasattr(rewards.format, "score_format"))
+        self.assertTrue(hasattr(rewards.quality, "score_reasoning_structure"))
+        self.assertTrue(hasattr(rewards.composite, "CompositeGRPOReward"))
+
+    def test_composite_scores_ten_sample_outputs(self):
+        """Verify composite reward scores at least 10 diverse sample outputs."""
+        from scripts.verify_reward_functions import BENCHMARK_CASES
+        self.assertGreaterEqual(len(BENCHMARK_CASES), 10)
+
+        composite = CompositeGRPOReward()
+        completions = [c["completion"] for c in BENCHMARK_CASES[:10]]
+        golds = [c["gold_answer"] for c in BENCHMARK_CASES[:10]]
+        pids = [c["case_id"] for c in BENCHMARK_CASES[:10]]
+
+        breakdowns = composite.score_batch(completions, golds, problem_ids=pids)
+        self.assertEqual(len(breakdowns), 10)
+        for b in breakdowns:
+            self.assertIsNotNone(b.total_reward)
+            self.assertIsNotNone(b.group_advantage)
+
 
 if __name__ == "__main__":
     unittest.main()

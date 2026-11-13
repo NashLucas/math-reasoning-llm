@@ -115,31 +115,39 @@ def get_gpu_info() -> Dict[str, Any]:
 
 
 def get_library_versions() -> Dict[str, str]:
-    """Inspect versions of all critical ML, data, and training libraries."""
-    tracked_packages = [
-        "torch",
-        "transformers",
-        "trl",
-        "peft",
-        "accelerate",
-        "datasets",
-        "vllm",
-        "sentence_transformers",
-        "sklearn",
-        "pandas",
-        "numpy",
-        "yaml",
-        "gradio",
-        "pytest",
-    ]
+    """Inspect versions of all critical ML, data, and training libraries without heavy imports."""
+    import importlib.metadata
+
+    pkg_dist_map = {
+        "torch": "torch",
+        "transformers": "transformers",
+        "trl": "trl",
+        "peft": "peft",
+        "accelerate": "accelerate",
+        "datasets": "datasets",
+        "vllm": "vllm",
+        "sentence_transformers": "sentence-transformers",
+        "sklearn": "scikit-learn",
+        "pandas": "pandas",
+        "numpy": "numpy",
+        "yaml": "pyyaml",
+        "gradio": "gradio",
+        "pytest": "pytest",
+    }
 
     versions: Dict[str, str] = {}
-    for pkg_name in tracked_packages:
+    for name, dist_name in pkg_dist_map.items():
         try:
-            mod = __import__(pkg_name)
-            versions[pkg_name] = getattr(mod, "__version__", "installed")
-        except ImportError:
-            versions[pkg_name] = "not_installed"
+            versions[name] = importlib.metadata.version(dist_name)
+        except Exception:
+            try:
+                mod = sys.modules.get(name)
+                if mod is not None and hasattr(mod, "__version__"):
+                    versions[name] = str(mod.__version__)
+                else:
+                    versions[name] = "not_installed"
+            except Exception:
+                versions[name] = "not_installed"
     return versions
 
 
