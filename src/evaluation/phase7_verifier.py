@@ -28,6 +28,36 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 logger = logging.getLogger(__name__)
 
 
+def _resolve_report_path(rep_dir: Path, filename: str) -> Path:
+    """Resolve report file path with Google Drive and project root fallbacks."""
+    target = rep_dir / filename
+    if target.exists():
+        return target
+    drive_target = Path("/content/drive/MyDrive/math-reasoning-llm/reports") / filename
+    if drive_target.exists():
+        return drive_target
+    fallback_target = PROJECT_ROOT / "reports" / filename
+    if fallback_target.exists():
+        return fallback_target
+    return target
+
+
+def _resolve_adapter_path(ad_dir: Optional[Union[str, Path]]) -> Path:
+    """Resolve adapter directory with Google Drive and project root fallbacks."""
+    default_dir = PROJECT_ROOT / "outputs" / "grpo" / "adapter_model"
+    target = Path(ad_dir) if ad_dir else default_dir
+    if target.exists() and (target / "adapter_config.json").exists():
+        return target
+    drive_target = Path("/content/drive/MyDrive/math-reasoning-llm/outputs/grpo/adapter_model")
+    if drive_target.exists() and (drive_target / "adapter_config.json").exists():
+        return drive_target
+    fallback_target = PROJECT_ROOT / "outputs" / "grpo" / "adapter_model"
+    if fallback_target.exists():
+        return fallback_target
+    return target
+
+
+
 @dataclass
 class GateCriterionStatus:
     """Status record for a single Phase 7 gate criterion."""
@@ -71,7 +101,7 @@ def verify_test_unfreezing(
 ) -> GateCriterionStatus:
     """Verify Criterion 1: Test-Set Wall unfreezing and cryptographic verification."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day48_test_unfreeze_manifest.json"
+    json_path = _resolve_report_path(rep_dir, "day48_test_unfreeze_manifest.json")
 
     if not json_path.exists():
         # Fallback to checking unfreeze function directly
@@ -124,7 +154,7 @@ def verify_benchmark_infrastructure(
 ) -> GateCriterionStatus:
     """Verify Criterion 2: Unified benchmark infrastructure and bootstrap regimes."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day48_evaluation_infrastructure_report.json"
+    json_path = _resolve_report_path(rep_dir, "day48_evaluation_infrastructure_report.json")
 
     if not json_path.exists():
         # Check evaluator module directly
@@ -181,7 +211,7 @@ def verify_complexity_stratification(
 ) -> GateCriterionStatus:
     """Verify Criterion 3: Problem complexity & reasoning step stratification."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day49_final_benchmark_report.json"
+    json_path = _resolve_report_path(rep_dir, "day49_final_benchmark_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -258,7 +288,7 @@ def verify_error_reduction_and_contract(
 ) -> GateCriterionStatus:
     """Verify Criterion 4: 7-category error reduction & Answer Contract adherence."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day49_final_benchmark_report.json"
+    json_path = _resolve_report_path(rep_dir, "day49_final_benchmark_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -303,7 +333,7 @@ def verify_post_grpo_superiority(
 ) -> GateCriterionStatus:
     """Verify Criterion 5: Empirical post-training superiority & statistical significance."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day49_final_benchmark_report.json"
+    json_path = _resolve_report_path(rep_dir, "day49_final_benchmark_report.json")
 
     if not json_path.exists():
         return GateCriterionStatus(
@@ -350,7 +380,7 @@ def verify_production_serving(
 ) -> GateCriterionStatus:
     """Verify Criterion 6: Production serving engine & interactive application."""
     rep_dir = Path(reports_dir) if reports_dir else (PROJECT_ROOT / "reports")
-    json_path = rep_dir / "day50_serving_verification.json"
+    json_path = _resolve_report_path(rep_dir, "day50_serving_verification.json")
 
     if not json_path.exists():
         # Fallback to programmatic smoke test check
@@ -404,7 +434,7 @@ def verify_release_packaging(
     adapter_dir: Optional[Union[str, Path]] = None,
 ) -> GateCriterionStatus:
     """Verify Criterion 7: Release v1.0 certification & final model packaging."""
-    ad_dir = Path(adapter_dir) if adapter_dir else (PROJECT_ROOT / "outputs" / "grpo" / "adapter_model")
+    ad_dir = _resolve_adapter_path(adapter_dir)
 
     adapter_ok = (
         ad_dir.exists()
@@ -445,7 +475,7 @@ def verify_all_phase7_gates(
 
     # Load summary benchmark metrics if available
     benchmark_metrics: Dict[str, Any] = {}
-    day49_path = rep_dir / "day49_final_benchmark_report.json"
+    day49_path = _resolve_report_path(rep_dir, "day49_final_benchmark_report.json")
     if day49_path.exists():
         try:
             with open(day49_path, "r", encoding="utf-8") as f:
@@ -463,7 +493,7 @@ def verify_all_phase7_gates(
 
     # Load serving metrics if available
     serving_metrics: Dict[str, Any] = {}
-    day50_path = rep_dir / "day50_serving_verification.json"
+    day50_path = _resolve_report_path(rep_dir, "day50_serving_verification.json")
     if day50_path.exists():
         try:
             with open(day50_path, "r", encoding="utf-8") as f:

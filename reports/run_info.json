@@ -1,11 +1,11 @@
 {
-  "run_id": "phase6_wrapup-20261113_105912-phase_6_gate_verification_&_release_v0.7_wrap-up",
-  "stage": "phase6_wrapup",
-  "timestamp_utc": "2026-11-13T10:59:12.656884+00:00",
-  "description": "Phase 6 Gate Verification & Release v0.7 Wrap-Up",
+  "run_id": "phase7_wrapup-20261113_122543-phase_7_gate_verification_&_release_v1.0_wrap-up",
+  "stage": "phase7_wrapup",
+  "timestamp_utc": "2026-11-13T12:25:43.906116+00:00",
+  "description": "Phase 7 Gate Verification & Release v1.0 Wrap-Up",
   "git": {
-    "commit_hash": "bf5dff1bd5dbeedc6d324980d51477d0432d99f1",
-    "commit_short": "bf5dff1",
+    "commit_hash": "2a0505aae4ce4aebf39c989efa248306f567c78c",
+    "commit_short": "2a0505a",
     "branch": "main",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
@@ -39,11 +39,77 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
+    "timestamp": "2026-11-13T12:25:43.900099+00:00",
     "verdict": "PASSED",
     "all_passed": true,
-    "release_tag": "v0.7",
+    "release_tag": "v1.0",
+    "phase": 7,
+    "base_model": "deepseek-ai/deepseek-math-7b-base",
     "advancing_adapter": "outputs/grpo/adapter_model",
-    "report_file": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase6_gate_report.md",
-    "summary_json": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\phase6_summary.json"
+    "criteria": [
+      {
+        "name": "Test-Set Wall Unfreezing & Cryptographic Integrity",
+        "passed": true,
+        "threshold": "Status=AUTHORIZED_AND_UNFROZEN, N=1,319 problems, zero contamination",
+        "observed": "Status=AUTHORIZED_AND_UNFROZEN, N=1319 problems",
+        "details": "Parquet SHA: 258742568eaa396b..."
+      },
+      {
+        "name": "Benchmark Infrastructure & Statistical Bootstrap Regimes",
+        "passed": true,
+        "threshold": ">=6 models evaluated across greedy, sampled, and self_consistency regimes",
+        "observed": "6 models evaluated across 3 regimes",
+        "details": "Models: DeepSeekMath-7B-Base, DeepSeekMath-7B-Instruct, DeepSeekMath-7B-RL, Ours: SFT Round 1..."
+      },
+      {
+        "name": "Problem Complexity & Reasoning Step Stratification",
+        "passed": true,
+        "threshold": "Partitioned tiers (T1, T2, T3) and GRPO > Base across all tiers",
+        "observed": "T1=697, T2=472, T3=150; GRPO wins all: True",
+        "details": "T1: 75.2%, T2: 79.7%, T3: 76.0%"
+      },
+      {
+        "name": "Error Taxonomy Reduction & Answer Contract Preservation",
+        "passed": true,
+        "threshold": ">=40.0% error reduction vs Base, >=98.0% format adherence",
+        "observed": "Error reduction: 42.0% (221 errors eliminated), Format: 100.0%",
+        "details": "Parse errors: 0, Contract compliance: 100.00%"
+      },
+      {
+        "name": "Empirical Post-Training Superiority & Statistical Significance",
+        "passed": true,
+        "threshold": "GRPO Greedy >=75.0%, Delta vs Base >=+15.0%, Delta vs SFT R2 >=+2.5%",
+        "observed": "GRPO Greedy: 76.9%, Delta(Base): +16.76%, Delta(SFT2): +3.18%",
+        "details": "pass@8: 90.3%, maj@8: 86.0%"
+      },
+      {
+        "name": "Production Serving Engine & Interactive Web Application",
+        "passed": true,
+        "threshold": "Operational audit PASSED, Format rate >= 98.0%, traffic logged",
+        "observed": "Verdict=PASSED, Requests=8, Format=100.0%",
+        "details": "Mean latency: 0.18ms"
+      },
+      {
+        "name": "Release v1.0 Certification & Model Lineage Packaging",
+        "passed": true,
+        "threshold": "Post-GRPO adapter present at outputs/grpo/adapter_model, complete documentation",
+        "observed": "Adapter present=True, EXPERIMENTS.md=True, README.md=True",
+        "details": "Advancing artifact: C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\grpo\\adapter_model"
+      }
+    ],
+    "benchmark_metrics": {
+      "greedy_accuracy": 0.7687642153146323,
+      "pass_at_8": 0.9029567854435178,
+      "maj_at_8": 0.8597422289613343,
+      "format_compliance": 1.0,
+      "token_efficiency": 188.55424063116368
+    },
+    "serving_metrics": {
+      "total_requests": 8,
+      "mean_latency_ms": 0.18,
+      "format_compliance_rate": 1.0,
+      "total_completion_tokens": 885
+    },
+    "run_info": null
   }
 }

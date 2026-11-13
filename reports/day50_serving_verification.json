@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-04T19:06:55.601281+00:00",
+  "timestamp": "2026-11-13T12:18:00.394701+00:00",
   "phase": 7,
   "day": 50,
   "stage": "serving_verification",
@@ -12,7 +12,7 @@
     "default_temperature": 0.7,
     "default_top_p": 0.95,
     "use_mock": true,
-    "log_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\production\\logs",
+    "log_dir": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\logs",
     "log_requests": true
   },
   "test_results": [
@@ -20,7 +20,7 @@
       "test_name": "Greedy Single Query",
       "regime": "greedy",
       "passed": true,
-      "latency_ms": 0.81,
+      "latency_ms": 0.28,
       "tokens_per_sec": 59000.0,
       "format_compliant": true,
       "extracted_answer": "42"
@@ -38,7 +38,7 @@
       "test_name": "Self-Consistency (maj@8)",
       "regime": "self_consistency",
       "passed": true,
-      "latency_ms": 0.13,
+      "latency_ms": 0.42,
       "tokens_per_sec": 472000.0,
       "format_compliant": true,
       "extracted_answer": "212",
@@ -50,20 +50,20 @@
       "regime": "greedy_batch",
       "passed": true,
       "batch_size": 5,
-      "total_elapsed_ms": 1.22,
-      "batch_throughput_tok_s": 242220.22,
+      "total_elapsed_ms": 6.29,
+      "batch_throughput_tok_s": 46870.78,
       "format_compliant_rate": 1.0
     },
     {
       "test_name": "Production Traffic Logger",
       "passed": true,
       "logged_requests": 8,
-      "log_file_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\outputs\\production\\logs\\requests.jsonl"
+      "log_file_path": "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\logs\\requests.jsonl"
     }
   ],
   "operational_stats": {
     "total_requests": 8,
-    "mean_latency_ms": 0.19,
+    "mean_latency_ms": 0.18,
     "format_compliance_rate": 1.0,
     "total_completion_tokens": 885
   }

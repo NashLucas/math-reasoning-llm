@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 import time
 from datetime import datetime, timezone
@@ -293,33 +294,58 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output_dir",
+        "--output-dir",
+        dest="output_dir",
         type=str,
-        default="outputs/production",
+        default="reports",
         help="Directory to save audit outputs and logs.",
     )
     parser.add_argument(
         "--report_path",
+        "--report-path",
+        dest="report_path",
         type=str,
-        default="reports/day50_serving_verification.md",
+        default=None,
         help="Path for Markdown audit report.",
     )
     parser.add_argument(
         "--summary_json",
+        "--summary-json",
+        dest="summary_json",
         type=str,
-        default="reports/day50_serving_verification.json",
+        default=None,
         help="Path for summary JSON.",
     )
     parser.add_argument(
+        "--num_trials",
+        "--num-trials",
+        dest="num_trials",
+        type=int,
+        default=3,
+        help="Number of query trials per decoding regime (default: 3).",
+    )
+    parser.add_argument(
         "--use_mock",
+        "--use-mock",
+        dest="use_mock",
         action="store_true",
         default=True,
         help="Use deterministic mock backend.",
     )
     parser.add_argument(
         "--adapter_path",
+        "--adapter-path",
+        dest="adapter_path",
         type=str,
         default="outputs/grpo/adapter_model",
         help="Path to post-GRPO policy adapter.",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="local",
+        choices=["local", "colab"],
+        help="Execution environment profile (default: local).",
     )
     return parser.parse_args()
 
@@ -331,11 +357,19 @@ def main() -> int:
     if not out_dir.is_absolute():
         out_dir = PROJECT_ROOT / out_dir
 
-    out_md = Path(args.report_path)
+    if args.report_path:
+        out_md = Path(args.report_path)
+    else:
+        out_md = out_dir / "day50_serving_verification.md" if out_dir.name == "reports" else PROJECT_ROOT / "reports" / "day50_serving_verification.md"
+
     if not out_md.is_absolute():
         out_md = PROJECT_ROOT / out_md
 
-    out_json = Path(args.summary_json)
+    if args.summary_json:
+        out_json = Path(args.summary_json)
+    else:
+        out_json = out_dir / "day50_serving_verification.json" if out_dir.name == "reports" else PROJECT_ROOT / "reports" / "day50_serving_verification.json"
+
     if not out_json.is_absolute():
         out_json = PROJECT_ROOT / out_json
 
@@ -345,6 +379,7 @@ def main() -> int:
     logger.info("Output Directory: %s", out_dir)
     logger.info("Report Path:      %s", out_md)
     logger.info("Summary JSON:     %s", out_json)
+    logger.info("Num Trials:       %d", args.num_trials)
     logger.info("Mock Backend:     %s", args.use_mock)
     logger.info("========================================================================")
 
@@ -367,6 +402,23 @@ def main() -> int:
         config=summary,
         description="Phase 7 Day 50 Serving Verification Audit",
     )
+
+    # Mirror reports to Google Drive if in Colab environment
+    drive_base = Path("/content/drive/MyDrive/math-reasoning-llm")
+    if drive_base.exists() or getattr(args, "profile", None) == "colab":
+        try:
+            drive_reports = drive_base / "reports"
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            if out_md.exists():
+                shutil.copy2(out_md, drive_reports / out_md.name)
+            if out_json.exists():
+                shutil.copy2(out_json, drive_reports / out_json.name)
+            run_info_file = out_dir / "run_info.json"
+            if run_info_file.exists():
+                shutil.copy2(run_info_file, drive_reports / run_info_file.name)
+            logger.info("Mirrored Day 50 serving reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
 
     logger.info("Saved serving verification JSON: %s", out_json)
     logger.info("Saved serving verification report: %s", out_md)
