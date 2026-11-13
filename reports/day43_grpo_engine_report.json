@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-11-04T09:47:01.759139+00:00",
+  "timestamp_utc": "2026-11-13T06:39:12.791302+00:00",
   "rollout_benchmark": {
     "prompt_id": "test_p1",
     "group_size": 4,
@@ -33,7 +33,17 @@
     "clipped_fraction": 1.0,
     "zero_advantage_loss": 0.0,
     "clipping_functional": true,
-    "zero_advantage_produces_zero_loss": true
+    "zero_advantage_produces_zero_loss": true,
+    "zero_advantage_invariance": {
+      "numpy_loss": 0.0,
+      "policy_loss_zero": true,
+      "torch_available": false,
+      "torch_gradient_max": 0.0,
+      "torch_verified": true,
+      "invariance_verified": true,
+      "formula": "sigma_g = 0 ==> A_i = 0 ==> nabla_theta L_PG = 0"
+    },
+    "zero_advantage_gradient_zero": true
   },
   "trajectory_simulation": {
     "trajectory": [

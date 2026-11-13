@@ -1,11 +1,11 @@
 {
-  "run_id": "reference_model_kl-20261113_062342-reference_model_management_&_kl_divergence_tracking_(phase_6_day_42)",
-  "stage": "reference_model_kl",
-  "timestamp_utc": "2026-11-13T06:23:42.772639+00:00",
-  "description": "Reference Model Management & KL Divergence Tracking (Phase 6 Day 42)",
+  "run_id": "grpo_engine-20261113_063912-grpo_rollout_generation_&_policy_update_engine_(phase_6_day_43)",
+  "stage": "grpo_engine",
+  "timestamp_utc": "2026-11-13T06:39:12.795402+00:00",
+  "description": "GRPO Rollout Generation & Policy Update Engine (Phase 6 Day 43)",
   "git": {
-    "commit_hash": "e7eec5ccc8bfe63952d16c6c707bd5370e4491e6",
-    "commit_short": "e7eec5c",
+    "commit_hash": "2babeb623a8832697bf237de3efa202bba48126e",
+    "commit_short": "2babeb6",
     "branch": "main",
     "is_dirty": true,
     "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
@@ -39,13 +39,13 @@
     "pytest": "not_installed"
   },
   "config_snapshot": {
-    "estimator": "k3",
+    "num_generations": 4,
+    "clip_range": 0.2,
     "beta": 0.04,
-    "target_kl": 0.1,
-    "max_kl_threshold": 0.5,
+    "learning_rate": 1e-06,
     "reports": [
-      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day42_reference_model_report.md",
-      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day42_reference_model_report.json"
+      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day43_grpo_engine_report.md",
+      "C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\day43_grpo_engine_report.json"
     ]
   }
 }

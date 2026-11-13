@@ -18,6 +18,16 @@ from src.training.grpo_engine import (
     GRPOTrainerEngine,
     compute_grpo_loss,
     load_grpo_engine_config,
+    verify_zero_advantage_invariance,
+)
+from grpo_trainer import (
+    MathGRPOTrainer,
+    accuracy_reward_func,
+    build_peft_config,
+    composite_reward_func,
+    format_reward_func,
+    reasoning_structure_reward_func,
+    resolve_starting_adapter,
 )
 
 
@@ -242,6 +252,92 @@ class TestGRPOEngine(unittest.TestCase):
                 self.assertIn("clipped_loss", data)
                 self.assertIn("trajectory_simulation", data)
                 self.assertEqual(data["trajectory_simulation"]["final_step"], 3)
+
+    def test_cli_execution_with_config_and_report_dir(self):
+        """Test Step 40 CLI signature with --config and --report_dir."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cmd = [
+                sys.executable,
+                "scripts/verify_grpo_engine.py",
+                "--config",
+                "configs/grpo_args.json",
+                "--report_dir",
+                str(Path(tmpdir)),
+                "--num_steps",
+                "2",
+            ]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0, f"CLI failed:\nStdout: {proc.stdout}\nStderr: {proc.stderr}")
+
+            md_path = Path(tmpdir) / "day43_grpo_engine_report.md"
+            json_path = Path(tmpdir) / "day43_grpo_engine_report.json"
+            self.assertTrue(md_path.exists())
+            self.assertTrue(json_path.exists())
+
+    def test_zero_advantage_invariance_function(self):
+        """Test verify_zero_advantage_invariance identity."""
+        res = verify_zero_advantage_invariance(group_size=4, seq_len=6, clip_range=0.2)
+        self.assertTrue(res["invariance_verified"])
+        self.assertTrue(res["policy_loss_zero"])
+        self.assertAlmostEqual(res["numpy_loss"], 0.0, places=10)
+
+    def test_grpo_trainer_module_components(self):
+        """Test root grpo_trainer.py components and reward functions."""
+        # Test reward adapters
+        prompts = ["What is 2+2?", "Solve 5*3"]
+        comps = ["Let's think.\n#### 4", "Wrong.\n#### 999"]
+        golds = ["4", "15"]
+
+        acc_rewards = accuracy_reward_func(prompts, comps, gold_answer=golds)
+        self.assertEqual(len(acc_rewards), 2)
+        self.assertEqual(acc_rewards[0], 1.0)
+        self.assertEqual(acc_rewards[1], 0.0)
+
+        fmt_rewards = format_reward_func(prompts, comps)
+        self.assertEqual(len(fmt_rewards), 2)
+        self.assertEqual(fmt_rewards[0], 1.0)
+        self.assertEqual(fmt_rewards[1], 1.0)
+
+        struct_rewards = reasoning_structure_reward_func(prompts, comps)
+        self.assertEqual(len(struct_rewards), 2)
+
+        comp_rewards = composite_reward_func(prompts, comps, gold_answer=golds)
+        self.assertEqual(len(comp_rewards), 2)
+        self.assertGreater(comp_rewards[0], comp_rewards[1])
+
+        # Test PEFT config builder
+        peft_cfg = build_peft_config(r=16, lora_alpha=32)
+        self.assertEqual(peft_cfg["r"], 16)
+        self.assertEqual(peft_cfg["peft_type"], "LORA")
+
+        # Test adapter resolver
+        resolved = resolve_starting_adapter()
+        # Even if none exists on disk, function should not crash and return Path or None
+        self.assertTrue(resolved is None or isinstance(resolved, Path))
+
+    def test_math_grpo_trainer_execution(self):
+        """Test MathGRPOTrainer execution in mock/smoke mode."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            out_dir = tmp_path / "checkpoints"
+            adapter_dir = tmp_path / "adapter_model"
+            rep_dir = tmp_path / "reports"
+
+            trainer = MathGRPOTrainer(use_mock=True)
+            res = trainer.train(
+                output_dir=out_dir,
+                adapter_dir=adapter_dir,
+                reports_dir=rep_dir,
+                max_steps=2,
+                eval_steps=1,
+                save_steps=2,
+                sample_mode=True,
+                smoke_test=True,
+            )
+
+            self.assertEqual(res["status"], "success")
+            self.assertEqual(res["final_step"], 2)
+            self.assertTrue(adapter_dir.exists())
 
 
 if __name__ == "__main__":

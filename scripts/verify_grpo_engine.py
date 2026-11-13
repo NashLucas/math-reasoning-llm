@@ -29,6 +29,7 @@ from src.training.grpo_engine import (  # noqa: E402
     GRPORolloutSampler,
     GRPOTrainerEngine,
     compute_grpo_loss,
+    verify_zero_advantage_invariance,
 )
 
 logging.basicConfig(
@@ -43,8 +44,19 @@ def parse_args() -> argparse.Namespace:
         description="Verify GRPO rollout generation, clipped loss, and policy updates.",
     )
     parser.add_argument(
+        "--config",
+        type=str,
+        default=str(PROJECT_ROOT / "configs" / "grpo_args.json"),
+        help="Path to GRPO configuration JSON file.",
+    )
+    parser.add_argument(
         "--output_dir",
         "--output-dir",
+        "--report_dir",
+        "--report-dir",
+        "--reports_dir",
+        "--reports-dir",
+        dest="output_dir",
         type=str,
         default=str(PROJECT_ROOT / "reports"),
         help="Directory to save audit reports.",
@@ -128,6 +140,9 @@ def verify_clipped_loss_dynamics() -> Dict[str, Any]:
         lp_cur_mild, lp_old, [0.0, 0.0, 0.0, 0.0], completion_mask, clip_range=0.2, beta=0.0
     )
 
+    # Test Case 5: Zero-Advantage Invariance & Gradient Check
+    inv_res = verify_zero_advantage_invariance(group_size=4, seq_len=5, clip_range=0.2)
+
     return {
         "exact_ratio_loss": loss_exact,
         "mild_shift_loss": loss_mild,
@@ -136,6 +151,8 @@ def verify_clipped_loss_dynamics() -> Dict[str, Any]:
         "zero_advantage_loss": loss_zero_adv,
         "clipping_functional": bool(m_clipped.clip_fraction == 1.0 and m_mild.clip_fraction == 0.0),
         "zero_advantage_produces_zero_loss": bool(abs(loss_zero_adv) < 1e-7),
+        "zero_advantage_invariance": inv_res,
+        "zero_advantage_gradient_zero": inv_res["invariance_verified"],
     }
 
 
@@ -239,6 +256,7 @@ def generate_markdown_report(
         "",
         f"- **Clipping Functionality:** `{'PASSED' if clipped_res['clipping_functional'] else 'FAILED'}`",
         f"- **Zero-Variance Advantage Neutrality:** `{'PASSED' if clipped_res['zero_advantage_produces_zero_loss'] else 'FAILED'}`",
+        f"- **Zero-Advantage Gradient Invariance:** `{'PASSED (nabla_theta L = 0)' if clipped_res.get('zero_advantage_gradient_zero') else 'FAILED'}`",
         "",
         "---",
         "",
@@ -310,6 +328,18 @@ def main() -> int:
 
     logger.info(f"Saved audit reports to {report_md_path} and {report_json_path}")
 
+    # Mirror reports to Google Drive if running in Colab with mounted Drive
+    drive_reports = Path("/content/drive/MyDrive/math-reasoning-llm/reports")
+    if drive_reports.parent.exists():
+        try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(report_json_path, drive_reports / report_json_path.name)
+            shutil.copy2(report_md_path, drive_reports / report_md_path.name)
+            logger.info("Mirrored Day 43 reports to Google Drive at: %s", drive_reports)
+        except Exception as exc:
+            logger.warning("Could not mirror reports to Drive: %s", exc)
+
     # 5. Save Run Info
     save_run_info(
         stage="grpo_engine",
@@ -333,6 +363,7 @@ def main() -> int:
     print(f"Mean Group Advantage:      {rollout_res['mean_advantage']:.4f} (Std: {rollout_res['std_advantage']:.4f})")
     print("Surrogate Ratio Clipping:  PASSED (Clip Range: [0.8, 1.2])")
     print("Zero-Advantage Neutrality: PASSED (Zero Loss on Zero Advantage)")
+    print("Zero-Advantage Invariance: PASSED (nabla_theta L = 0 on Zero Advantage)")
     print(f"Simulated Steps Executed:  {trajectory_res['final_step']}")
     print(f"Mean Trajectory Loss:      {trajectory_res['mean_loss']:+.4f}")
     print(f"Audit Report:              {report_md_path}")

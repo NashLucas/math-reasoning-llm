@@ -21,6 +21,7 @@ from src.training.grpo_engine import (
     compute_grpo_loss,
     compute_grpo_loss_torch,
     load_grpo_engine_config,
+    verify_zero_advantage_invariance,
 )
 from src.training.sft_trainer import (
     CompletionOnlyDataCollator,
@@ -52,4 +53,5 @@ __all__ = [
     "compute_grpo_loss",
     "compute_grpo_loss_torch",
     "load_grpo_engine_config",
+    "verify_zero_advantage_invariance",
 ]
