@@ -126,6 +126,101 @@ Rationale: Very solid derivation.
         alt_score = compute_overall_score(completeness=0.5, novelty=1.0, prompt_type="alternative_method")
         self.assertAlmostEqual(alt_score, 0.8)
 
+    def test_parse_judge_output_latex_boxed_and_prose_variants(self) -> None:
+        """Parser handles math-model LaTeX wrappers (\\boxed{}, $...$) and alternate separators."""
+        raw_boxed = (
+            "Evaluation:\n"
+            "- Completeness: \\boxed{0.85}\n"
+            "- Verification Quality: $0.75$\n"
+            "- Novelty: N/A\n"
+            "- Final Score: \\boxed{0.80}\n"
+            "- Rationale: Clear steps and reasonable verification."
+        )
+        score = parse_judge_output(raw_boxed, prompt_type="solve_then_verify")
+        self.assertEqual(score.parsing_status, "success")
+        self.assertAlmostEqual(score.completeness, 0.85)
+        self.assertAlmostEqual(score.verification_quality or 0.0, 0.75)
+        self.assertIsNone(score.novelty)
+        self.assertAlmostEqual(score.overall_score, 0.80)
+
+        raw_mixed_json = '{"Completeness": 0.9, "Verification Quality": "N/A", "Overall Score": 0.9, "Rationale": "Solid"}'
+        score_json = parse_judge_output(raw_mixed_json, prompt_type="chain_of_thought")
+        self.assertEqual(score_json.parsing_status, "success")
+        self.assertAlmostEqual(score_json.completeness, 0.9)
+        self.assertAlmostEqual(score_json.overall_score, 0.9)
+
+        raw_prose = "Completeness score is 0.70\nOverall Score - 0.70\nRationale: Slightly compressed."
+        score_prose = parse_judge_output(raw_prose, prompt_type="chain_of_thought")
+        self.assertEqual(score_prose.parsing_status, "success")
+        self.assertAlmostEqual(score_prose.completeness, 0.70)
+
+    def test_truncate_after_hash_disabled_preserves_judge_output(self) -> None:
+        """Judge generation with truncate_after_hash=False is not cut off if solution '####' is quoted."""
+        from src.generation import truncate_at_stop_sequences
+
+        judge_text = (
+            "The candidate ends with:\n#### 25\n"
+            "Evaluation:\n- Completeness: 0.90\n- Overall Score: 0.90\n- Rationale: Complete.\n"
+            "Problem: Next problem"
+        )
+        kept = truncate_at_stop_sequences(
+            judge_text, stop_sequences=["Problem:", "\nProblem:"], truncate_after_hash=False
+        )
+        self.assertIn("- Completeness: 0.90", kept)
+        self.assertNotIn("Next problem", kept)
+        score = parse_judge_output(kept, prompt_type="chain_of_thought")
+        self.assertEqual(score.parsing_status, "success")
+        self.assertAlmostEqual(score.overall_score, 0.90)
+
+    def test_judge_does_not_blend_mock_scores_in_real_mode(self) -> None:
+        """Real LLM judge returns genuine parsed scores without silent mock heuristic blending."""
+        from unittest.mock import patch
+
+        class FakeTokenizer:
+            chat_template = "user_only"
+
+            def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=True):
+                # Emulate DeepSeek-Math-7B-Instruct chat template that drops role=='system'
+                parts = [f"User: {m['content']}\n\nAssistant:" for m in messages if m["role"] == "user"]
+                return "\n".join(parts)
+
+        judge = ReasoningJudge(model_name_or_path="deepseek-ai/deepseek-math-7b-instruct", use_mock=False)
+        judge._is_initialized = True
+        judge.model = object()
+        judge.tokenizer = FakeTokenizer()
+
+        captured: dict = {}
+
+        def fake_generate_batch_hf(**kwargs):
+            captured.update(kwargs)
+            return [[{
+                "completion": (
+                    "Evaluation:\n"
+                    "- Completeness: 0.25\n"
+                    "- Verification Quality: N/A\n"
+                    "- Novelty: N/A\n"
+                    "- Overall Score: 0.25\n"
+                    "- Rationale: Missing intermediate steps."
+                ),
+            }]]
+
+        with patch("src.generation.generate_batch_hf", side_effect=fake_generate_batch_hf):
+            # Pass a verbose completion where mock judge would score 0.95; real LLM score 0.25 must be preserved!
+            score = judge.evaluate_trace(
+                question="What is 2 + 2?",
+                gold_answer="4",
+                completion=("First we compute 2 + 2 = 4 with many extra words " * 5) + "\n#### 4",
+                prompt_type="chain_of_thought",
+            )
+
+        self.assertFalse(captured.get("truncate_after_hash", True))
+        # System rubric must be folded into the user prompt when template drops system role
+        self.assertIn("Scoring Rubric:", captured["prompts"][0])
+        self.assertIn("Calibration Examples:", captured["prompts"][0])
+        self.assertAlmostEqual(score.completeness, 0.25)
+        self.assertAlmostEqual(score.overall_score, 0.25)
+        self.assertEqual(score.parsing_status, "success")
+
 
 class TestJudgeCalibrationAndMetrics(unittest.TestCase):
     """Test suite for Pearson correlation and calibration evaluation."""

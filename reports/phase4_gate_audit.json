@@ -1,0 +1,73 @@
+{
+  "phase": 4,
+  "release_tag": "v0.5",
+  "runtime_profile": "local",
+  "overall_status": "MOCK_VERIFIED",
+  "total_checks": 10,
+  "passed": 5,
+  "mock": 5,
+  "failed": 0,
+  "missing": 0,
+  "checks": [
+    {
+      "id": "day26_tokenization_hand_check",
+      "name": "Day 26: SFT Tokenization Hand-Check & Loss Masking",
+      "status": "PASSED",
+      "detail": "tokenizer=Qwen/Qwen2.5-1.5B-Instruct, all_examples_passed=True"
+    },
+    {
+      "id": "day26_configs",
+      "name": "Day 26: LoRA & Training Configurations (r=16, alpha=32, cosine schedule)",
+      "status": "PASSED",
+      "detail": "LoRA r=16, alpha=32, LR=0.0001, save_steps=50"
+    },
+    {
+      "id": "day27_template_match",
+      "name": "Day 27: Training vs. Inference Template Exact Alignment (Design Rule 1)",
+      "status": "PASSED",
+      "detail": "exact_match=True, format_instruction_present=True"
+    },
+    {
+      "id": "day27_overfitting_test",
+      "name": "Day 27: 20-Example Overfitting Sanity Test (Loss decay & reproduction)",
+      "status": "MOCK",
+      "detail": "model=mock-model, loss_reduction=99.67%, format_compliance=100.0%"
+    },
+    {
+      "id": "day27_callback_logs",
+      "name": "Day 27: Periodic Validation Callback & Generation Logs",
+      "status": "PASSED",
+      "detail": "dir=C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\logs\\generations, 2 step generations, 2 step summaries"
+    },
+    {
+      "id": "day28_lr_sweep",
+      "name": "Day 28: Learning-Rate Sweep (5e-5, 1e-4, 2e-4) & Dev Adapter Preservation",
+      "status": "MOCK",
+      "detail": "model=mock-model, best_lr=0.0001, adapter_saved=True"
+    },
+    {
+      "id": "day29_7b_sft_training",
+      "name": "Day 29: 7B SFT LoRA Training & Checkpoint Resumption",
+      "status": "MOCK",
+      "detail": "model=deepseek-ai/deepseek-math-7b-base, sample_mode=False, completed_checkpoints=4"
+    },
+    {
+      "id": "day30_checkpoint_selection",
+      "name": "Day 30: Checkpoint Evaluation & Best Adapter Selection (Design Rule 3)",
+      "status": "MOCK",
+      "detail": "best=checkpoint-1, val_acc=100.0%, adapter_present=True, provenance_present=True"
+    },
+    {
+      "id": "phase4_gate_criteria",
+      "name": "Phase 4 Gate: Val Accuracy > Base 8-Shot, Format Compliance >= 98%, Low Truncation",
+      "status": "MOCK",
+      "detail": "val_acc=100.0%, fmt_comp=100.0%, trunc=0.0%"
+    },
+    {
+      "id": "phase4_report_deliverables",
+      "name": "Phase 4 Deliverables: reports/sft_training.md & Release Tag v0.5",
+      "status": "PASSED",
+      "detail": "reports/sft_training.md exists=True (path=C:\\Users\\DELL\\Desktop\\math-reasoning-llm\\reports\\sft_training.md)"
+    }
+  ]
+}

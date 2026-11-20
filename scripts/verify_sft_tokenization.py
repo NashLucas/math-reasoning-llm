@@ -31,9 +31,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import ConfigManager  # noqa: E402
+from src.config import ConfigManager, get_default_profile  # noqa: E402
 from src.data.sft_dataset import (  # noqa: E402
     load_sft_dataset,
+    resolve_sft_dataset_file,
     tokenize_sft_example,
     verify_sft_loss_masking,
 )
@@ -190,37 +191,20 @@ def main() -> None:
         default="day26_sft_tokenization_check",
         help="Base report name.",
     )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        choices=["local", "colab"],
+        help="Runtime profile (local or colab for Google Drive persistence).",
+    )
     args = parser.parse_args()
 
-    cfg_mgr = ConfigManager()
-    profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
-
-    c_path = Path(args.curated_file)
-    if not c_path.is_absolute():
-        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
-        local_curated = PROJECT_ROOT / c_path
-        if drive_curated.exists() and local_curated.exists():
-            if drive_curated.stat().st_size >= local_curated.stat().st_size:
-                c_path = drive_curated
-            else:
-                c_path = local_curated
-        elif drive_curated.exists():
-            c_path = drive_curated
-        elif local_curated.exists():
-            c_path = local_curated
-        elif (profile_data_dir / c_path).exists():
-            c_path = profile_data_dir / c_path
-        else:
-            c_path = PROJECT_ROOT / c_path
-
+    active_profile = args.profile or get_default_profile()
+    c_path = resolve_sft_dataset_file(args.curated_file, profile=active_profile, allow_sample_fallback=True)
     if not c_path.exists():
-        sample_path = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
-        if sample_path.exists():
-            logger.warning(f"Curated dataset not found at {c_path}. Falling back to sample set: {sample_path}")
-            c_path = sample_path
-        else:
-            logger.error(f"Curated dataset not found at: {c_path}")
-            sys.exit(1)
+        logger.error(f"Curated dataset not found at: {c_path}")
+        sys.exit(1)
 
     # 1. Load Tokenizer
     try:
@@ -286,6 +270,7 @@ def main() -> None:
     json_report.write_text(json.dumps(serializable, indent=2) + "\n", encoding="utf-8")
     logger.info(f"Saved JSON verification report to: {json_report}")
 
+    profile_data_dir = ConfigManager().get_profile_dir("data_dir", profile_name=active_profile)
     drive_reports = profile_data_dir.parent / "reports"
     if drive_reports.exists() and drive_reports.resolve() != r_dir.resolve():
         try:

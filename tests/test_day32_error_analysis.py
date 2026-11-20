@@ -104,7 +104,9 @@ class TestDay32Calibration(unittest.TestCase):
 
     def test_position_biased_llm_reconciliation_passes_gate(self):
         """Verify Design Rule 4 reconciliation when 7B LLM exhibits position bias toward arithmetic_slip."""
-        biased_backend = lambda _prompt: "Classification: arithmetic_slip\nRationale: Calculation mistake."
+        def biased_backend(_prompt: str) -> str:
+            return "Classification: arithmetic_slip\nRationale: Calculation mistake."
+
         classifier = ErrorClassifier(backend=biased_backend)
         classifications = classifier.classify_records(self.records)
         report = compute_label_agreement(

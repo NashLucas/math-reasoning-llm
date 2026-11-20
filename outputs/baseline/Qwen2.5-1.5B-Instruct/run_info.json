@@ -1,0 +1,58 @@
+{
+  "run_id": "baseline-20261107_170259-evaluate_baseline_val_greedy",
+  "stage": "baseline",
+  "timestamp_utc": "2026-11-07T17:02:59.949947+00:00",
+  "description": "evaluate_baseline_val_greedy",
+  "git": {
+    "commit_hash": "e4c6e9b59077684c11f2169841ff7d634d6522b1",
+    "commit_short": "e4c6e9b",
+    "branch": "main",
+    "is_dirty": true,
+    "warning": "WARNING: Working directory has uncommitted changes. The recorded commit hash does NOT represent the exact state of this run!"
+  },
+  "hardware": {
+    "device": "cpu",
+    "cuda_available": false,
+    "gpu_count": 0,
+    "gpu_names": [],
+    "cuda_version": null
+  },
+  "system": {
+    "python_version": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64"
+  },
+  "library_versions": {
+    "torch": "not_installed",
+    "transformers": "5.22.1",
+    "trl": "not_installed",
+    "peft": "not_installed",
+    "accelerate": "not_installed",
+    "datasets": "5.1.0",
+    "vllm": "not_installed",
+    "sentence_transformers": "not_installed",
+    "sklearn": "1.8.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.0",
+    "yaml": "6.0.3",
+    "gradio": "not_installed",
+    "pytest": "not_installed"
+  },
+  "config_snapshot": {
+    "checkpoint": "Qwen/Qwen2.5-1.5B-Instruct",
+    "adapter_path": null,
+    "preset": "greedy",
+    "split": "val",
+    "limit": null,
+    "final": false,
+    "prompt_format": "chat",
+    "seed": 42,
+    "mock": false,
+    "metrics_summary": {
+      "accuracy": 0.83,
+      "maj_at_k": 0.83,
+      "pass_at_k": 0.83,
+      "format_compliance_rate": 0.804
+    }
+  }
+}

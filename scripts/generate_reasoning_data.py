@@ -338,9 +338,22 @@ def main() -> None:
 
     # 1b. Filter to solved problems if requested (Day 20 verification & alternative traces)
     if args.only_solved:
-        pass_rates_path = Path(args.pass_rates_file) if args.pass_rates_file else (
-            PROJECT_ROOT / "data" / "synthetic" / "generated" / "problem_pass_rates.json"
-        )
+        from src.config import ConfigManager
+
+        cfg_mgr = ConfigManager()
+        raw_pr = Path(args.pass_rates_file) if args.pass_rates_file else Path("data/synthetic/generated/problem_pass_rates.json")
+        if raw_pr.is_absolute():
+            pass_rates_path = raw_pr
+        else:
+            local_pr = PROJECT_ROOT / raw_pr
+            drive_pr = cfg_mgr.data_path("synthetic", "generated") / raw_pr.name
+            if drive_pr.exists() and local_pr.exists():
+                pass_rates_path = drive_pr if drive_pr.stat().st_size >= local_pr.stat().st_size else local_pr
+            elif drive_pr.exists():
+                pass_rates_path = drive_pr
+            else:
+                pass_rates_path = local_pr
+
         if pass_rates_path.exists():
             problems = filter_problems_by_pass_rate(problems, pass_rates_path, min_correct=1)
             logger.info(
@@ -422,6 +435,7 @@ def main() -> None:
                     with open(slice_file, "w", encoding="utf-8") as f:
                         for tr in ptype_traces:
                             f.write(json.dumps(tr) + "\n")
+                    sampler._sync_mirror_file(slice_file)
                     logger.info(f"Saved {len(ptype_traces)} traces for '{ptype}' to {slice_file.name}")
 
         # 6. Save reports
@@ -470,6 +484,26 @@ def main() -> None:
             report_title=report_title_str,
             per_strategy_breakdown=per_strategy if per_strategy else None,
         )
+
+        try:
+            import shutil
+
+            from src.config import ConfigManager
+
+            profile_root = ConfigManager().get_profile_dir("data_dir").parent
+            drive_reports = profile_root / "reports"
+            if (
+                profile_root.resolve() != PROJECT_ROOT.resolve()
+                and reports_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+                and drive_reports.resolve() != reports_dir.resolve()
+                and profile_root.exists()
+            ):
+                drive_reports.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(json_report, drive_reports / json_report.name)
+                shutil.copy2(md_report, drive_reports / md_report.name)
+                logger.info(f"Mirrored generation reports to Drive: {drive_reports}")
+        except Exception as exc:
+            logger.debug(f"Could not mirror generation reports to Drive: {exc}")
 
         if not real_flag:
             logger.warning("Mock run finished: pipeline plumbing verified, but real model run is still required.")

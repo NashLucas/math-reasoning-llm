@@ -18,7 +18,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from src.config import ConfigManager
 from src.generation import (
-    DEFAULT_STOP_SEQUENCES,
     HAS_TORCH,
     LLM,
     check_or_write_run_meta,
@@ -338,6 +337,21 @@ class TraceSampler:
             self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # If output_dir is one of the canonical synthetic/generated directories (local repo vs Drive),
+        # keep the counterpart directory synchronized on Colab.
+        self._mirror_output_dir: Optional[Path] = None
+        try:
+            local_gen_dir = (self.project_root / "data" / "synthetic" / "generated").resolve()
+            drive_gen_dir = mgr.data_path("synthetic", "generated").resolve()
+            out_resolved = self.output_dir.resolve()
+            if local_gen_dir != drive_gen_dir:
+                if out_resolved == drive_gen_dir:
+                    self._mirror_output_dir = local_gen_dir
+                elif out_resolved == local_gen_dir:
+                    self._mirror_output_dir = drive_gen_dir
+        except Exception:
+            self._mirror_output_dir = None
+
         # Batch sizes from configs/generation.yaml
         gen_cfg = mgr.load_config("generation.yaml")
         configured_batch_sizes = gen_cfg.get("batch_sizes", {})
@@ -374,12 +388,24 @@ class TraceSampler:
         logger.info(f"Initializing {resolved} backend for model {self.model_name_or_path}")
 
         if resolved == "vllm":
-            self.model = load_vllm_model(
-                model_name_or_path=self.model_name_or_path,
-                seed=self.seed,
-            )
-            self.tokenizer = self.model.get_tokenizer()
-        else:
+            vllm_kwargs: Dict[str, Any] = {
+                "model_name_or_path": self.model_name_or_path,
+                "seed": self.seed,
+            }
+            if self.load_in_4bit:
+                vllm_kwargs["load_in_4bit"] = True
+            try:
+                self.model = load_vllm_model(**vllm_kwargs)
+                self.tokenizer = self.model.get_tokenizer()
+            except Exception as exc:
+                logger.warning(
+                    f"vLLM initialization failed for {self.model_name_or_path} ({exc}); "
+                    "falling back to Hugging Face backend."
+                )
+                resolved = "hf"
+                self._resolved_backend = "hf"
+
+        if resolved == "hf":
             from src.model import load_model_and_tokenizer
 
             hf_kwargs = {}
@@ -395,6 +421,25 @@ class TraceSampler:
                 **hf_kwargs,
             )
         self._owns_model = True
+
+    def _sync_mirror_file(self, path: Path) -> None:
+        """Mirror a generated trace file and its .meta.json to the counterpart directory if active."""
+        if self._mirror_output_dir is None or not path.exists():
+            return
+        try:
+            import shutil
+
+            self._mirror_output_dir.mkdir(parents=True, exist_ok=True)
+            dst = self._mirror_output_dir / path.name
+            if dst.resolve() != path.resolve():
+                shutil.copy2(path, dst)
+            meta_src = run_meta_path(path)
+            if meta_src.exists():
+                meta_dst = run_meta_path(dst)
+                if meta_dst.resolve() != meta_src.resolve():
+                    shutil.copy2(meta_src, meta_dst)
+        except Exception as exc:
+            logger.debug(f"Could not mirror {path.name} to {self._mirror_output_dir}: {exc}")
 
     def sample_traces(
         self,
@@ -426,8 +471,22 @@ class TraceSampler:
             meta_p = run_meta_path(out_path)
             if meta_p.exists():
                 meta_p.unlink()
+        elif not out_path.exists() and self._mirror_output_dir is not None:
+            # Pre-sync from counterpart directory (Drive <-> local repo) if resuming
+            mirror_src = self._mirror_output_dir / out_filename
+            if mirror_src.exists() and mirror_src.stat().st_size > 0:
+                try:
+                    import shutil
 
-        stops = list(stop_sequences) if stop_sequences is not None else list(DEFAULT_STOP_SEQUENCES)
+                    shutil.copy2(mirror_src, out_path)
+                    mirror_meta = run_meta_path(mirror_src)
+                    if mirror_meta.exists():
+                        shutil.copy2(mirror_meta, run_meta_path(out_path))
+                    logger.info(f"Pre-synced existing traces from {mirror_src} to {out_path}")
+                except Exception as exc:
+                    logger.debug(f"Could not pre-sync {mirror_src}: {exc}")
+
+        stops = list(stop_sequences) if stop_sequences is not None else ["Question:", "\nQuestion:"]
 
         # Establish and verify run metadata for resumption safety
         run_config = {
@@ -487,6 +546,7 @@ class TraceSampler:
 
         if not pending_items:
             logger.info("All requested traces are already generated.")
+            self._sync_mirror_file(out_path)
             return out_path
 
         # Initialize model if needed
@@ -509,8 +569,17 @@ class TraceSampler:
 
             for missing_idxs, group_pairs in groups.items():
                 num_return = len(missing_idxs)
-                for sub_start in range(0, len(group_pairs), self.batch_size):
-                    sub_pairs = group_pairs[sub_start:sub_start + self.batch_size]
+                effective_batch_size = self.batch_size
+                if (
+                    self._resolved_backend == "hf"
+                    and HAS_TORCH
+                    and torch.cuda.is_available()
+                    and num_return > 1
+                ):
+                    effective_batch_size = max(1, self.batch_size // num_return)
+
+                for sub_start in range(0, len(group_pairs), effective_batch_size):
+                    sub_pairs = group_pairs[sub_start:sub_start + effective_batch_size]
                     rendered_prompts = [
                         render_reasoning_prompt(
                             question=prob["question"],
@@ -566,6 +635,19 @@ class TraceSampler:
                             if parsed_ans is None and method is None:
                                 parsed_ans, method = extract_answer(completion_text)
                             method = method or "none"
+                            finish_reason = str(item.get("finish_reason") or "stop")
+
+                            if (
+                                method in ("boxed", "bold", "answer_is")
+                                and parsed_ans is not None
+                                and finish_reason != "length"
+                            ):
+                                from src.math_utils.normalization import strip_formatting
+
+                                clean_num = strip_formatting(parsed_ans)
+                                if clean_num:
+                                    completion_text = f"{completion_text.rstrip()}\n#### {clean_num}"
+                                    parsed_ans, method = extract_answer(completion_text)
 
                             is_compliant = method == "hash"
                             is_correct = is_equivalent(parsed_ans, gold) if parsed_ans else False
@@ -586,7 +668,7 @@ class TraceSampler:
                                 format_compliant=is_compliant,
                                 prompt_tokens=int(item.get("prompt_tokens", 0)),
                                 completion_tokens=int(item.get("completion_tokens", 0)),
-                                finish_reason=str(item.get("finish_reason") or "stop"),
+                                finish_reason=finish_reason,
                                 timestamp_utc=timestamp,
                             )
                             chunk_records.append(record.to_dict())
@@ -600,6 +682,7 @@ class TraceSampler:
                 f"({rate:.1f} traces/sec) -> flushed to {out_path.name}"
             )
 
+        self._sync_mirror_file(out_path)
         return out_path
 
     def _generate_batch(
@@ -656,6 +739,7 @@ class TraceSampler:
             for rec in records:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
             f.flush()
+        self._sync_mirror_file(path)
 
     def close(self) -> None:
         """Release model and free GPU memory."""

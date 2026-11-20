@@ -109,7 +109,11 @@ def _resolve_dtype(dtype: str) -> str:
     try:
         import torch
 
-        return "bfloat16" if torch.cuda.is_available() else "float32"
+        from src.model import is_bf16_supported_cuda
+
+        if torch.cuda.is_available():
+            return "bfloat16" if is_bf16_supported_cuda() else "float16"
+        return "float32"
     except ImportError:
         return "float32"
 
@@ -157,8 +161,9 @@ def evaluate_prompts_on_samples(
 
             start = time.time()
             for i in range(0, len(prompts), batch_size):
-                # Default stop rules: "Question:", "\n\n\n", and a cut after the '#### <number>' line.
-                # '####' itself must NOT be a stop string: generation would end before the answer line.
+                # Stop on "Question:" and cut after the '#### <number>' line (handled by generate_batch_hf).
+                # Do NOT stop on "\n\n\n" (which cuts off multi-stage Solve-then-Verify between stages)
+                # and never pass '####' itself in stop_sequences.
                 batch_out = generate_batch_hf(
                     model=model,
                     tokenizer=tokenizer,
@@ -166,6 +171,7 @@ def evaluate_prompts_on_samples(
                     max_new_tokens=max_new_tokens,
                     temperature=0.0,
                     do_sample=False,
+                    stop_sequences=["Question:", "\nQuestion:"],
                 )
                 outputs.extend(item[0] for item in batch_out)
             logger.info(f"Generated {len(prompts)} completions in {time.time() - start:.1f}s")
@@ -463,6 +469,26 @@ def main() -> None:
         output_path=md_path,
         device_label=device_label,
     )
+
+    try:
+        import shutil
+
+        from src.config import ConfigManager
+
+        profile_root = ConfigManager().get_profile_dir("data_dir").parent
+        drive_reports = profile_root / "reports"
+        if (
+            profile_root.resolve() != PROJECT_ROOT.resolve()
+            and out_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+            and drive_reports.resolve() != out_dir.resolve()
+            and profile_root.exists()
+        ):
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(json_path, drive_reports / json_path.name)
+            shutil.copy2(md_path, drive_reports / md_path.name)
+            logger.info(f"Mirrored Day 16 verification reports to Drive: {drive_reports}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror Day 16 reports to Drive: {exc}")
 
     if verdict == "MOCK":
         logger.warning("Mock run: plumbing works, but the prompts were NOT verified. Use --use_real_model.")

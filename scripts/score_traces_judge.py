@@ -104,11 +104,34 @@ def generate_calibration_markdown_report(
     for item in scored_items:
         m_val = item["manual_overall_score"]
         j_val = item["judge_score"]["overall_score"]
+        p_stat = item["judge_score"].get("parsing_status", "success")
         diff = j_val - m_val
         status = "OK" if abs(diff) <= 0.25 else "Divergent"
+        if p_stat != "success":
+            status = f"{status} ({p_stat})"
         lines.append(
             f"| `{item['trace_id']}` | `{item['prompt_type']}` | {m_val:.2f} | {j_val:.2f} | {diff:+.2f} | {status} |"
         )
+
+    parse_counts: Dict[str, int] = {}
+    for item in scored_items:
+        st = item["judge_score"].get("parsing_status", "unknown")
+        parse_counts[st] = parse_counts.get(st, 0) + 1
+
+    lines.extend([
+        "",
+        "## Parsing Diagnostics",
+        "",
+        f"- Parsing breakdown: {parse_counts}",
+    ])
+    fallback_samples = [
+        item for item in scored_items if item["judge_score"].get("parsing_status") == "fallback"
+    ]
+    if fallback_samples:
+        lines.append(f"- Warning: {len(fallback_samples)}/{len(scored_items)} calibration traces hit parser fallback.")
+        for sample in fallback_samples[:3]:
+            preview = str(sample.get("judge_raw_output", "")).replace("\n", " ")[:240]
+            lines.append(f"  - `{sample['trace_id']}` raw preview: `{preview}`")
 
     lines.extend([
         "",
@@ -232,16 +255,58 @@ def generate_scoring_markdown_report(
 
 
 def discover_generated_trace_files(traces_dir: Path) -> List[Path]:
-    """Find all relevant synthetic reasoning trace files in traces_dir."""
-    candidates = []
-    for f in sorted(traces_dir.glob("*.jsonl")):
+    """Find all relevant synthetic reasoning trace files in traces_dir.
+
+    Prioritizes 7B teacher trace files ahead of smaller dev/mock trace files so that
+    when deduplicating by trace_id, 7B teacher traces always take precedence.
+    """
+    if not traces_dir.exists():
+        return []
+    candidates: List[Path] = []
+    for f in traces_dir.glob("*.jsonl"):
         name = f.name
         # Skip previously scored or curated files
         if "scored" in name or "curated" in name:
             continue
         if any(strategy in name for strategy in ["chain_of_thought", "solve_then_verify", "alternative_method"]):
             candidates.append(f)
-    return candidates
+
+    # If real teacher files exist, exclude mock-model files
+    non_mock = [f for f in candidates if "mock" not in f.name.lower()]
+    if non_mock:
+        candidates = non_mock
+
+    def _priority_key(p: Path) -> tuple[int, int, str]:
+        low = p.name.lower()
+        is_7b = 0 if ("7b" in low or "deepseek" in low) else 1
+        # Prefer single-strategy files before multi_prompt files or vice versa consistently, larger files first
+        size_neg = -int(p.stat().st_size) if p.exists() else 0
+        return (is_7b, size_neg, p.name)
+
+    return sorted(candidates, key=_priority_key)
+
+
+def discover_trace_files_across_dirs(dirs: List[Path]) -> List[Path]:
+    """Discover trace files across multiple directories (e.g. Drive + local), deduplicating by filename."""
+    by_name: Dict[str, Path] = {}
+    for d in dirs:
+        for f in discover_generated_trace_files(d):
+            existing = by_name.get(f.name)
+            if existing is None or f.stat().st_size > existing.stat().st_size:
+                by_name[f.name] = f
+
+    merged = list(by_name.values())
+    non_mock = [f for f in merged if "mock" not in f.name.lower()]
+    if non_mock:
+        merged = non_mock
+
+    def _priority_key(p: Path) -> tuple[int, int, str]:
+        low = p.name.lower()
+        is_7b = 0 if ("7b" in low or "deepseek" in low) else 1
+        size_neg = -int(p.stat().st_size) if p.exists() else 0
+        return (is_7b, size_neg, p.name)
+
+    return sorted(merged, key=_priority_key)
 
 
 def main() -> None:
@@ -393,6 +458,7 @@ def main() -> None:
             )
             item_record = dict(item)
             item_record["judge_score"] = score.to_dict()
+            item_record["judge_raw_output"] = score.raw_output
             scored_benchmark.append(item_record)
 
             judge_scores.append(score.overall_score)
@@ -404,8 +470,15 @@ def main() -> None:
             min_correlation=0.60,
         )
 
+        parse_counts: Dict[str, int] = {}
+        for rec in scored_benchmark:
+            st = rec["judge_score"].get("parsing_status", "unknown")
+            parse_counts[st] = parse_counts.get(st, 0) + 1
+        calib_metrics["parsing_counts"] = parse_counts
+
         logger.info("=== Judge Calibration Results ===")
         logger.info(f"Evaluated Samples: {calib_metrics['n_samples']}")
+        logger.info(f"Parsing Breakdown: {parse_counts}")
         logger.info(f"Pearson Correlation (r): {calib_metrics['pearson_r']:.4f}")
         logger.info(f"Mean Absolute Error (MAE): {calib_metrics['mae']:.4f}")
         logger.info(f"Calibration Status: {'PASSED' if calib_metrics['is_calibrated'] else 'FAILED'}")
@@ -440,18 +513,35 @@ def main() -> None:
             )
             logger.info(f"Saved calibration report to: {md_path}")
 
-            # Exit early if this is a calibration-only invocation
+            # Mirror calibration reports to Drive when running on Colab
             cfg_mgr = ConfigManager()
             profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
+            try:
+                import shutil
+
+                drive_reports = profile_data_dir.parent / "reports"
+                if (
+                    profile_data_dir.parent.resolve() != PROJECT_ROOT.resolve()
+                    and reports_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+                    and drive_reports.resolve() != reports_dir.resolve()
+                    and profile_data_dir.parent.exists()
+                ):
+                    drive_reports.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(md_path, drive_reports / md_path.name)
+                    shutil.copy2(json_path, drive_reports / json_path.name)
+            except Exception as exc:
+                logger.debug(f"Could not mirror calibration reports to Drive: {exc}")
+
+            # Exit early if this is a calibration-only invocation
             tdir_path = Path(args.traces_dir)
-            if not tdir_path.is_absolute():
-                if (PROJECT_ROOT / tdir_path).exists() and bool(discover_generated_trace_files(PROJECT_ROOT / tdir_path)):
-                    tdir_path = PROJECT_ROOT / tdir_path
-                elif (profile_data_dir / "synthetic" / "generated").exists():
-                    tdir_path = profile_data_dir / "synthetic" / "generated"
-                else:
-                    tdir_path = PROJECT_ROOT / tdir_path
-            has_trace_files = tdir_path.exists() and bool(discover_generated_trace_files(tdir_path))
+            if tdir_path.is_absolute():
+                candidate_dirs = [tdir_path]
+            else:
+                candidate_dirs = [
+                    PROJECT_ROOT / tdir_path,
+                    profile_data_dir / "synthetic" / "generated",
+                ]
+            has_trace_files = bool(discover_trace_files_across_dirs(candidate_dirs))
 
             if not args.traces_file and (not args.output_file or not has_trace_files):
                 logger.info("Calibration-only mode finished successfully.")
@@ -465,30 +555,34 @@ def main() -> None:
     if args.traces_file:
         t_path = Path(args.traces_file)
         if not t_path.is_absolute():
-            if (PROJECT_ROOT / t_path).exists():
-                t_path = PROJECT_ROOT / t_path
-            elif (profile_data_dir / "synthetic" / "generated" / t_path.name).exists():
-                t_path = profile_data_dir / "synthetic" / "generated" / t_path.name
+            local_cand = PROJECT_ROOT / t_path
+            drive_cand = profile_data_dir / "synthetic" / "generated" / t_path.name
+            if local_cand.exists() and drive_cand.exists():
+                t_path = drive_cand if drive_cand.stat().st_size >= local_cand.stat().st_size else local_cand
+            elif drive_cand.exists():
+                t_path = drive_cand
+            elif local_cand.exists():
+                t_path = local_cand
             elif (profile_data_dir / t_path).exists():
                 t_path = profile_data_dir / t_path
             else:
-                t_path = PROJECT_ROOT / t_path
+                t_path = local_cand
         if not t_path.exists():
             logger.error(f"Traces file not found: {t_path}")
             sys.exit(1)
         raw_traces.extend(load_synthetic_traces(t_path))
     else:
         tdir = Path(args.traces_dir)
-        if not tdir.is_absolute():
-            if (PROJECT_ROOT / tdir).exists() and bool(discover_generated_trace_files(PROJECT_ROOT / tdir)):
-                tdir = PROJECT_ROOT / tdir
-            elif (profile_data_dir / "synthetic" / "generated").exists() and bool(discover_generated_trace_files(profile_data_dir / "synthetic" / "generated")):
-                tdir = profile_data_dir / "synthetic" / "generated"
-            else:
-                tdir = PROJECT_ROOT / tdir
-        if tdir.exists():
-            trace_files = discover_generated_trace_files(tdir)
-            logger.info(f"Discovered {len(trace_files)} trace files in {tdir}")
+        if tdir.is_absolute():
+            search_dirs = [tdir]
+        else:
+            search_dirs = [
+                PROJECT_ROOT / tdir,
+                profile_data_dir / "synthetic" / "generated",
+            ]
+        trace_files = discover_trace_files_across_dirs(search_dirs)
+        if trace_files:
+            logger.info(f"Discovered {len(trace_files)} trace files across {[str(d) for d in search_dirs if d.exists()]}")
             seen_trace_ids = set()
             for tf in trace_files:
                 for tr in load_synthetic_traces(tf):
@@ -600,6 +694,26 @@ def main() -> None:
             f.write(json.dumps(item) + "\n")
     logger.info(f"Saved {len(ranked_traces)} scored and ranked traces to: {out_file}")
 
+    # Mirror scored outputs between local workspace and Drive if out_file is in the standard generated dir
+    mirror_gen_dir: Optional[Path] = None
+    try:
+        local_gen_dir = (PROJECT_ROOT / "data" / "synthetic" / "generated").resolve()
+        drive_gen_dir = (profile_data_dir / "synthetic" / "generated").resolve()
+        parent_res = out_file.parent.resolve()
+        if local_gen_dir != drive_gen_dir:
+            if parent_res == local_gen_dir:
+                mirror_gen_dir = drive_gen_dir
+            elif parent_res == drive_gen_dir:
+                mirror_gen_dir = local_gen_dir
+        if mirror_gen_dir is not None:
+            import shutil
+
+            mirror_gen_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(out_file, mirror_gen_dir / out_file.name)
+            logger.info(f"Mirrored scored traces to: {mirror_gen_dir / out_file.name}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror scored traces: {exc}")
+
     # Optional split by prompt type
     if args.split_by_prompt_type:
         by_ptype: Dict[str, List[Dict[str, Any]]] = {}
@@ -612,6 +726,13 @@ def main() -> None:
             with open(split_file, "w", encoding="utf-8") as f:
                 for item in items:
                     f.write(json.dumps(item) + "\n")
+            if mirror_gen_dir is not None:
+                try:
+                    import shutil
+
+                    shutil.copy2(split_file, mirror_gen_dir / split_file.name)
+                except Exception:
+                    pass
             logger.info(f"Saved {len(items)} scored traces for strategy '{ptype}' to {split_file}")
 
     # 9. Generate Reports
@@ -654,6 +775,24 @@ def main() -> None:
     }
     json_report_path.write_text(json.dumps(report_payload, indent=2), encoding="utf-8")
     logger.info(f"Saved Day 22 scoring JSON report to: {json_report_path}")
+
+    try:
+        import shutil
+
+        drive_reports = profile_data_dir.parent / "reports"
+        if (
+            profile_data_dir.parent.resolve() != PROJECT_ROOT.resolve()
+            and reports_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+            and drive_reports.resolve() != reports_dir.resolve()
+            and profile_data_dir.parent.exists()
+        ):
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(md_report_path, drive_reports / md_report_path.name)
+            shutil.copy2(json_report_path, drive_reports / json_report_path.name)
+            logger.info(f"Mirrored Day 22 scoring reports to Drive: {drive_reports}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror Day 22 scoring reports to Drive: {exc}")
+
     logger.info("Day 22 Judge Scoring pipeline completed successfully!")
 
 

@@ -277,6 +277,7 @@ class TestSFTTrainerAndExecution(unittest.TestCase):
     def test_save_run_info_serializes_sets_and_namedtuples(self) -> None:
         """Verify save_run_info handles PEFT set fields and HF TrainOutput namedtuples cleanly."""
         from collections import namedtuple
+
         from src.run_info import save_run_info
 
         TrainOutput = namedtuple("TrainOutput", ["global_step", "training_loss", "metrics"])

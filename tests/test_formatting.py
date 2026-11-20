@@ -84,6 +84,17 @@ class TestFormatting(unittest.TestCase):
         tok_no_bos = FakeTokenizer(chat_template=DEEPSEEK_CHAT_TEMPLATE, adds_bos=False)
         self.assertTrue(apply_chat_template([{"role": "user", "content": "hi"}], tokenizer=tok_no_bos).startswith("<s>"))
 
+    def test_apply_chat_template_folds_system_message_when_dropped_by_template(self):
+        """If a tokenizer's chat template ignores 'system' messages, fold it into the first user message."""
+        tok_no_sys = FakeTokenizer(chat_template="no_system_template", adds_bos=True, drops_system=True)
+        msgs = [
+            {"role": "system", "content": "RUBRIC_INSTRUCTION_BLOCK"},
+            {"role": "user", "content": "Candidate Solution: 42"},
+        ]
+        rendered = apply_chat_template(msgs, tokenizer=tok_no_sys)
+        self.assertIn("RUBRIC_INSTRUCTION_BLOCK", rendered)
+        self.assertIn("Candidate Solution: 42", rendered)
+
 
 # Chat template of deepseek-math-7b-instruct / -rl (tokenizer_config.json), with BOS shown as <s>
 DEEPSEEK_CHAT_TEMPLATE = (
@@ -101,9 +112,10 @@ class FakeTokenizer:
 
     bos_token, bos_token_id, eos_token, name_or_path = "<s>", 1, "</s>", "fake"
 
-    def __init__(self, chat_template, adds_bos=True):
+    def __init__(self, chat_template, adds_bos=True, drops_system=False):
         self.chat_template = chat_template
         self.adds_bos = adds_bos
+        self.drops_system = drops_system
 
     def __call__(self, text, add_special_tokens=True):
         return {"input_ids": ([1] if (self.adds_bos and add_special_tokens) else []) + [5]}
@@ -116,7 +128,7 @@ class FakeTokenizer:
                 out += "User: " + m["content"] + "\n\n"
             elif m["role"] == "assistant":
                 out += "Assistant: " + m["content"] + self.eos_token
-            elif m["role"] == "system":
+            elif m["role"] == "system" and not self.drops_system:
                 out += m["content"] + "\n\n"
         return out + ("Assistant:" if add_generation_prompt else "")
 

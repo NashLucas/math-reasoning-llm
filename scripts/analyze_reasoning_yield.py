@@ -105,8 +105,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--curated_name",
         type=str,
-        default="traces_curated_sft.jsonl",
-        help="Filename for curated SFT traces.",
+        default="traces_kept_cot.jsonl",
+        help="Filename for kept CoT traces.",
     )
     parser.add_argument(
         "--min_tokens",
@@ -140,36 +140,55 @@ def resolve_trace_files(
     project_root: Path,
     is_mock: bool = False,
 ) -> List[Path]:
-    """Resolve trace file path(s), handling explicit paths, globs, and default locations."""
+    """Resolve trace file path(s), handling explicit paths, globs, and default locations (local & Drive)."""
+    mgr = ConfigManager()
+    drive_gen_dir = mgr.data_path("synthetic", "generated")
+    local_gen_dir = project_root / "data" / "synthetic" / "generated"
+
     if traces_arg:
-        explicit_path = Path(traces_arg)
-        if not explicit_path.is_absolute():
-            explicit_path = project_root / explicit_path
+        raw_p = Path(traces_arg)
+        search_paths = (
+            [raw_p]
+            if raw_p.is_absolute()
+            else [
+                drive_gen_dir / raw_p.name,
+                project_root / raw_p,
+                mgr.get_profile_dir("data_dir") / raw_p,
+            ]
+        )
 
         if "*" in traces_arg:
-            matched = [Path(p) for p in glob.glob(str(explicit_path))]
-            if matched:
-                return matched
-        elif explicit_path.exists():
-            return [explicit_path]
+            for sp in search_paths:
+                matched = [Path(p) for p in glob.glob(str(sp))]
+                if matched:
+                    return matched
         else:
-            logger.warning(f"Specified trace file does not exist: {explicit_path}")
+            existing = [sp for sp in search_paths if sp.exists()]
+            if existing:
+                best = max(existing, key=lambda p: p.stat().st_size)
+                return [best]
+            logger.warning(f"Specified trace file does not exist in local or Drive paths: {search_paths[0]}")
 
-    # Check candidate files in priority order
-    candidates = [
-        project_root / "data" / "synthetic" / "generated" / "traces_deepseek-math-7b-instruct_chain_of_thought.jsonl",
-        project_root / "data" / "synthetic" / "generated" / "traces_Qwen2.5-1.5B-Instruct_chain_of_thought.jsonl",
-    ]
-    for c in candidates:
-        if c.exists():
-            return [c]
+    # Check candidate files in priority order across both Drive and local directories
+    search_dirs = [drive_gen_dir, local_gen_dir] if drive_gen_dir != local_gen_dir else [local_gen_dir]
+    for s_dir in search_dirs:
+        candidates = [
+            s_dir / "traces_deepseek-math-7b-instruct_chain_of_thought.jsonl",
+            s_dir / "traces_Qwen2.5-1.5B-Instruct_chain_of_thought.jsonl",
+        ]
+        for c in candidates:
+            if c.exists():
+                return [c]
 
-    # Look for any jsonl in data/synthetic/generated/
-    gen_dir = project_root / "data" / "synthetic" / "generated"
-    if gen_dir.exists():
-        found = list(gen_dir.glob("traces_*.jsonl"))
-        if found:
-            return sorted(found)
+    # Look for any non-scored jsonl in data/synthetic/generated/ (Drive or local)
+    for s_dir in search_dirs:
+        if s_dir.exists():
+            found = [
+                f for f in s_dir.glob("traces_*.jsonl")
+                if not f.name.startswith("traces_scored")
+            ]
+            if found:
+                return sorted(found)
 
     return []
 
@@ -245,6 +264,28 @@ def main() -> None:
     if parquet_saved:
         logger.info(f"Problem pass rates parquet saved to: {parquet_saved}")
 
+    # Mirror pass rates between local workspace and Drive if out_dir is the default generated dir
+    try:
+        import shutil
+
+        local_gen_dir = (project_root / "data" / "synthetic" / "generated").resolve()
+        drive_gen_dir = mgr.data_path("synthetic", "generated").resolve()
+        out_res = out_dir.resolve()
+        mirror_dir: Optional[Path] = None
+        if local_gen_dir != drive_gen_dir:
+            if out_res == local_gen_dir:
+                mirror_dir = drive_gen_dir
+            elif out_res == drive_gen_dir:
+                mirror_dir = local_gen_dir
+        if mirror_dir is not None:
+            mirror_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(json_saved, mirror_dir / json_saved.name)
+            if parquet_saved and parquet_saved.exists():
+                shutil.copy2(parquet_saved, mirror_dir / parquet_saved.name)
+            logger.info(f"Mirrored pass rates to: {mirror_dir}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror pass rates: {exc}")
+
     # 5. Save curated SFT traces if requested
     if args.save_curated and kept_traces:
         curated_dir = Path(args.curated_dir)
@@ -280,6 +321,24 @@ def main() -> None:
     }
     json_report_path.write_text(json.dumps(report_payload, indent=2), encoding="utf-8")
     logger.info(f"JSON yield report saved to: {json_report_path}")
+
+    try:
+        import shutil
+
+        profile_root = mgr.get_profile_dir("data_dir").parent
+        drive_reports = profile_root / "reports"
+        if (
+            profile_root.resolve() != project_root.resolve()
+            and reports_dir.resolve() == (project_root / "reports").resolve()
+            and drive_reports.resolve() != reports_dir.resolve()
+            and profile_root.exists()
+        ):
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(md_report_path, drive_reports / md_report_path.name)
+            shutil.copy2(json_report_path, drive_reports / json_report_path.name)
+            logger.info(f"Mirrored yield reports to Drive: {drive_reports}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror yield reports to Drive: {exc}")
 
     # 7. Print summary to console
     logger.info("=== Reasoning Trace Yield Analysis Results ===")

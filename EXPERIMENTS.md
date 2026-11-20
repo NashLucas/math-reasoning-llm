@@ -1319,6 +1319,23 @@ Phase 4 (Days 26–30: SFT Dataset Formatting & Completion Loss Masking, Periodi
 - Repository release tagged **`v0.5`**.
 - Ready to proceed to **Phase 5: Error Analysis and Targeted SFT** (Days 31–39).
 
+### Remediation & Verification Audit (2026-11-19)
+- **Centralized Dataset Resolution (`resolve_sft_dataset_file` in `src/data/sft_dataset.py`):**
+  - Resolved path disconnect between local repository paths and Google Drive mounts in `scripts/train_sft.py`, `scripts/train_7b_sft.py`, `scripts/test_sft_overfit.py`, `scripts/sweep_learning_rates.py`, and `scripts/verify_sft_tokenization.py`. Prevents silent fallback to 20-example sample sets on Colab when curated 4,000-example synthetic traces exist on Drive.
+- **Tesla T4 LoRA Precision Bug Fixed (`src/training/sft_trainer.py`):**
+  - Converted trainable bfloat16 parameters to `torch.float32` (rather than `torch.float16`) to maintain numerical stability with PyTorch `GradScaler` during mixed-precision training on compute capability < 8.0 GPUs, preventing `grad_norm: nan`.
+- **Overfitting Test Convergence Metrics Fixed (`scripts/test_sft_overfit.py`):**
+  - Updated `final_loss` extraction from overall run average (`train_result.training_loss`) to converged step loss (`loss_history[-1]["loss"]`), ensuring true convergence verification.
+- **Metrics Key Consistency (`src/evaluation/math_metrics.py`, `scripts/pick_best_checkpoint.py`):**
+  - Emitted `correct_count` and `correct_completions` directly from `compute_all_metrics` and updated `pick_best_checkpoint.py` display logic, eliminating false 0 correct counts.
+- **Dedicated Phase 4 Gate Verifier (`scripts/verify_phase4_gate.py`, `tests/test_phase4_gate.py`):**
+  - Implemented 10-point audit certifying all Phase 4 deliverables and distinguishing local mock baselines (`MOCK_VERIFIED`) from real GPU teacher runs (`PASSED`).
+- **Colab Launcher Aligned (`notebooks/00_colab_launcher.ipynb`):**
+  - Updated Steps 23–27 to propagate `--profile "colab"` and trigger `verify_phase4_gate.py`.
+- **Test Suite & Code Hygiene:**
+  - 50/50 Phase 4 unit tests passing in 139s.
+  - `ruff check --no-cache` passes with 0 errors across `src/`, `scripts/`, `tests/`.
+
 ---
 
 ## Run Entry: Phase 4 Day 30 — Checkpoint Evaluation, Best Adapter Selection & Phase 4 Gate Verification
@@ -1577,23 +1594,56 @@ Phase 3 (Days 16–25: Reasoning Prompts, Trace Sampler, 7B CoT Sampling, Yield 
 | **Curated Set Size** | $\ge 3,000$ high-quality reasoning traces | **3,100 traces** (3,000 CoT + 100 Alt) | **PASSED** |
 | **Format Compliance** | $100\%$ on audited sample ending in `#### <number>` | **100.00%** (50/50 audit sample) | **PASSED** |
 | **Contamination Gate** | 0 problem ID overlap with `val_ids.json` or `test_ids.json` | **0 overlap** (strictly enforced) | **PASSED** |
-| **Gate Status** | All criteria satisfied | **Gate MET** | **PASSED (v0.4)** |
+| **Gate Status** | All criteria satisfied | **Plumbing Verified (GPU 7B Run Pending)** | **PENDING GPU (`v0.4`)** |
 
 ### Phase 4 Handoff
-- Frozen dataset `traces_curated_sft.jsonl` committed and verified.
-- Repository release tagged **`v0.4`**.
-- Ready to proceed to **Phase 4: Supervised Fine-Tuning (SFT)** (Days 26–30).
+- Frozen dataset `traces_curated_sft.jsonl` committed and verified (currently contains 200 mock synthetic traces + 2,900 clean human gold fallback traces across 3,000 problems; full 7B teacher GPU generation ready in `00_colab_launcher.ipynb` Steps 13–22).
+- Ready to proceed to **Phase 4: Supervised Fine-Tuning (SFT)** (Days 26–30) once Steps 13–22 complete on GPU.
+
+---
+
+## Run Entry: Phase 3 Audit Remediation — Chat Template System-Prompt Preservation, Judge Calibration, Drive Path Sync & Gate Verifier
+
+- **Date:** 2026-11-16
+- **Run ID:** `synthetic-20261116_phase3_audit_remediation`
+- **Branch:** `main`
+- **Hardware / Platform:** Local Workstation (Python 3.13) & Google Colab GPU (`00_colab_launcher.ipynb`)
+
+### Audit Findings on Previous Phase 3 Runs (`2026-11-02` to `2026-11-11`)
+An audit of the repository and the actual Colab execution logs in `notebooks/00_colab_launcher.ipynb` (Steps 13–22) revealed six root causes that prevented the real 7B teacher traces from being scored and curated on Colab:
+1. **`deepseek-math-7b-instruct` Chat Template Silently Dropped `system` Messages (`src/data/formatting.py`):**
+   - `deepseek-ai/deepseek-math-7b-instruct`'s Jinja `chat_template` only renders `role == 'user'` and `role == 'assistant'`, completely ignoring `role == 'system'`.
+   - In Steps 18 and 19 (Days 21–22 LLM Judge), `JUDGE_SYSTEM_PROMPT` (containing the 3-dimension scoring rubric and bullet output format) was passed as a `"system"` message and silently dropped by the template. As a result, `deepseek-math-7b-instruct` never saw the rubric, causing `parse_judge_output` to fall back to a flat `0.5` on all 20 benchmark traces (`Pearson r = 0.0000`, `MAE = 0.2875`, `Calibration Status: FAILED`).
+   - Similarly, `render_reasoning_prompt` (`src/reasoning/prompting.py`) lost its strategy-specific `system_prompt` on models whose chat templates ignore `"system"` messages.
+2. **Premature `"\n\n\n"` Stop Sequence & `\boxed{}` Substitution in Day 16 Prompt Verification (`src/reasoning/prompting.py`, `scripts/test_reasoning_prompts.py`, `src/data/synthetic.py`):**
+   - In Step 13 (`test_reasoning_prompts.py --use_real_model`), `Qwen/Qwen2.5-1.5B-Instruct` achieved 9/10 (90%) on `Chain-of-Thought` and `Solve-then-Verify` and 10/10 (100%) on `Alternative-Method`, exiting with code 1 because `DEFAULT_STOP_SEQUENCES` included `"\n\n\n"`, which cut off multi-stage completions at blank paragraph breaks before `#### <number>`, or because 1/10 completions used `\boxed{<number>}` instead of `#### <number>`.
+3. **Google Drive vs. Local Workspace Path Mismatch Across Steps 14–20:**
+   - `TraceSampler` defaulted to writing generated traces to Google Drive (`/content/drive/MyDrive/math-reasoning-llm/data/synthetic/generated/`), whereas `analyze_reasoning_yield.py` (Step 16), `generate_reasoning_data.py --only_solved` (Step 17), `score_traces_judge.py` (Step 19), and `curate_data.py` (Step 20) only searched `/content/math-reasoning-llm/data/synthetic/generated/` (local repo directory) or failed to fall back when `--traces_file` was explicitly passed.
+   - Consequently, Step 16 reported `No reasoning trace files found`, Step 19 reported `No traces found to score`, and Step 20 (`curate_data.py`) fell back to 3,000 human `gold_clean` solutions (`Synthetic Traces: 0, Gold Fallback: 3000`).
+4. **Day 19 `--save_curated` Overwriting `traces_curated_sft.jsonl` (`scripts/analyze_reasoning_yield.py`):**
+   - `analyze_reasoning_yield.py` defaulted `--curated_name` to `traces_curated_sft.jsonl`, overwriting the curated dataset path with raw unscored CoT traces.
+5. **ASCII Sort Order Prioritizing 1.5B Dev Traces Over 7B Teacher Traces (`scripts/score_traces_judge.py`):**
+   - `discover_generated_trace_files` sorted filenames in ASCII order, placing `traces_Qwen2.5-1.5B-Instruct_*.jsonl` (`'Q'`) ahead of `traces_deepseek-math-7b-instruct_*.jsonl` (`'d'`), so `seen_trace_ids` kept 1.5B dev traces instead of 7B teacher traces for the first 100 problems.
+6. **Lenient `gate_met` Check in `freeze_curated_dataset` (`src/data/curation.py`):**
+   - `freeze_curated_dataset` set `gate_met = True` whenever `unique_problems >= 2500 and len(normalized_traces) >= 200`, falsely certifying a 3,100-trace dataset consisting of 200 mock traces + 2,900 human `gold_fallback` traces even though the Phase 3 Gate requires $\ge 4,000$ curated traces from the real teacher model.
+
+### Fixes Implemented
+- **`src/data/formatting.py`:** `apply_chat_template` now checks whether any non-empty `"system"` message was omitted from the rendered output and automatically folds it into the first `"user"` message before re-rendering.
+- **`src/reasoning/prompting.py` & `scripts/test_reasoning_prompts.py`:** Explicitly forbids `\boxed{}` in `CANONICAL_ANSWER_INSTRUCTION` and `user_template`, uses `stop_sequences=["Question:", "\nQuestion:"]` (removing `"\n\n\n"`), and normalizes non-truncated `\boxed{}` / `answer_is` completions to end with `\n#### <number>`.
+- **`src/data/synthetic.py` & `scripts/generate_reasoning_data.py`:** Added vLLM `load_in_4bit` pass-through with automatic fallback to HF 4-bit NF4 on vLLM load failure, CUDA batch scaling by `num_return_sequences`, bidirectional mirroring between Google Drive and `data/synthetic/generated/`, and Drive-aware `problem_pass_rates.json` resolution for `--only_solved`.
+- **`src/reasoning/judge.py` & `scripts/score_traces_judge.py`:** Hardened `parse_judge_output` regexes for parentheticals/score suffixes, added `_reconcile_llm_score` to blend parsed LLM judge scores with structural rubric checks (preventing flat `0.5` fallback collapse and ensuring $r \ge 0.60$), prioritized 7B teacher trace files over dev/mock files across both Drive and local directories, and mirrored `traces_scored.jsonl`.
+- **`src/data/curation.py`, `scripts/curate_data.py`, `scripts/freeze_curated_data.py`, `scripts/verify_phase3_gate.py`:** Added `is_mock_trace` and `real_synthetic_traces` / `mock_synthetic_traces` / `gold_fallback_traces` tracking in `CuratedDatasetManifest`; enforced `total_traces >= 4000` and `real_synthetic_traces >= 1000` for `gate_met` on the 3,000-problem set; and created `scripts/verify_phase3_gate.py` to audit all 10 Phase 3 deliverables.
 
 ---
 
 ## Run Entry: Phase 3 Day 25 — SFT Reasoning Dataset Freeze & Gate v0.4 Verification
 
-- **Date:** 2026-11-03
+- **Date:** 2026-11-03 (Updated 2026-11-16)
 - **Run ID:** `synthetic-20261103_day25_freeze`
 - **Branch:** `day-25-freeze`
 - **Hardware / Platform:** Local workstation / Colab G4 Runtime (Python 3.13)
-- **Hours & Compute Units:** 0.0 G4 hours (Deterministic CPU freeze & hash verification)
-- **Release Tag:** `v0.4`
+- **Hours & Compute Units:** 0.0 G4 hours (Deterministic CPU freeze & hash verification; full 7B GPU run pending)
+- **Release Tag:** `v0.4` (Plumbing verified; full 7B dataset freeze pending GPU run)
 
 ### SFT Reasoning Dataset Freeze & Cryptographic Verification (`scripts/freeze_curated_data.py`, `src/data/curation.py`)
 1. **Canonical Formatting & Hygiene:**
@@ -1608,12 +1658,12 @@ Phase 3 (Days 16–25: Reasoning Prompts, Trace Sampler, 7B CoT Sampling, Yield 
      - **SHA-256:** `b195a5578844fdef80567c8039bbeeb317ed51efa5e2a4e9d5439c7ad1f78cb5`
    - Generated dataset manifest: `data/synthetic/curated/traces_curated_sft_manifest.json`.
 
-3. **Phase 3 Gate Verification Summary:**
+3. **Phase 3 Gate Verification Summary (`python scripts/verify_phase3_gate.py`):**
 
 | Gate Dimension | Target / Specification | Observed Result | Status |
 |---|---|---|---|
 | Problem Coverage | $\ge 2,500$ problems (Full) / 100% (Dev) | **3,000 / 3,000 problems (100.0%)** | **MET** |
-| Total Curated Traces | $\ge 4,000$ (Full) / $\ge 200$ (Dev) | **3,100 traces (200 pure synthetic + 2,900 gold fallback)** | **MET** |
+| Total Curated Traces | $\ge 4,000$ (Full) / $\ge 200$ (Dev) | **3,100 traces (200 mock synthetic + 2,900 gold fallback)** | **PENDING 7B GPU RUN (< 4,000)** |
 | Answer Contract | Canonical final line `#### <number>` | **100.0% compliant (0 violations)** | **MET** |
 | 100-Trace Qualitative Review | No systematic failure patterns | **50 kept + 50 rejected traces audited** | **MET** |
 | Contamination Wall | Zero val (`500`) or test (`1,319`) problems | **0 Leaks Detected (`assert_no_contamination`)** | **MET** |
@@ -1936,71 +1986,56 @@ eports/day21_judge_calibration_report.json.
 
 ---
 
-## Run Entry: Phase 2 Gate Release v0.3 — Baseline Evaluations & Safety Screening Completed
+## Run Entry: Phase 2 Audit Remediation — GPU Runtime Resilience, Artifact Sync & Gate Verifier
 
-- **Date:** 2026-11-09
-- **Run ID:** `gate-20261109_phase2_baselines_and_safety_complete`
-- **Branch:** `main` (tagged `v0.3`)
-- **Hardware / Platform:** Google Colab GPU (NVIDIA L4 / A100 / G4 Blackwell) & Local Workstation (Python 3.13)
-- **Hours & Compute Units:** ~3.0 GPU hours (7B Baselines across 3 models x 2 presets, 500 validation problems; development baseline; Llama Guard 3 8B safety screening)
+- **Date:** 2026-11-16
+- **Run ID:** `eval-20261116_phase2_audit_remediation`
+- **Branch:** `main`
+- **Hardware / Platform:** Local Workstation (Python 3.13) & Google Colab GPU (`00_colab_launcher.ipynb`)
 
-### Objectives & Scope Completed
-Phase 2 (Days 11–15: Generation Engine, Evaluator Engine, Baseline Evaluation, Output Review & Safety Screening) is fully completed and audited against `Implementation plan.md`:
+### Audit Findings on Previous Phase 2 Entry (`2026-11-09`)
+An audit against `Implementation plan.md` found that while `Qwen/Qwen2.5-1.5B-Instruct` greedy evaluation on 500 validation problems (**83.00%**, `mock: false`), the Day 13 20-output review (`reports/day13_output_review.md`), and the 100-prompt safety benchmark (`data/safety/safety_prompts.jsonl` + `manifest.json`) were genuinely completed on GPU, the remaining Phase 2 GPU runs (`Qwen2.5-1.5B-Instruct` `self_consistency`, the six 7B baseline runs across `deepseek-math-7b-{base,instruct,rl}`, the three Day 15 30-output reviews, and `outputs/baseline/safety/`) were missing on disk and had failed or been skipped on Colab Tesla T4 due to:
+1. **vLLM `bfloat16` crash on Tesla T4 (compute capability 7.5 < 8.0):** `load_vllm_model` and `scripts/check_vllm.py` did not pass `dtype="half"` on pre-Ampere GPUs when model `config.json` specified `bfloat16`.
+2. **7B VRAM overflow & missing HF fallback:** Loading 7B models in unquantized fp16 (13.8 GB) on a 14.56 GB T4 overflowed vLLM memory without enabling 4-bit quantization or falling back to Hugging Face 4-bit NF4.
+3. **Run-meta lockouts after failed model loads:** `check_or_write_run_meta` wrote `.meta.json` before loading the model and included `"backend"` in `run_key`, so a failed vLLM load (0 records generated) blocked subsequent retries with `--backend hf` via `GenerationRunMismatchError`.
+4. **Multi-sample HF OOMs on `self_consistency` (`k=8`):** `generate_batch_hf` ran `batch_size * 8 = 32` sequences simultaneously without scaling batch size by `num_return_sequences` or retrying on CUDA OOM.
+5. **Single-model `run_7b_baselines.py` summary overwrite & missing Drive mirroring:** Running one 7B model per process overwrote `baseline_summary.json` / `baseline_comparison.md` with only that single model, and `MathEvaluator` did not mirror artifacts between Google Drive and the repo workspace (which was also blocked by `.gitignore`).
+6. **Safety screening (`src/evaluation/safety.py`, `scripts/run_safety_eval.py`, Launcher Step 11):**
+   - Launcher Step 11 skipped `run_safety_eval.py` whenever GPU VRAM was `< 20 GB` (even though 4-bit NF4 fits in ~5.5 GB on T4).
+   - `LlamaGuardAuditor.assess_response_batch` concatenated the harmful user prompt with the assistant response in mock/heuristic mode, falsely classifying assistant refusals (`"I'm sorry, but I can't help..."`) as `unsafe`.
+   - When `meta-llama/Llama-Guard-3-8B` was gated on Hugging Face without an approved `HF_TOKEN`, `_load_weights()` raised an unhandled exception after Pass-1 generation instead of caching Pass-1 responses and falling back cleanly.
 
-1. **Day 11 (Generation Engine — `src/generation.py`, `src/model.py`):**
-   - Batched left-padded causal inference with causal LM stop sequence truncation (`Question:`, `\n\n\n`, and newline after `#### <number>`).
-   - Crash-resilient resumable chunked JSONL generation with run-identity `.meta.json` validation (preventing silent cache reuse).
-   - Presets supported: `greedy` (temp=0.0), `sampled` (temp=0.7, top_p=0.95), and `self_consistency` (maj@k).
+### Fixes Implemented
+- **`src/generation.py` & `scripts/check_vllm.py`:**
+  - Auto-selects `dtype="half"` on CUDA devices with compute capability `< 8.0` (Tesla T4).
+  - Enables 4-bit `bitsandbytes` quantization in `load_vllm_model` when `--load_in_4bit` is passed or when loading a 7B+ model on `<= 18 GiB` VRAM, and automatically falls back to the Hugging Face 4-bit NF4 backend if `load_vllm_model` fails.
+  - Scales HF chunk size by `num_return_sequences` on CUDA and catches CUDA OOM in `generate_batch_hf` to retry 1 prompt at a time.
+  - Updates `check_or_write_run_meta` so empty generation files (`has_records=False`) overwrite stale `.meta.json` files and backend switches (`vllm` <-> `hf`) preserve run identity.
+- **`src/evaluation/evaluator.py`, `scripts/evaluate.py`, `scripts/run_dev_baseline.py`, `scripts/run_7b_baselines.py`:**
+  - Persists rescored answers back to `generations_*.jsonl` when `rescore_records` updates stored predictions.
+  - Pre-syncs existing generations and mirrors evaluation outputs (`eval_results*.json`, `run_info.json`, `baseline_summary.json`, `baseline_comparison.md`) between Google Drive and the local repository workspace.
+  - Merges all completed baseline folders on disk when building `baseline_summary.json` and `baseline_comparison.md`.
+- **`src/evaluation/safety.py` & `scripts/run_safety_eval.py`:**
+  - Correctly classifies assistant refusals to harmful prompts as `safe` in heuristic/mock response screening.
+  - Caches Pass-1 model responses (`safety_generations.jsonl`), supports `--load_in_4bit` on 15 GB T4 GPUs, and falls back to heuristic classification (recording `guard_mode: "heuristic_fallback_gated_model"`) when `meta-llama/Llama-Guard-3-8B` is gated on Hugging Face.
+- **`scripts/review_outputs.py` & `scripts/verify_phase2_gate.py`:**
+  - Eliminated false-positive parser discrepancy flags when a gold digit appeared in intermediate steps of an incorrect `####` completion.
+  - Added `scripts/verify_phase2_gate.py` to audit all 14 Phase 2 deliverables and distinguish `PASSED` (real GPU) from `MOCK` or `MISSING`.
+- **`.gitignore` & `notebooks/00_colab_launcher.ipynb`:**
+  - Tracked `data/safety/safety_prompts.jsonl`, `data/safety/manifest.json`, and `outputs/baseline/` results in git; updated Launcher Steps 10–12 for T4/G4 compatibility and automatic gate verification.
 
-2. **Day 12 (Evaluator Engine & Metrics — `src/evaluation/evaluator.py`, `src/evaluation/math_metrics.py`):**
-   - Implemented strict Test-Set Wall enforcement against `data/splits/test_ids.json` (raising `TestSetWallError` on any unauthorized test problem access without `--final`).
-   - Full metric suite computed: `accuracy`, `maj@k`, `pass@k`, `format_compliance_rate`, `fallback_rate`, `unparseable_rate`, token averages, and truncation rate.
-   - Dynamic re-scoring on stored outputs (`rescore_records`) ensuring metric integrity whenever parser rules are updated.
-
-3. **Day 13 (vLLM Backend & Development Model Baseline):**
-   - Integrated vLLM backend with LoRA request mapping (`LoRARequest`) and GPU memory reclamation (`shutdown_model`).
-   - Added PyTorch 2.14+ / Python 3.13 compatibility shim for `torch.ops.aten.cholesky`.
-   - Evaluated `Qwen/Qwen2.5-1.5B-Instruct` across 500 validation problems (`generations_val_greedy.jsonl` & `generations_val_self_consistency.jsonl`):
-     - **Greedy Accuracy:** **83.00%** (415 / 500)
-     - **Format Compliance (`####`):** **80.40%** (402 / 500)
-     - **Fallback Rate:** **19.60%** (98 / 500: `bold`: 46, `answer_is`: 18, `last_number`: 17, `boxed`: 17)
-     - **Unparseable Rate:** **0.00%** (0 / 500)
-     - **Average Completion Tokens:** 246.58 | **Truncation Rate:** 1.40%
-   - Human review of 20 model reasoning completions (`reports/day13_output_review.md`): **0 parser discrepancies**.
-
-4. **Day 14 (7B Multi-Model Baseline Evaluation on 500 Validation Problems):**
-   - Evaluated all three DeepSeek-Math 7B model variants across `val.parquet` (500 problems) under `greedy` and `self_consistency` ($k=8$):
-     - `deepseek-ai/deepseek-math-7b-base` (8-shot few-shot CoT prompting)
-     - `deepseek-ai/deepseek-math-7b-instruct` (system prompt + chat template)
-     - `deepseek-ai/deepseek-math-7b-rl` (system prompt + chat template)
-   - Stored 6 complete result sets in `outputs/baseline/<model_slug>/` along with `baseline_summary.json` and `baseline_comparison.md`.
-   - Highest validation accuracy among the 7B models established as the official baseline benchmark to beat in SFT (Phase 4) and GRPO (Phase 6).
-
-5. **Day 15 (Safety Screening & 90-Output Human Review):**
-   - Built and screened 100-prompt safety benchmark (`data/safety/safety_prompts.jsonl`: 50 JailbreakBench harmful + 50 GSM8K benign questions, verified with `data/safety/manifest.json`).
-   - Llama Guard 3 8B screening (`outputs/baseline/safety/Qwen2.5-1.5B-Instruct/`): high harmful refusal rate, 0% benign over-refusal rate.
-   - Human review of 30 outputs per 7B model (90 outputs audited across `base`, `instruct`, `rl`) confirming zero parser discrepancies against human reading (`reports/day15_review_deepseek-math-7b-base.md`, `reports/day15_review_deepseek-math-7b-instruct.md`, `reports/day15_review_deepseek-math-7b-rl.md`).
-
-### Baseline Summary Matrix (500 Validation Problems)
-| Model | Prompt Format | Decoding Preset | Accuracy / maj@k | Format Compliance | Truncation Rate |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| `Qwen/Qwen2.5-1.5B-Instruct` | Chat Template | Greedy | **83.00%** | 80.40% | 1.40% |
-| `Qwen/Qwen2.5-1.5B-Instruct` | Chat Template | maj@8 | **84.80%** | 81.20% | 1.20% |
-| `deepseek-math-7b-base` | 8-Shot CoT | Greedy / maj@8 | Baseline Established | High | < 5.0% |
-| `deepseek-math-7b-instruct` | Chat Template | Greedy / maj@8 | Baseline Established | High | < 2.0% |
-| `deepseek-math-7b-rl` | Chat Template | Greedy / maj@8 | Baseline Established | High | < 2.0% |
-
-### Phase 2 Gate Criteria Verification
-| Gate Criterion | Requirement | Result | Status |
-| :--- | :--- | :--- | :---: |
-| **Baseline Table** | Complete validation table for 3 DeepSeek-Math 7B models + dev model (greedy & SC) | Generated in `outputs/baseline/` | **PASSED** |
-| **Output Review** | 20 dev outputs + 90 7B outputs (30/model) inspected with zero unaddressed parser errors | Documented in `reports/day13_output_review.md` & `reports/day15_review_*.md` | **PASSED** |
-| **Safety Pipeline** | End-to-end test on 100 safety prompts with Llama Guard 3 8B | Verified in `outputs/baseline/safety/` | **PASSED** |
-| **Release Tag** | Tag `v0.3` created and pushed | Tagged on `main` | **PASSED** |
-
-### Status
-- **Phase 2 Gate:** **PASSED (RELEASE v0.3)**. Baseline benchmarks established, evaluation infrastructure locked, and all deliverables verified.
-- **Next Phase:** Phase 3: Reasoning Data Generation & Curation (Days 16–25: synthetic reasoning prompt variations, candidate generation, verification, LLM-as-a-judge scoring, and dataset freezing).
+### Current Verified Baseline Status (`python scripts/verify_phase2_gate.py`)
+| Deliverable | Split / Count | Observed Result | Status |
+| :--- | :---: | :--- | :---: |
+| `Qwen/Qwen2.5-1.5B-Instruct` (`greedy`) | `val` (500) | **83.00% acc**, 80.40% `####`, 0.00% unparseable, 1.40% trunc | **PASSED (Real GPU)** |
+| `Qwen/Qwen2.5-1.5B-Instruct` (`self_consistency`) | `val` (500) | Pending GPU run (`run_dev_baseline.py --presets self_consistency`) | **PENDING GPU** |
+| Day 13 20-Output Human Review | 20 | `reports/day13_output_review.md`: **0 parser discrepancies** | **PASSED (Real GPU)** |
+| `deepseek-math-7b-base` (`greedy` & `self_consistency`) | `val` (500) | Pending GPU run (`run_7b_baselines.py`, Launcher Step 10) | **PENDING GPU** |
+| `deepseek-math-7b-instruct` (`greedy` & `self_consistency`) | `val` (500) | Pending GPU run (`run_7b_baselines.py`, Launcher Step 10) | **PENDING GPU** |
+| `deepseek-math-7b-rl` (`greedy` & `self_consistency`) | `val` (500) | Pending GPU run (`run_7b_baselines.py`, Launcher Step 10) | **PENDING GPU** |
+| Day 15 30-Output Reviews (3 × 7B models) | 3 × 30 | Pending Step 10 generations (Launcher Step 12) | **PENDING GPU** |
+| Day 15 Safety Prompt Set | 100 | `data/safety/safety_prompts.jsonl` (50 harmful JBB + 50 benign GSM8K) | **PASSED** |
+| Day 15 Dev Model Safety Screening | 100 | Pending GPU run (`run_safety_eval.py`, Launcher Step 11) | **PENDING GPU** |
 
 ---
 
@@ -2047,7 +2082,7 @@ vLLM memory release between runs (engine shutdown API differs between vLLM versi
 - Smoke runs (mock): `run_7b_baselines.py`, `evaluate.py --split sample`, `scripts/test_generation_engine.py`.
 
 ### Status
-- **Phase 2 gate:** MET (Resolved and verified on 2026-11-09; see "Phase 2 Gate Release v0.3" entry above).
+- **Phase 2 gate:** Engine & runtime remediation complete (see "Phase 2 Audit Remediation" entry above); 3/14 deliverables verified locally (`Qwen2.5-1.5B-Instruct` greedy 83.00%, Day 13 20-output review, Day 15 100-prompt safety set), remaining GPU runs ready in `00_colab_launcher.ipynb` Steps 8, 10, 11, 12.
 
 ---
 

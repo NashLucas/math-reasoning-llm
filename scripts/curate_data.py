@@ -214,47 +214,81 @@ def main() -> None:
     cfg_mgr = ConfigManager()
     profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
 
-    # 1. Resolve traces input file
+    # 1. Resolve traces input file(s)
+    raw_traces: List[Dict[str, Any]] = []
     t_path: Optional[Path] = None
     if args.traces_file:
         t_path = Path(args.traces_file)
         if not t_path.is_absolute():
-            if (PROJECT_ROOT / t_path).exists():
-                t_path = PROJECT_ROOT / t_path
-            elif (profile_data_dir / "synthetic" / "generated" / t_path.name).exists():
-                t_path = profile_data_dir / "synthetic" / "generated" / t_path.name
+            local_cand = PROJECT_ROOT / t_path
+            drive_cand = profile_data_dir / "synthetic" / "generated" / t_path.name
+            if local_cand.exists() and drive_cand.exists():
+                t_path = drive_cand if drive_cand.stat().st_size >= local_cand.stat().st_size else local_cand
+            elif drive_cand.exists():
+                t_path = drive_cand
+            elif local_cand.exists():
+                t_path = local_cand
             elif (profile_data_dir / t_path).exists():
                 t_path = profile_data_dir / t_path
             else:
-                t_path = PROJECT_ROOT / t_path
-    else:
-        # Check standard scored file in PROJECT_ROOT and profile_data_dir
+                t_path = local_cand
+        if t_path.exists():
+            logger.info(f"Loading traces from: {t_path}")
+            raw_traces = load_synthetic_traces(t_path)
+
+    if not raw_traces:
+        # Check standard scored file in PROJECT_ROOT and profile_data_dir (prefer larger if both exist)
         default_scored = PROJECT_ROOT / "data" / "synthetic" / "generated" / "traces_scored.jsonl"
         drive_scored = profile_data_dir / "synthetic" / "generated" / "traces_scored.jsonl"
-        if default_scored.exists():
-            t_path = default_scored
+        if default_scored.exists() and drive_scored.exists():
+            t_path = drive_scored if drive_scored.stat().st_size >= default_scored.stat().st_size else default_scored
         elif drive_scored.exists():
             t_path = drive_scored
-        else:
-            # Check for any generated trace files in traces_dir
-            tdir = Path(args.traces_dir)
-            if not tdir.is_absolute():
-                if (PROJECT_ROOT / tdir).exists():
-                    tdir = PROJECT_ROOT / tdir
-                elif (profile_data_dir / "synthetic" / "generated").exists():
-                    tdir = profile_data_dir / "synthetic" / "generated"
-                else:
-                    tdir = PROJECT_ROOT / tdir
-            if tdir.exists():
-                jsonl_files = list(tdir.glob("*.jsonl"))
-                if jsonl_files:
-                    t_path = jsonl_files[0]
+        elif default_scored.exists():
+            t_path = default_scored
 
-    raw_traces: List[Dict[str, Any]] = []
-    if t_path and t_path.exists():
-        logger.info(f"Loading traces from: {t_path}")
-        raw_traces = load_synthetic_traces(t_path)
-    else:
+        if t_path and t_path.exists():
+            logger.info(f"Loading scored traces from: {t_path}")
+            raw_traces = load_synthetic_traces(t_path)
+        else:
+            # Fallback: discover all generated trace files across both local and Drive generated dirs
+            tdir = Path(args.traces_dir)
+            search_dirs = (
+                [tdir]
+                if tdir.is_absolute()
+                else [
+                    profile_data_dir / "synthetic" / "generated",
+                    PROJECT_ROOT / tdir,
+                ]
+            )
+            discovered_by_name: Dict[str, Path] = {}
+            for sdir in search_dirs:
+                if sdir.exists():
+                    for f in sdir.glob("*.jsonl"):
+                        if "curated" in f.name or "scored" in f.name:
+                            continue
+                        prev = discovered_by_name.get(f.name)
+                        if prev is None or f.stat().st_size > prev.stat().st_size:
+                            discovered_by_name[f.name] = f
+            discovered = list(discovered_by_name.values())
+            non_mock = [f for f in discovered if "mock" not in f.name.lower()]
+            if non_mock:
+                discovered = non_mock
+            discovered.sort(
+                key=lambda p: (0 if ("7b" in p.name.lower() or "deepseek" in p.name.lower()) else 1, -p.stat().st_size, p.name)
+            )
+            seen_tids = set()
+            for jf in discovered:
+                logger.info(f"Loading fallback generated traces from: {jf}")
+                for tr in load_synthetic_traces(jf):
+                    tid = tr.get("trace_id", "")
+                    if tid and tid not in seen_tids:
+                        seen_tids.add(tid)
+                        raw_traces.append(tr)
+                    elif not tid:
+                        raw_traces.append(tr)
+
+    if not raw_traces:
         logger.warning("No traces file found. Will curate using clean gold solutions for all target problems.")
 
     logger.info(f"Loaded {len(raw_traces)} candidate traces.")
@@ -311,6 +345,26 @@ def main() -> None:
             out_file = PROJECT_ROOT / out_file
 
     save_curated_dataset(curated_traces, out_file)
+
+    # Mirror curated JSONL between local workspace and Drive if in the standard curated dir
+    try:
+        import shutil
+
+        local_cur_dir = (PROJECT_ROOT / "data" / "synthetic" / "curated").resolve()
+        drive_cur_dir = (profile_data_dir / "synthetic" / "curated").resolve()
+        parent_res = out_file.parent.resolve()
+        mirror_cur_dir: Optional[Path] = None
+        if local_cur_dir != drive_cur_dir:
+            if parent_res == local_cur_dir:
+                mirror_cur_dir = drive_cur_dir
+            elif parent_res == drive_cur_dir:
+                mirror_cur_dir = local_cur_dir
+        if mirror_cur_dir is not None:
+            mirror_cur_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(out_file, mirror_cur_dir / out_file.name)
+            logger.info(f"Mirrored curated dataset to: {mirror_cur_dir / out_file.name}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror curated dataset: {exc}")
 
     # 5. Save Reports
     reports_dir = Path(args.reports_dir)

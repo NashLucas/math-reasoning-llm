@@ -539,7 +539,7 @@ class ErrorClassifier:
                 return
 
             try:
-                from src.model import patch_peft_torchao_compatibility, load_model, load_tokenizer
+                from src.model import load_model, load_tokenizer, patch_peft_torchao_compatibility
                 patch_peft_torchao_compatibility()
                 logger.info("Loading ErrorClassifier model: %s", self.model_name_or_path)
                 tokenizer = load_tokenizer(self.model_name_or_path, padding_side="left")

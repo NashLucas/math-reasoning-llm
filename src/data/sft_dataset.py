@@ -110,6 +110,75 @@ def prepare_sft_examples_from_curated(
     return examples
 
 
+def resolve_sft_dataset_file(
+    file_path: Optional[Union[str, Path]] = None,
+    profile: Optional[str] = None,
+    allow_sample_fallback: bool = True,
+) -> Path:
+    """Resolve the curated SFT dataset path across Google Drive and local workspace.
+
+    Prioritizes real curated dataset (traces_curated_sft.jsonl) from either Google Drive
+    or the local repository. If present in both, selects the larger file.
+    Falls back to sample dataset only if allowed and no curated dataset exists.
+    """
+    from src.config import ConfigManager, get_default_profile
+
+    mgr = ConfigManager()
+    active_profile = profile or get_default_profile()
+    profile_data_dir = mgr.get_profile_dir("data_dir", profile_name=active_profile)
+    project_root = Path(__file__).resolve().parent.parent.parent
+
+    target_name = "traces_curated_sft.jsonl"
+    candidates: List[Path] = []
+
+    if file_path:
+        p = Path(file_path)
+        if p.exists() and p.is_file() and p.stat().st_size > 0:
+            candidates.append(p)
+        target_name = p.name
+
+    # Check Drive candidates
+    drive_curated = profile_data_dir / "synthetic" / "curated" / target_name
+    if drive_curated.exists() and drive_curated.is_file() and drive_curated.stat().st_size > 0:
+        candidates.append(drive_curated)
+
+    # Check local candidates
+    local_curated = project_root / "data" / "synthetic" / "curated" / target_name
+    if local_curated.exists() and local_curated.is_file() and local_curated.stat().st_size > 0:
+        candidates.append(local_curated)
+
+    # Check relative path directly under data_dir
+    if file_path:
+        rel_p = Path(file_path)
+        if not rel_p.is_absolute():
+            under_drive = profile_data_dir / rel_p
+            if under_drive.exists() and under_drive.is_file() and under_drive.stat().st_size > 0:
+                candidates.append(under_drive)
+            under_local = project_root / rel_p
+            if under_local.exists() and under_local.is_file() and under_local.stat().st_size > 0:
+                candidates.append(under_local)
+
+    if candidates:
+        best = max(candidates, key=lambda cp: cp.stat().st_size)
+        return best
+
+    # If no curated dataset found, check sample fallbacks if allowed
+    if allow_sample_fallback:
+        for fallback in [
+            project_root / "data" / "sample" / "train_sample.jsonl",
+            profile_data_dir / "sample" / "train_sample.jsonl",
+            project_root / "data" / "sample" / "train_sample.parquet",
+        ]:
+            if fallback.exists() and fallback.is_file() and fallback.stat().st_size > 0:
+                logger.warning(
+                    f"Curated SFT dataset '{target_name}' not found on Drive or locally. "
+                    f"Falling back to sample dataset: {fallback}"
+                )
+                return fallback
+
+    return project_root / "data" / "synthetic" / "curated" / target_name
+
+
 def load_sft_dataset(
     file_path: Union[str, Path],
     eos_token: str = "<|eos|>",
@@ -118,7 +187,11 @@ def load_sft_dataset(
     """Load curated reasoning dataset and format as SFT prompt-completion pairs."""
     p = Path(file_path)
     if not p.exists():
-        raise FileNotFoundError(f"Curated SFT file not found: {p}")
+        resolved = resolve_sft_dataset_file(p, allow_sample_fallback=True)
+        if resolved.exists():
+            p = resolved
+        else:
+            raise FileNotFoundError(f"Curated SFT file not found: {p}")
 
     records: List[Dict[str, Any]] = []
     if p.suffix == ".parquet":

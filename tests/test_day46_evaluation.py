@@ -356,7 +356,7 @@ class TestDay46Evaluation(unittest.TestCase):
             out_dir = Path(tmpdir) / "eval_out"
             rep_dir = Path(tmpdir) / "reports"
 
-            from scripts.evaluate_grpo import parse_args, main
+            from scripts.evaluate_grpo import main
             test_args = [
                 "evaluate_grpo.py",
                 "--sample_mode",

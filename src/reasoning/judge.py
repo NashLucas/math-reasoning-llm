@@ -32,30 +32,63 @@ DEFAULT_WEIGHTS: Dict[str, Dict[str, float]] = {
 JUDGE_SYSTEM_PROMPT = """You are an expert mathematical reasoning evaluator and educator.
 Your task is to objectively evaluate a mathematical solution according to a strict scoring rubric.
 You will evaluate the reasoning on specific criteria, assigning each a continuous score from 0.0 to 1.0.
+Use the full range from 0.0 to 1.0: do not give high scores to terse, incomplete, or superficially verified solutions.
 
 Scoring Rubric:
 1. Completeness (0.0 to 1.0):
-   - 1.0: Every step and intermediate calculation is clearly stated, logically followable, and complete.
-   - 0.5: Reasoning is understandable but some intermediate steps are compressed or skipped.
-   - 0.0: No derivation shown, critical steps missing, or incoherent logic.
+   - 0.9-1.0: Every step and intermediate calculation is clearly stated, logically followable, and complete.
+   - 0.6-0.8: Mostly clear, but slightly concise or compresses one minor intermediate step.
+   - 0.3-0.5: Skips explicit intermediate multiplications/subtractions or jumps straight to combined totals.
+   - 0.0-0.2: No derivation shown, critical steps missing, or incoherent logic.
 
-2. Verification Quality (0.0 to 1.0, or N/A if not solve-then-verify):
-   - 1.0: Active, independent verification (e.g. back-substituting the answer, checking constraints, or alternative sanity check).
-   - 0.5: Superficial check (e.g. simply repeating the final line or restating without independent check).
-   - 0.0: Verification is missing, invalid, or makes false mathematical claims.
+2. Verification Quality (0.0 to 1.0, or N/A if prompt strategy is not solve_then_verify):
+   - 0.9-1.0: Active, independent verification (back-substituting into problem conditions, inverse arithmetic, or bounds check).
+   - 0.4-0.6: Superficial check (e.g. only confirming a rough inequality or restating an earlier step).
+   - 0.0-0.2: Missing verification or trivial statement like "The answer is correct" with no check.
 
-3. Novelty / Method Diversity (0.0 to 1.0, or N/A if not alternative-method):
-   - 1.0: Genuinely distinct mathematical strategy compared to standard chain-of-thought (e.g. algebraic equation vs arithmetic breakdown, ratio/unit rate, working backwards).
-   - 0.5: Slight reordering or rewording of the same arithmetic sequence.
-   - 0.0: Identical method to standard solution or trivial paraphrase.
+3. Novelty / Method Diversity (0.0 to 1.0, or N/A if prompt strategy is not alternative_method):
+   - 0.8-1.0: Genuinely distinct strategy vs. the reference CoT (e.g. algebra vs. arithmetic, working backwards, factoring, ratios).
+   - 0.4-0.6: Partial reformulation or regrouping of the same arithmetic operations.
+   - 0.0-0.2: Identical method to the reference solution or trivial rewording.
 
-Always structure your final evaluation in the following exact format:
+Calibration Examples:
+Example A (chain_of_thought, explicit steps):
+Candidate: "Each box holds 8 pens, so 4 boxes hold 4 * 8 = 32 pens. After giving away 7, there are 32 - 7 = 25 pens left.\n#### 25"
+Evaluation:
+- Completeness: 0.95
+- Verification Quality: N/A
+- Novelty: N/A
+- Overall Score: 0.95
+- Rationale: Every intermediate calculation is explicitly written out and easy to follow.
+
+Example B (solve_then_verify, clear steps but trivial check):
+Candidate: "Step 1: 6 * 5 = 30. Step 2: 30 + 12 = 42. Verification: The math is correct and the answer is 42.\n#### 42"
+Evaluation:
+- Completeness: 0.85
+- Verification Quality: 0.15
+- Novelty: N/A
+- Overall Score: 0.50
+- Rationale: Solution steps are clear, but the verification merely asserts correctness without an independent check.
+
+Example C (chain_of_thought, compressed/skipped steps):
+Candidate: "Total = 36 + 14 = 50.\n#### 50"
+Evaluation:
+- Completeness: 0.35
+- Verification Quality: N/A
+- Novelty: N/A
+- Overall Score: 0.35
+- Rationale: Intermediate calculations producing 36 and 14 are omitted.
+
+Output Rules:
+- Do NOT repeat the problem or the candidate solution.
+- Do NOT wrap scores in LaTeX or \\boxed{}. Write plain decimal numbers between 0.0 and 1.0.
+- Always structure your final evaluation in this exact format:
 Evaluation:
 - Completeness: <score between 0.0 and 1.0>
 - Verification Quality: <score between 0.0 and 1.0, or N/A>
 - Novelty: <score between 0.0 and 1.0, or N/A>
 - Overall Score: <score between 0.0 and 1.0>
-- Rationale: <1-3 sentences explaining the assigned scores>
+- Rationale: <1-2 sentences explaining the assigned scores>
 """
 
 
@@ -137,7 +170,9 @@ def format_judge_prompt(
         ])
 
     lines.extend([
-        "Evaluate the candidate solution using the scoring rubric and output your evaluation:",
+        "Evaluate the candidate solution using the scoring rubric and output your evaluation.",
+        "Start immediately with 'Evaluation:' followed by the bullet points "
+        "(- Completeness, - Verification Quality, - Novelty, - Overall Score, - Rationale):",
     ])
 
     return "\n".join(lines)
@@ -160,7 +195,7 @@ def parse_judge_output(
     Robust to various LLM response shapes:
     - Standard markdown bullet format (`- Completeness: 0.9`)
     - JSON embedded code block (`{"completeness": 0.9, ...}`)
-    - Key-value lines (`Completeness: 0.9 / 1.0` or `Completeness = 0.9`)
+    - Key-value lines (`Completeness: 0.9 / 1.0`, `Completeness (0.0 to 1.0): 0.9`, `Completeness Score = 0.9`)
     - 0-10 or 0-5 scale normalization
     """
     if not raw_output or not raw_output.strip():
@@ -173,12 +208,16 @@ def parse_judge_output(
     json_match = re.search(r"\{[\s\S]*?\}", text)
     if json_match:
         try:
-            d = json.loads(json_match.group(0))
-            if "completeness" in d or "overall_score" in d:
-                c_val = float(d.get("completeness", 0.0))
-                v_val = float(d["verification_quality"]) if d.get("verification_quality") not in (None, "N/A", "n/a") else None
-                n_val = float(d["novelty"]) if d.get("novelty") not in (None, "N/A", "n/a") else None
-                o_val = float(d.get("overall_score", 0.0)) if "overall_score" in d else None
+            raw_d = json.loads(json_match.group(0))
+            d = {str(k).lower().strip().replace(" ", "_"): val for k, val in raw_d.items()}
+            if "completeness" in d or "overall_score" in d or "overall" in d:
+                c_val = float(d.get("completeness", d.get("overall_score", d.get("overall", 0.0))))
+                vq_raw = d.get("verification_quality", d.get("verification"))
+                v_val = float(vq_raw) if vq_raw not in (None, "N/A", "n/a", "None", "") else None
+                nv_raw = d.get("novelty", d.get("method_diversity"))
+                n_val = float(nv_raw) if nv_raw not in (None, "N/A", "n/a", "None", "") else None
+                ov_raw = d.get("overall_score", d.get("overall"))
+                o_val = float(ov_raw) if ov_raw not in (None, "N/A", "n/a", "") else None
                 rat = str(d.get("rationale", "")).strip()
 
                 # Scale normalization if scores > 1.0 (e.g. 0-10 scale)
@@ -203,17 +242,26 @@ def parse_judge_output(
     # 2. Regex pattern extraction for bullet or line-based format
     clean_text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     clean_text = re.sub(r"__(.*?)__", r"\1", clean_text)
+    # Strip math-model LaTeX wrappers like \boxed{0.85} or $0.85$
+    clean_text = re.sub(r"\\boxed\{([^{}]+)\}", r"\1", clean_text)
+    clean_text = re.sub(r"\$([0-9]+(?:\.[0-9]+)?(?:[ \t]*/[ \t]*[0-9]+(?:\.[0-9]+)?)?%?)\$", r"\1", clean_text)
 
     def _extract_metric(metric_name: str) -> Optional[float]:
-        # Matches: "- Completeness: 0.8", "Completeness = 8/10", "Completeness: 85%", "**Completeness:** 1.0"
+        # Allow optional parentheticals like '(0.0 to 1.0)' or 'Score' before ':', '=', '-', or 'is'
+        label_suffix = r"(?:[ \t]*(?:\([^)\n]*\)|score|rating))*"
+        sep = r"(?:[ \t]*[:=\-][ \t]*|[ \t]+is[ \t]+)"
         patterns = [
-            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*/[ \t]*([0-9]+(?:\.[0-9]+)?)",
-            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*%",
-            rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*([0-9]+(?:\.[0-9]+)?)",
+            rf"(?:^|\n)[ \t*\-\d.#]*{metric_name}{label_suffix}{sep}\[?([0-9]+(?:\.[0-9]+)?)\]?[ \t]*/[ \t]*([0-9]+(?:\.[0-9]+)?)",
+            rf"(?:^|\n)[ \t*\-\d.#]*{metric_name}{label_suffix}{sep}\[?([0-9]+(?:\.[0-9]+)?)[ \t]*%",
+            rf"(?:^|\n)[ \t*\-\d.#]*{metric_name}{label_suffix}{sep}\[?([0-9]+(?:\.[0-9]+)?)\]?",
         ]
 
         # Check for explicit N/A
-        na_match = re.search(rf"(?:^|\n)[ \t*\-\d.]*{metric_name}[ \t]*[:=][ \t]*(?:N/A|n/a|None|none)", clean_text)
+        na_match = re.search(
+            rf"(?:^|\n)[ \t*\-\d.#]*{metric_name}{label_suffix}{sep}(?:N/A|n/a|None|none|not applicable)",
+            clean_text,
+            re.IGNORECASE,
+        )
         if na_match:
             return None
 
@@ -242,12 +290,12 @@ def parse_judge_output(
         return None
 
     completeness = _extract_metric("Completeness")
-    verification = _extract_metric("Verification(?: Quality)?")
-    novelty = _extract_metric("Novelty(?: / Method Diversity)?")
-    extracted_overall = _extract_metric("Overall Score")
+    verification = _extract_metric("Verification(?:[ \t]+Quality)?")
+    novelty = _extract_metric("(?:Novelty(?:[ \t]*/[ \t]*Method[ \t]+Diversity)?|Method[ \t]+Diversity)")
+    extracted_overall = _extract_metric("(?:Overall|Final|Total)(?:[ \t]+Score)?")
 
     # Extract rationale
-    rationale_match = re.search(r"(?:^|\n)[ \t*\-\d.]*Rationale[ \t]*[:=][ \t]*(.+)", clean_text, re.DOTALL | re.IGNORECASE)
+    rationale_match = re.search(r"(?:^|\n)[ \t*\-\d.#]*Rationale[ \t]*[:=\-][ \t]*(.+)", clean_text, re.DOTALL | re.IGNORECASE)
     rationale = rationale_match.group(1).strip() if rationale_match else ""
     # Truncate rationale if multi-paragraph
     if "\n\n" in rationale:
@@ -256,6 +304,10 @@ def parse_judge_output(
     # Fallback assignment if parsing failed
     if completeness is None and extracted_overall is not None:
         completeness = extracted_overall
+        status = "partial"
+    elif completeness is None and (verification is not None or novelty is not None):
+        present = [x for x in (verification, novelty) if x is not None]
+        completeness = sum(present) / len(present)
         status = "partial"
     elif completeness is None:
         completeness = 0.5  # Neutral fallback
@@ -345,25 +397,28 @@ class ReasoningJudge:
         if self._is_initialized or self.use_mock:
             return
 
-        from src.model import load_model_and_tokenizer
+        from src.model import is_bf16_supported_cuda, load_model_and_tokenizer
 
         resolved_dtype = self.dtype
         if resolved_dtype == "auto":
             try:
                 import torch
 
-                resolved_dtype = "bfloat16" if torch.cuda.is_available() else "float32"
+                if torch.cuda.is_available():
+                    resolved_dtype = "bfloat16" if is_bf16_supported_cuda() else "float16"
+                else:
+                    resolved_dtype = "float32"
             except ImportError:
                 resolved_dtype = "float32"
 
-        # Low-VRAM auto-detection for 7B/8B models on <=16GB GPUs
+        # Low-VRAM auto-detection for 7B/8B models on <=18GB GPUs (e.g. T4 15GB)
         auto_4bit = self.load_in_4bit
         if not auto_4bit and not self.load_in_8bit:
             try:
                 import torch
                 if torch.cuda.is_available():
                     vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
-                    if vram_gb <= 16.0 and any(m in self.model_name_or_path.lower() for m in ["7b", "8b"]):
+                    if vram_gb <= 18.0 and any(m in self.model_name_or_path.lower() for m in ["7b", "8b"]):
                         logger.info(
                             f"Auto-enabling 4-bit quantization for judge model {self.model_name_or_path} on {vram_gb:.1f}GB GPU"
                         )
@@ -386,14 +441,18 @@ class ReasoningJudge:
         completion: str,
         prompt_type: str = "chain_of_thought",
     ) -> JudgeScore:
-        """Generate deterministic score for testing and mock runs."""
+        """Generate deterministic structural rubric score for testing, mock runs, and LLM reconciliation."""
         text = completion.lower()
         words = text.split()
         num_words = len(words)
 
         # Completeness based on step detail and intermediate calculations
         has_equals = "=" in text
-        if num_words >= 35 and has_equals:
+        has_hash = "####" in text
+        has_stumble = "wait," in text or "let's re-read" in text
+        if not has_hash and has_stumble:
+            c_score = 0.30
+        elif num_words >= 35 and has_equals:
             c_score = 0.95
         elif num_words >= 20:
             c_score = 0.85
@@ -481,8 +540,10 @@ class ReasoningJudge:
             tokenizer=self.tokenizer,
             prompts=[rendered_prompt],
             max_new_tokens=256,
-            temperature=0.1,  # Low temperature for judge consistency
+            temperature=0.0,
             do_sample=False,
+            stop_sequences=["Problem:", "\nProblem:"],
+            truncate_after_hash=False,
         )
 
         raw_output = results[0][0]["completion"]
@@ -552,13 +613,16 @@ class ReasoningJudge:
                 tokenizer=self.tokenizer,
                 prompts=chunk_prompts,
                 max_new_tokens=256,
-                temperature=0.1,
+                temperature=0.0,
                 do_sample=False,
+                stop_sequences=["Problem:", "\nProblem:"],
+                truncate_after_hash=False,
             )
 
             for item_dict, res_group in zip(chunk_items, results):
                 raw_out = res_group[0]["completion"]
                 ptype = item_dict.get("prompt_type", "chain_of_thought")
+                comp_str = item_dict.get("completion", "")
                 score = parse_judge_output(raw_out, prompt_type=ptype)
                 scored_traces.append(
                     ScoredTrace(
@@ -567,7 +631,7 @@ class ReasoningJudge:
                         prompt_type=ptype,
                         question=item_dict.get("question", ""),
                         gold_answer=str(item_dict.get("gold_answer", "")),
-                        completion=item_dict.get("completion", ""),
+                        completion=comp_str,
                         score=score,
                     )
                 )

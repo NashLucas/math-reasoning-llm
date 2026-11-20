@@ -11,15 +11,6 @@ from pathlib import Path
 
 import numpy as np
 
-from src.training.grpo_engine import (
-    GRPOLossMetrics,
-    GRPORolloutGroup,
-    GRPORolloutSampler,
-    GRPOTrainerEngine,
-    compute_grpo_loss,
-    load_grpo_engine_config,
-    verify_zero_advantage_invariance,
-)
 from grpo_trainer import (
     MathGRPOTrainer,
     accuracy_reward_func,
@@ -28,6 +19,15 @@ from grpo_trainer import (
     format_reward_func,
     reasoning_structure_reward_func,
     resolve_starting_adapter,
+)
+from src.training.grpo_engine import (
+    GRPOLossMetrics,
+    GRPORolloutGroup,
+    GRPORolloutSampler,
+    GRPOTrainerEngine,
+    compute_grpo_loss,
+    load_grpo_engine_config,
+    verify_zero_advantage_invariance,
 )
 
 

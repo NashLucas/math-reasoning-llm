@@ -12,7 +12,7 @@ import logging
 from typing import Any, List, Optional, Sequence, Tuple
 
 from src.math_utils.answer_extraction import extract_and_normalize
-from src.math_utils.normalization import is_equivalent, parse_numeric_value, strip_formatting
+from src.math_utils.normalization import is_equivalent, parse_numeric_value
 
 logger = logging.getLogger(__name__)
 

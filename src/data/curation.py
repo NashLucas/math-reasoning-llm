@@ -1079,6 +1079,22 @@ def load_curated_dataset(
 
 
 
+def is_mock_trace(trace: Dict[str, Any]) -> bool:
+    """Detect whether a trace was produced by the deterministic mock generator rather than a real LLM."""
+    if trace.get("use_mock") is True:
+        return True
+    teacher = str(trace.get("teacher_model", "")).lower()
+    if "mock" in teacher:
+        return True
+    comp = str(trace.get("completion", ""))
+    mock_markers = (
+        "Let's think step by step to solve this problem.\nQuestion analysis: ",
+        "Stage 1 - Initial Solution:\nWorking through the question step by step yields",
+        "Alternative Strategy (Algebraic Formulation / Ratio Analysis):",
+    )
+    return any(m in comp for m in mock_markers)
+
+
 @dataclass
 class CuratedDatasetManifest:
     """Cryptographic manifest and metadata for the frozen SFT reasoning dataset."""
@@ -1095,6 +1111,10 @@ class CuratedDatasetManifest:
     contamination_check_passed: bool
     frozen_timestamp_utc: str
     gate_met: bool
+    synthetic_traces: int = 0
+    real_synthetic_traces: int = 0
+    mock_synthetic_traces: int = 0
+    gold_fallback_traces: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -1104,6 +1124,10 @@ class CuratedDatasetManifest:
             "unique_problems": self.unique_problems,
             "target_problems": self.target_problems,
             "problem_coverage_percent": round(self.problem_coverage_percent, 2),
+            "synthetic_traces": self.synthetic_traces,
+            "real_synthetic_traces": self.real_synthetic_traces,
+            "mock_synthetic_traces": self.mock_synthetic_traces,
+            "gold_fallback_traces": self.gold_fallback_traces,
             "by_prompt_type": self.by_prompt_type,
             "traces_per_problem_dist": self.traces_per_problem_dist,
             "token_statistics": self.token_statistics,
@@ -1172,6 +1196,9 @@ def freeze_curated_dataset(
     total_tokens = 0
     by_ptype: Dict[str, int] = {}
     token_lengths: List[int] = []
+    gold_fallback_traces = 0
+    mock_synthetic_traces = 0
+    real_synthetic_traces = 0
 
     for t in traces:
         rec = dict(t)
@@ -1179,6 +1206,14 @@ def freeze_curated_dataset(
         gold = rec.get("gold_answer", "")
         norm_comp = normalize_reasoning_completion(comp, expected_answer=gold)
         rec["completion"] = norm_comp
+
+        is_gold = bool(rec.get("is_gold_fallback")) or rec.get("source") == "gold_clean"
+        if is_gold:
+            gold_fallback_traces += 1
+        elif is_mock_trace(rec):
+            mock_synthetic_traces += 1
+        else:
+            real_synthetic_traces += 1
 
         ptype = rec.get("prompt_type", "unknown")
         by_ptype[ptype] = by_ptype.get(ptype, 0) + 1
@@ -1236,10 +1271,22 @@ def freeze_curated_dataset(
         "p95": p95_tok,
     }
 
-    gate_met = (
-        (unique_problems >= 2500 or unique_problems == 100)
-        and len(normalized_traces) >= 200
-    )
+    synthetic_traces = real_synthetic_traces + mock_synthetic_traces
+    if target_problems >= 2500:
+        # Full Phase 3 Gate: >= 2,500 problems, >= 4,000 curated traces, and real LLM synthetic traces
+        gate_met = (
+            unique_problems >= 2500
+            and len(normalized_traces) >= 4000
+            and real_synthetic_traces >= 1000
+        )
+    elif target_problems == 100:
+        gate_met = (
+            unique_problems == 100
+            and len(normalized_traces) >= 200
+            and real_synthetic_traces >= 100
+        )
+    else:
+        gate_met = unique_problems >= target_problems and len(normalized_traces) >= target_problems
 
     frozen_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     manifest = CuratedDatasetManifest(
@@ -1255,6 +1302,10 @@ def freeze_curated_dataset(
         contamination_check_passed=True,
         frozen_timestamp_utc=frozen_time,
         gate_met=gate_met,
+        synthetic_traces=synthetic_traces,
+        real_synthetic_traces=real_synthetic_traces,
+        mock_synthetic_traces=mock_synthetic_traces,
+        gold_fallback_traces=gold_fallback_traces,
     )
 
     target_manifest = Path(manifest_file) if manifest_file else target_out.parent / f"{target_out.stem}_manifest.json"

@@ -1,6 +1,6 @@
 # Day 13 Model Output & Parser Audit Report
 
-- **Source File:** `outputs\baseline\Qwen2.5-1.5B-Instruct\generations_val_greedy.jsonl`
+- **Source File:** `C:\Users\DELL\Desktop\math-reasoning-llm\outputs\baseline\Qwen2.5-1.5B-Instruct\generations_val_greedy.jsonl`
 - **Total Records in File:** 500
 - **Audited Samples:** 20
 
@@ -20,8 +20,8 @@
 | 2 | `gsm8k_148db5b4cd90eeb8` | 35 | `35` | `hash` | ✓ | #### 35 |
 | 3 | `gsm8k_bc7fb141d5a98912` | 630 | `630` | `hash` | ✓ | refore, Mark supplies a total of 630 eggs to the two stores in a week.  #### 630 |
 | 4 | `gsm8k_942394c590922956` | 42 | `24` | `hash` | ✗ | by the time Thomas reaches his current age, James will be 24 years old.  #### 24 |
-| 5 | `gsm8k_f3f6eed664e61a36` | 60 | `the farmer shipped a total of 60 dozens of pomelos in all` | `answer_is` | ✓ | }      \]  Therefore, the farmer shipped a total of 60 dozens of pomelos in all. |
-| 6 | `gsm8k_ea7e4a321247fafc` | 9 | `Justice needs 9 more plants to reach her goal of 24 plants` | `answer_is` | ✓ | 5 = 9 \]  Therefore, Justice needs 9 more plants to reach her goal of 24 plants. |
+| 5 | `gsm8k_f3f6eed664e61a36` | 60 | `60 (the farmer shipped a total of 60 dozens of pomelos in all)` | `answer_is` | ✓ | }      \]  Therefore, the farmer shipped a total of 60 dozens of pomelos in all. |
+| 6 | `gsm8k_ea7e4a321247fafc` | 9 | `9 (Justice needs 9 more plants to reach her goal of 24 plants)` | `answer_is` | ✓ | 5 = 9 \]  Therefore, Justice needs 9 more plants to reach her goal of 24 plants. |
 | 7 | `gsm8k_96817dd03351f2e4` | 32000 | `32000` | `hash` | ✓ |  number of baby tarantula legs in one less than 5 egg sacs is 32000.  #### 32000 |
 | 8 | `gsm8k_3a16324c1f7df387` | 6 | `6` | `hash` | ✓ |  nickels, and Peter has 6 nickels. The difference is 12 - 6 = 6 nickels.  #### 6 |
 | 9 | `gsm8k_cc82c81c82bf907e` | 121 | `121` | `hash` | ✓ |  Delivery fee + Tip Total amount = $90 + $20 + $11 Total amount = $121  #### 121 |

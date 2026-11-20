@@ -4,18 +4,18 @@
   "parser_failures": 0,
   "gate_passed": true,
   "no_hash_benchmark": {
-    "correct": 8584,
+    "correct": 8573,
     "total": 8792,
-    "accuracy": 0.9763,
+    "accuracy": 0.9751,
     "floor": 0.97,
     "by_method": {
       "answer_is": {
-        "correct": 861,
-        "total": 867
+        "correct": 849,
+        "total": 866
       },
       "last_number": {
-        "correct": 7723,
-        "total": 7925
+        "correct": 7724,
+        "total": 7926
       }
     }
   },

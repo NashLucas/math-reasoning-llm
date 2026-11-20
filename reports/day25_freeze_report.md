@@ -1,9 +1,9 @@
 # Phase 3 Reasoning Data Freeze & Gate Verification Report (Day 25)
 
-- **Date:** 2026-11-03 01:15:10 UTC
+- **Date:** 2026-11-16 08:20:01 UTC
 - **Curated Dataset:** `traces_curated_sft.jsonl`
 - **SHA-256 Checksum:** `b195a5578844fdef80567c8039bbeeb317ed51efa5e2a4e9d5439c7ad1f78cb5`
-- **Phase 3 Gate Verdict:** **PASSED (MET)**
+- **Phase 3 Gate Verdict:** **PENDING / NOT MET**
 
 ## 1. Phase 3 Gate Verification Checklist
 
@@ -14,7 +14,8 @@ zero test/val contamination, and a reproducible cryptographic file hash.
 | Gate Requirement | Standard / Target | Observed Metric | Verdict |
 |---|---|---|---|
 | Curated Problems Covered | $\ge 2,500$ problems (Full) / 100% (Dev) | **3,000 / 3,000 (100.0%)** | **MET** |
-| Curated Reasoning Traces | $\ge 4,000$ (Full) / $\ge 200$ (Dev) | **3,100 traces** | **MET** |
+| Curated Reasoning Traces | $\ge 4,000$ (Full) / $\ge 200$ (Dev) | **3,100 traces** | **UNMET (< 4,000)** |
+| Real Teacher Synthetic Traces | $\ge 1,000$ real LLM traces (non-mock) | **0 real (200 mock, 2,900 gold fallback)** | **UNMET (0 real / 200 mock / 2,900 gold)** |
 | Format Compliance | Canonical `#### <number>` final line | **100.0%** | **MET** |
 | 100-Trace Systematic Review | No systematic failure patterns | **Reviewed (50 Kept, 50 Rejected)** | **MET** |
 | Contamination Wall | Zero val (`500`) or test (`1,319`) problems | **0 Leaks Detected** | **MET** |

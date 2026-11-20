@@ -31,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.data.sft_dataset import resolve_sft_dataset_file  # noqa: E402
 from src.training.callbacks import ValidationEvalCallback  # noqa: E402
 from src.training.sft_trainer import run_sft_training  # noqa: E402
 
@@ -124,6 +125,7 @@ def run_learning_rate_sweep(
     device: str = "auto",
     load_in_4bit: bool = False,
     load_in_8bit: bool = False,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute learning rate sweep across candidate values, select best, and generate report."""
     if learning_rates is None:
@@ -184,6 +186,7 @@ def run_learning_rate_sweep(
             resume=False,
             load_in_4bit=load_in_4bit,
             load_in_8bit=load_in_8bit,
+            profile=profile,
         )
 
         # Retrieve training loss progression
@@ -366,30 +369,7 @@ def main() -> None:
         prof_data_dir = PROJECT_ROOT / "data"
         stage_paths = {}
 
-    c_path = Path(args.curated_file)
-    if not c_path.is_absolute():
-        drive_curated = prof_data_dir / "synthetic" / "curated" / c_path.name
-        local_curated = PROJECT_ROOT / c_path
-        if drive_curated.exists() and local_curated.exists():
-            c_path = drive_curated if drive_curated.stat().st_size >= local_curated.stat().st_size else local_curated
-        elif drive_curated.exists():
-            c_path = drive_curated
-        elif local_curated.exists():
-            c_path = local_curated
-        elif (prof_data_dir / c_path).exists():
-            c_path = prof_data_dir / c_path
-        else:
-            c_path = local_curated
-
-    if not c_path.exists():
-        for fallback in [
-            PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl",
-            PROJECT_ROOT / "data" / "sample" / "train_sample.parquet",
-        ]:
-            if fallback.exists():
-                logger.warning(f"Curated dataset not found at {args.curated_file}. Falling back to sample set: {fallback}")
-                c_path = fallback
-                break
+    c_path = resolve_sft_dataset_file(args.curated_file, profile=active_prof, allow_sample_fallback=True)
 
     v_path = Path(args.val_file)
     if not v_path.is_absolute():
@@ -432,6 +412,7 @@ def main() -> None:
         device=args.device,
         load_in_4bit=args.load_in_4bit,
         load_in_8bit=args.load_in_8bit,
+        profile=active_prof,
     )
 
 

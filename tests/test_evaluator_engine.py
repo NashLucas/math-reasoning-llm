@@ -150,6 +150,50 @@ class TestVllmPath(unittest.TestCase):
         self.assertTrue(all(r["is_correct"] and r["finish_reason"] == "stop" for r in records))
         shutdown.assert_called_once()  # the engine loaded here is released for the next run
 
+    def test_vllm_load_failure_falls_back_to_hf(self):
+        """If vLLM fails to load a model (e.g. T4 OOM or arch mismatch), pipeline falls back to HF."""
+        problems = [{"problem_id": "p1", "question": "Q1", "gold_answer": "4"}]
+        hf_comp = [{
+            "completion_raw": "#### 4",
+            "completion": "#### 4",
+            "extracted_answer": "4",
+            "extraction_method": "hash",
+            "prompt_tokens": 5,
+            "completion_tokens": 2,
+            "finish_reason": "stop",
+        }]
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("src.generation.resolve_generation_backend", return_value="vllm"), \
+                    patch("src.generation.load_vllm_model", side_effect=RuntimeError("CUDA OOM")), \
+                    patch("src.model.load_model_and_tokenizer", return_value=(MagicMock(), MagicMock())), \
+                    patch("src.generation.generate_batch_hf", return_value=[hf_comp]) as hf_gen:
+                records = run_generation_pipeline(
+                    problems,
+                    Path(tmp) / "gen.jsonl",
+                    model_name_or_path="deepseek-ai/deepseek-math-7b-base",
+                    backend="auto",
+                    prompt_formatter=lambda p: p["question"],
+                )
+        hf_gen.assert_called_once()
+        self.assertEqual(len(records), 1)
+        self.assertTrue(records[0]["is_correct"])
+
+    def test_empty_file_with_stale_meta_overwrites_and_backend_switch_resumes(self):
+        """A failed model load (has_records=False) or backend switch (vllm <-> hf) must not block retries."""
+        from src.generation import check_or_write_run_meta
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "gen.jsonl"
+            cfg_vllm = {"checkpoint": "m1", "backend": "vllm", "preset": "greedy", "seed": 42}
+            cfg_hf = {"checkpoint": "m1", "backend": "hf", "preset": "greedy", "seed": 42}
+            check_or_write_run_meta(path, cfg_vllm, has_records=False)
+            # Switching backend with records present succeeds because semantic run identity is identical
+            check_or_write_run_meta(path, cfg_hf, has_records=True)
+            # Changing checkpoint when has_records=False updates meta instead of raising
+            check_or_write_run_meta(path, {"checkpoint": "m2", "backend": "hf", "preset": "greedy", "seed": 42}, has_records=False)
+            meta = json.loads((Path(tmp) / "gen.meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(meta["run_config"]["checkpoint"], "m2")
+
 
 if __name__ == "__main__":
     unittest.main()

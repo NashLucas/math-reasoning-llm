@@ -133,6 +133,36 @@ def load_vllm_model(
             "vllm is not installed. Run 'pip install -r requirements-vllm.txt' "
             "or use backend='hf'."
         )
+    load_in_4bit = bool(kwargs.pop("load_in_4bit", False))
+    if HAS_TORCH and torch.cuda.is_available():
+        from src.model import is_bf16_supported_cuda
+
+        if "dtype" not in kwargs and not is_bf16_supported_cuda():
+            logger.info("CUDA compute capability < 8.0 (e.g. Tesla T4): setting vLLM dtype='half' (float16).")
+            kwargs["dtype"] = "half"
+        if not load_in_4bit:
+            try:
+                total_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                if total_gb <= 18.0 and any(
+                    tag in str(model_name_or_path).lower() for tag in ("7b", "8b", "13b", "14b", "70b")
+                ):
+                    logger.info(
+                        f"Detected {total_gb:.1f} GiB VRAM with 7B+ model '{model_name_or_path}': "
+                        "enabling 4-bit bitsandbytes quantization in vLLM."
+                    )
+                    load_in_4bit = True
+            except Exception:
+                pass
+
+    if load_in_4bit:
+        from src.model import _ensure_bitsandbytes_installed
+
+        _ensure_bitsandbytes_installed()
+        kwargs.setdefault("quantization", "bitsandbytes")
+        kwargs.setdefault("load_format", "bitsandbytes")
+        kwargs.setdefault("enforce_eager", True)
+        gpu_memory_utilization = min(gpu_memory_utilization, 0.85)
+
     if adapter_path is not None:
         kwargs.setdefault("enable_lora", True)
         kwargs.setdefault("max_lora_rank", vllm_max_lora_rank(read_adapter_rank(adapter_path)))
@@ -205,6 +235,7 @@ def generate_batch_vllm(
     num_return_sequences: int = 1,
     seed: Optional[int] = None,
     lora_request: Any = None,
+    truncate_after_hash: bool = True,
 ) -> List[List[Dict[str, Any]]]:
     """Execute batched generation using vLLM for high-throughput inference.
 
@@ -241,7 +272,9 @@ def generate_batch_vllm(
 
         for comp in req_output.outputs:
             raw_text = comp.text
-            clean_text = truncate_at_stop_sequences(raw_text, stop_sequences=stops)
+            clean_text = truncate_at_stop_sequences(
+                raw_text, stop_sequences=stops, truncate_after_hash=truncate_after_hash
+            )
             extracted, method = extract_answer(clean_text)
             finish_reason = getattr(comp, "finish_reason", None)
 
@@ -262,12 +295,13 @@ def generate_batch_vllm(
 def truncate_at_stop_sequences(
     text: str,
     stop_sequences: Optional[Sequence[str]] = None,
+    truncate_after_hash: bool = True,
 ) -> str:
-    """Truncate generated text at stop sequences and after the '#### <answer>' line.
+    """Truncate generated text at stop sequences and (optionally) after the '#### <answer>' line.
 
     Stop Rules:
     1. Truncate at explicit stop strings (e.g. 'Question:', '\n\n\n').
-    2. Truncate at the newline immediately following '#### <number>'.
+    2. When `truncate_after_hash=True`, truncate at the newline immediately following '#### <number>'.
     """
     if not text:
         return ""
@@ -281,13 +315,14 @@ def truncate_at_stop_sequences(
         if idx != -1:
             truncated = truncated[:idx]
 
-    # Rule 2: Truncate at newline after '#### <number>' line
-    hash_match = re.search(r"####\s*(-?[\d,]+(?:\.\d+)?)", truncated)
-    if hash_match:
-        end_idx = hash_match.end()
-        newline_idx = truncated.find("\n", end_idx)
-        if newline_idx != -1:
-            truncated = truncated[:newline_idx]
+    # Rule 2: Truncate at newline after '#### <number>' line (disabled for non-solver callers like LLM judges)
+    if truncate_after_hash:
+        hash_match = re.search(r"####\s*(-?[\d,]+(?:\.\d+)?)", truncated)
+        if hash_match:
+            end_idx = hash_match.end()
+            newline_idx = truncated.find("\n", end_idx)
+            if newline_idx != -1:
+                truncated = truncated[:newline_idx]
 
     return truncated.strip()
 
@@ -331,13 +366,17 @@ def append_generation_records(
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+_RUN_KEY_IGNORED_FIELDS = {"backend", "load_in_4bit"}
+
+
 def run_meta_path(output_file: Union[str, Path]) -> Path:
     path = Path(output_file)
     return path.with_name(path.stem + ".meta.json")
 
 
 def run_config_key(run_config: Dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(run_config, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
+    comparable = {k: v for k, v in run_config.items() if k not in _RUN_KEY_IGNORED_FIELDS}
+    return hashlib.sha256(json.dumps(comparable, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
 
 
 def check_or_write_run_meta(output_file: Union[str, Path], run_config: Dict[str, Any], has_records: bool) -> None:
@@ -346,12 +385,22 @@ def check_or_write_run_meta(output_file: Union[str, Path], run_config: Dict[str,
     key = run_config_key(run_config)
     if meta_path.exists():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        if meta.get("run_key") != key:
-            old = meta.get("run_config", {})
-            diff = {k: (old.get(k), run_config.get(k)) for k in sorted(set(old) | set(run_config)) if old.get(k) != run_config.get(k)}
-            raise GenerationRunMismatchError(
-                f"{output_file} holds generations from a different run; differing settings (old, new): {diff}. "
-                "Use a different output directory, or move the old file aside."
+        old_cfg = meta.get("run_config", {})
+        old_key = run_config_key(old_cfg) if old_cfg else meta.get("run_key")
+        if meta.get("run_key") != key and old_key != key:
+            if has_records:
+                diff = {
+                    k: (old_cfg.get(k), run_config.get(k))
+                    for k in sorted(set(old_cfg) | set(run_config))
+                    if k not in _RUN_KEY_IGNORED_FIELDS and old_cfg.get(k) != run_config.get(k)
+                }
+                raise GenerationRunMismatchError(
+                    f"{output_file} holds generations from a different run; differing settings (old, new): {diff}. "
+                    "Use a different output directory, or move the old file aside."
+                )
+            # No records exist yet (e.g. previous attempt failed during model load); update meta in place
+            meta_path.write_text(
+                json.dumps({"run_key": key, "run_config": run_config}, indent=2, default=str), encoding="utf-8"
             )
         return
     if has_records:
@@ -384,6 +433,7 @@ def generate_batch_hf(
     do_sample: bool = False,
     stop_sequences: Optional[Sequence[str]] = None,
     num_return_sequences: int = 1,
+    truncate_after_hash: bool = True,
 ) -> List[List[Dict[str, Any]]]:
     """Execute batched generation using Hugging Face Transformers.
 
@@ -429,8 +479,32 @@ def generate_batch_hf(
         gen_kwargs["top_p"] = None
         gen_kwargs["top_k"] = None
 
-    with torch.no_grad():
-        outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, **gen_kwargs)
+    try:
+        with torch.no_grad():
+            outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, **gen_kwargs)
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower() and len(prompts) > 1:
+            logger.warning(f"CUDA OOM on batch of {len(prompts)} prompts (k={num_return_sequences}); retrying 1 by 1.")
+            free_gpu_memory()
+            single_results: List[List[Dict[str, Any]]] = []
+            for single_prompt in prompts:
+                single_results.extend(
+                    generate_batch_hf(
+                        model=model,
+                        tokenizer=tokenizer,
+                        prompts=[single_prompt],
+                        max_new_tokens=max_new_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                        do_sample=do_sample,
+                        stop_sequences=stops,
+                        num_return_sequences=num_return_sequences,
+                        truncate_after_hash=truncate_after_hash,
+                    )
+                )
+            return single_results
+        raise
 
     eos_ids = _eos_token_ids(model, tokenizer)
     pad_id = tokenizer.pad_token_id
@@ -456,7 +530,9 @@ def generate_batch_hf(
         hit_stop_string = any(s in completion_text for s in stops)
         finish_reason = "stop" if (hit_eos or hit_stop_string or n_gen < max_new_tokens) else "length"
 
-        clean_text = truncate_at_stop_sequences(completion_text, stop_sequences=stops)
+        clean_text = truncate_at_stop_sequences(
+            completion_text, stop_sequences=stops, truncate_after_hash=truncate_after_hash
+        )
         extracted, method = extract_answer(clean_text)
 
         results[prompt_idx].append({
@@ -507,6 +583,7 @@ def run_generation_pipeline(
     seed: int = 42,
     vllm_chunk_size: int = 128,
     run_config: Optional[Dict[str, Any]] = None,
+    load_in_4bit: bool = False,
 ) -> List[Dict[str, Any]]:
     """Run generation on a list of problems with chunked resumable JSONL output.
 
@@ -594,18 +671,41 @@ def run_generation_pipeline(
             if not model_name_or_path:
                 raise ValueError("Must provide either model or model_name_or_path for vLLM.")
             logger.info(f"Loading vLLM model: {model_name_or_path}" + (f" + adapter {adapter_path}" if adapter_path else ""))
-            model = load_vllm_model(model_name_or_path, adapter_path=adapter_path, seed=seed)
-        lora_request = make_lora_request(adapter_path)
-    elif model is None or tokenizer is None:
+            try:
+                vllm_kwargs: Dict[str, Any] = {"adapter_path": adapter_path, "seed": seed}
+                if load_in_4bit:
+                    vllm_kwargs["load_in_4bit"] = True
+                model = load_vllm_model(model_name_or_path, **vllm_kwargs)
+                lora_request = make_lora_request(adapter_path)
+            except Exception as vllm_exc:
+                logger.warning(
+                    f"vLLM model load failed ({vllm_exc}); falling back to Hugging Face backend ('hf')."
+                )
+                free_gpu_memory()
+                active_backend = "hf"
+        else:
+            lora_request = make_lora_request(adapter_path)
+
+    if active_backend == "hf" and (model is None or tokenizer is None):
         if not model_name_or_path:
             raise ValueError("Must provide either (model, tokenizer) or model_name_or_path.")
         from src.model import load_model_and_tokenizer
 
-        model, tokenizer = load_model_and_tokenizer(model_name_or_path=model_name_or_path, adapter_path=adapter_path)
+        hf_kwargs: Dict[str, Any] = {}
+        if load_in_4bit:
+            hf_kwargs["load_in_4bit"] = True
+        model, tokenizer = load_model_and_tokenizer(
+            model_name_or_path=model_name_or_path, adapter_path=adapter_path, **hf_kwargs
+        )
         owns_model = True
 
     # 3. Generate chunk by chunk, saving each chunk before starting the next
-    chunk_size = vllm_chunk_size if active_backend == "vllm" else batch_size
+    if active_backend == "vllm":
+        chunk_size = vllm_chunk_size
+    elif HAS_TORCH and torch.cuda.is_available() and decoding["num_return_sequences"] > 1:
+        chunk_size = max(1, batch_size // decoding["num_return_sequences"])
+    else:
+        chunk_size = batch_size
     try:
         for i in range(0, len(pending_problems), chunk_size):
             batch_probs = pending_problems[i : i + chunk_size]

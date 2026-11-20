@@ -205,6 +205,35 @@ def apply_chat_template(messages: List[Dict[str, str]], tokenizer: Any) -> str:
             f"Tokenizer {name!r} has no chat template. Use prompt_format 'few_shot' or 'zero_shot' for base models."
         )
     rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    # Templates such as deepseek-math-7b-instruct/rl only render 'user' and 'assistant' roles,
+    # silently dropping 'system' messages. If a non-empty system prompt was omitted from the
+    # rendered text, fold it into the first user message so the model sees the instructions.
+    sys_parts = [
+        m["content"].strip()
+        for m in messages
+        if m.get("role") == "system" and m.get("content", "").strip()
+    ]
+    if sys_parts and any(sp not in rendered for sp in sys_parts):
+        sys_block = "\n\n".join(sys_parts)
+        folded_messages: List[Dict[str, str]] = []
+        prepended = False
+        for m in messages:
+            if m.get("role") == "system":
+                continue
+            if not prepended and m.get("role") == "user":
+                folded_messages.append(
+                    {
+                        "role": "user",
+                        "content": f"{sys_block}\n\n{m.get('content', '')}".strip(),
+                    }
+                )
+                prepended = True
+            else:
+                folded_messages.append(dict(m))
+        if folded_messages:
+            rendered = tokenizer.apply_chat_template(
+                folded_messages, tokenize=False, add_generation_prompt=True
+            )
     bos = getattr(tokenizer, "bos_token", None)
     if bos and rendered.startswith(bos) and tokenizer_adds_bos(tokenizer):
         rendered = rendered[len(bos):]

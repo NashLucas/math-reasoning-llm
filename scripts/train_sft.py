@@ -28,6 +28,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import ConfigManager, get_default_profile  # noqa: E402
+from src.data.sft_dataset import resolve_sft_dataset_file  # noqa: E402
 from src.training.sft_trainer import run_sft_training  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -175,7 +176,6 @@ def main() -> None:
     mgr = ConfigManager()
     active_profile = args.profile or get_default_profile()
     stage_paths = mgr.get_stage_paths("sft", profile_name=active_profile)
-    profile_data_dir = mgr.get_profile_dir("data_dir", profile_name=active_profile)
 
     # Resolve output_dir, adapter_dir, generations_dir if using colab profile or defaults
     output_dir = args.output_dir
@@ -189,30 +189,7 @@ def main() -> None:
         if generations_dir == "logs/generations":
             generations_dir = str(stage_paths["logs"] / "generations")
 
-    c_path = Path(args.curated_file)
-    if not c_path.is_absolute():
-        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
-        local_curated = PROJECT_ROOT / c_path
-        if drive_curated.exists() and local_curated.exists():
-            if drive_curated.stat().st_size >= local_curated.stat().st_size:
-                c_path = drive_curated
-            else:
-                c_path = local_curated
-        elif drive_curated.exists():
-            c_path = drive_curated
-        elif local_curated.exists():
-            c_path = local_curated
-        elif (profile_data_dir / c_path).exists():
-            c_path = profile_data_dir / c_path
-        else:
-            c_path = PROJECT_ROOT / c_path
-
-    # Fallback to sample data if curated dataset is missing
-    if not c_path.exists():
-        sample_path = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
-        if sample_path.exists():
-            logger.warning(f"Curated dataset not found at {c_path}. Falling back to sample set: {sample_path}")
-            c_path = sample_path
+    c_path = resolve_sft_dataset_file(args.curated_file, profile=active_profile, allow_sample_fallback=True)
 
     # Auto-detect VRAM constraint for 7B models when on CUDA
     load_4bit = args.load_in_4bit
@@ -265,6 +242,7 @@ def main() -> None:
         load_in_8bit=args.load_in_8bit,
         fp16=args.fp16 if args.fp16 else None,
         bf16=args.bf16 if args.bf16 else None,
+        profile=active_profile,
     )
 
     logger.info("SFT Training Run completed successfully!")

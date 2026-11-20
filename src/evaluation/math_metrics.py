@@ -377,6 +377,8 @@ def compute_all_metrics(
     return {
         "total_problems": total_problems,
         "total_completions": format_stats["total_completions"],
+        "correct_count": int(round(acc * total_problems)),
+        "correct_completions": int(round(acc * total_problems)),
         "is_multi_sample": is_multi_sample,
         "accuracy": round(acc, 4),
         "accuracy_percent": round(acc * 100.0, 2),

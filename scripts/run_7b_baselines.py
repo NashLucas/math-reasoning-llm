@@ -27,9 +27,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -98,6 +99,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=4,
         help="Batch size for model generation.",
+    )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load 7B models in 4-bit NF4 quantization (recommended on 15GB T4 GPUs).",
     )
     parser.add_argument(
         "--use_mock",
@@ -218,22 +225,50 @@ def main() -> int:
                 batch_size=args.batch_size,
                 output_dir=model_out_dir,
                 use_mock=args.use_mock,
+                load_in_4bit=args.load_in_4bit,
             )
 
             res = evaluator.evaluate()
             all_results[model_id][preset] = res
             print_results_summary(res)
 
+    # Merge previously completed baseline results from disk (so single-model runs keep the full table)
+    candidate_models: List[str] = []
+    for m in ["Qwen/Qwen2.5-1.5B-Instruct"] + DEFAULT_MODELS + models:
+        if m not in candidate_models:
+            candidate_models.append(m)
+
+    merged_results: Dict[str, Dict[str, Any]] = {}
+    search_roots = [stage_base_dir, PROJECT_ROOT / "outputs" / "baseline"]
+    for m_id in candidate_models:
+        m_slug = get_model_slug(m_id)
+        m_presets: Dict[str, Any] = dict(all_results.get(m_id, {}))
+        for p in DEFAULT_PRESETS:
+            if p in m_presets:
+                continue
+            for root_dir in search_roots:
+                eval_file = root_dir / m_slug / f"eval_results_{args.split}_{p}.json"
+                if eval_file.exists():
+                    try:
+                        loaded = json.loads(eval_file.read_text(encoding="utf-8"))
+                        if args.use_mock or not loaded.get("mock", False):
+                            m_presets[p] = loaded
+                            break
+                    except Exception:
+                        pass
+        if m_presets:
+            merged_results[m_id] = m_presets
+
     # Compile combined baseline summary
     summary_data = {
         "stage": "baseline",
         "split": args.split,
-        "num_models": len(models),
+        "num_models": len(merged_results),
         "num_presets": len(presets),
-        "total_result_sets": total_runs,
-        "models": models,
+        "total_result_sets": sum(len(v) for v in merged_results.values()),
+        "models": list(merged_results.keys()),
         "presets": presets,
-        "results": all_results,
+        "results": merged_results,
     }
 
     summary_json_path = stage_base_dir / "baseline_summary.json"
@@ -244,6 +279,23 @@ def main() -> int:
     comparison_md_path = stage_base_dir / "baseline_comparison.md"
     comparison_md = generate_comparison_markdown(summary_data, comparison_md_path)
     logger.info(f"Saved baseline comparison Markdown to: {comparison_md_path.resolve()}")
+
+    # Mirror summary files between Drive and local workspace when not in mock mode
+    if not args.use_mock:
+        local_base_dir = PROJECT_ROOT / "outputs" / "baseline"
+        drive_root = Path("/content/drive/MyDrive/math-reasoning-llm")
+        drive_base_dir = drive_root / "outputs" / "baseline" if drive_root.exists() else None
+        for target_dir in (local_base_dir, drive_base_dir):
+            if target_dir is None:
+                continue
+            try:
+                if target_dir.resolve() == stage_base_dir.resolve():
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(summary_json_path, target_dir / summary_json_path.name)
+                shutil.copy2(comparison_md_path, target_dir / comparison_md_path.name)
+            except Exception as exc:
+                logger.warning(f"Could not mirror baseline summary to {target_dir}: {exc}")
 
     print("\n" + "=" * 72)
     print("  DAY 14: ALL 6 BASELINE RESULT SETS PRODUCED")

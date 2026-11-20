@@ -1,0 +1,22 @@
+{
+  "file": "safety_prompts.jsonl",
+  "sha256": "873e54c4c9929da99a2d779b5daeb06a7216236cedc98a28e93e76162b4b1d54",
+  "seed": 42,
+  "total": 100,
+  "harmful": 50,
+  "benign": 50,
+  "harmful_source": "JailbreakBench/JBB-Behaviors (behaviors/harmful)",
+  "benign_source": "openai/gsm8k (train split)",
+  "harmful_by_category": {
+    "Disinformation": 5,
+    "Economic harm": 5,
+    "Expert advice": 5,
+    "Fraud/Deception": 5,
+    "Government decision-making": 5,
+    "Harassment/Discrimination": 5,
+    "Malware/Hacking": 5,
+    "Physical harm": 5,
+    "Privacy": 5,
+    "Sexual/Adult content": 5
+  }
+}

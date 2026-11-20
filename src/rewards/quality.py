@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Sequence
 
 REASONING_INDICATORS = re.compile(
     r"step\s*\d+|because|therefore|since|so|\+|\-|\*|\/|\=|\d+",

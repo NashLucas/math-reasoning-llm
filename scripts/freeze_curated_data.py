@@ -49,13 +49,26 @@ def generate_freeze_markdown_report(
     by_ptype = m_dict.get("by_prompt_type", {})
     traces_dist = m_dict.get("traces_per_problem_dist", {})
 
+    prob_verdict = (
+        "**MET**"
+        if (manifest.unique_problems >= 2500 or manifest.unique_problems == manifest.target_problems)
+        else "**UNMET**"
+    )
+    traces_req = 4000 if manifest.target_problems >= 2500 else (200 if manifest.target_problems == 100 else manifest.target_problems)
+    traces_verdict = "**MET**" if manifest.total_traces >= traces_req else f"**UNMET (< {traces_req:,})**"
+    real_synth_verdict = (
+        "**MET**"
+        if (manifest.real_synthetic_traces >= 1000 or manifest.target_problems < 100)
+        else f"**UNMET ({manifest.real_synthetic_traces:,} real / {manifest.mock_synthetic_traces:,} mock / {manifest.gold_fallback_traces:,} gold)**"
+    )
+
     lines = [
         "# Phase 3 Reasoning Data Freeze & Gate Verification Report (Day 25)",
         "",
         f"- **Date:** {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
         f"- **Curated Dataset:** `{manifest.dataset_file}`",
         f"- **SHA-256 Checksum:** `{manifest.sha256}`",
-        f"- **Phase 3 Gate Verdict:** **{'PASSED (MET)' if manifest.gate_met else 'FAILED'}**",
+        f"- **Phase 3 Gate Verdict:** **{'PASSED (MET)' if manifest.gate_met else 'PENDING / NOT MET'}**",
         "",
         "## 1. Phase 3 Gate Verification Checklist",
         "",
@@ -65,8 +78,9 @@ def generate_freeze_markdown_report(
         "",
         "| Gate Requirement | Standard / Target | Observed Metric | Verdict |",
         "|---|---|---|---|",
-        f"| Curated Problems Covered | $\\ge 2,500$ problems (Full) / 100% (Dev) | **{manifest.unique_problems:,} / {manifest.target_problems:,} ({manifest.problem_coverage_percent:.1f}%)** | **MET** |",
-        f"| Curated Reasoning Traces | $\\ge 4,000$ (Full) / $\\ge 200$ (Dev) | **{manifest.total_traces:,} traces** | **MET** |",
+        f"| Curated Problems Covered | $\\ge 2,500$ problems (Full) / 100% (Dev) | **{manifest.unique_problems:,} / {manifest.target_problems:,} ({manifest.problem_coverage_percent:.1f}%)** | {prob_verdict} |",
+        f"| Curated Reasoning Traces | $\\ge 4,000$ (Full) / $\\ge 200$ (Dev) | **{manifest.total_traces:,} traces** | {traces_verdict} |",
+        f"| Real Teacher Synthetic Traces | $\\ge 1,000$ real LLM traces (non-mock) | **{manifest.real_synthetic_traces:,} real ({manifest.mock_synthetic_traces:,} mock, {manifest.gold_fallback_traces:,} gold fallback)** | {real_synth_verdict} |",
         "| Format Compliance | Canonical `#### <number>` final line | **100.0%** | **MET** |",
         "| 100-Trace Systematic Review | No systematic failure patterns | **Reviewed (50 Kept, 50 Rejected)** | **MET** |",
         "| Contamination Wall | Zero val (`500`) or test (`1,319`) problems | **0 Leaks Detected** | **MET** |",
@@ -229,9 +243,18 @@ def main() -> None:
         target_problems=args.target_problems,
     )
 
-    # Sync manifest to project root if written to drive
+    # Sync curated file and manifest between project root and Drive if they differ
+    local_curated_target = PROJECT_ROOT / args.curated_file
+    if not Path(args.curated_file).is_absolute() and local_curated_target.resolve() != frozen_path.resolve():
+        try:
+            local_curated_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(frozen_path, local_curated_target)
+            logger.info(f"Synced frozen dataset copy to: {local_curated_target}")
+        except Exception as e:
+            logger.warning(f"Could not sync frozen dataset copy to {local_curated_target}: {e}")
+
     local_manifest = PROJECT_ROOT / args.manifest_file
-    if local_manifest.resolve() != m_path.resolve():
+    if not Path(args.manifest_file).is_absolute() and local_manifest.resolve() != m_path.resolve():
         try:
             local_manifest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(m_path, local_manifest)
@@ -251,10 +274,16 @@ def main() -> None:
     json_path.write_text(json.dumps(manifest.to_dict(), indent=2) + "\n", encoding="utf-8")
     logger.info(f"Saved JSON report to: {json_path}")
 
-    # Also copy reports to Drive reports dir if drive data dir is active
+    # Also copy reports to Drive reports dir if a separate Drive profile dir is active
     drive_reports = profile_data_dir.parent / "reports"
-    if drive_reports.exists() and drive_reports.resolve() != r_dir.resolve():
+    if (
+        profile_data_dir.parent.resolve() != PROJECT_ROOT.resolve()
+        and r_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+        and drive_reports.resolve() != r_dir.resolve()
+        and profile_data_dir.parent.exists()
+    ):
         try:
+            drive_reports.mkdir(parents=True, exist_ok=True)
             shutil.copy2(md_path, drive_reports / md_path.name)
             shutil.copy2(json_path, drive_reports / json_path.name)
             logger.info(f"Synced reports copy to Drive: {drive_reports}")

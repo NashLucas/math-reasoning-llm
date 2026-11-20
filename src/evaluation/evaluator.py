@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -30,6 +31,7 @@ from src.generation import (
     append_generation_records,
     load_existing_generations,
     run_generation_pipeline,
+    run_meta_path,
 )
 from src.math_utils.normalization import is_equivalent
 from src.run_info import save_run_info
@@ -83,6 +85,7 @@ class MathEvaluator:
         output_dir: Optional[Union[str, Path]] = None,
         config_path: Optional[str] = None,
         use_mock: bool = False,
+        load_in_4bit: bool = False,
     ) -> None:
         """Initialize MathEvaluator.
 
@@ -99,6 +102,7 @@ class MathEvaluator:
             output_dir: Destination directory for eval_results.json and generations.
             config_path: Path to custom configuration root.
             use_mock: If True, uses deterministic mock generator without loading weights.
+            load_in_4bit: If True, loads model in 4-bit NF4 quantization.
         """
         self.stage = stage
         self.adapter_path = adapter_path
@@ -110,6 +114,7 @@ class MathEvaluator:
         self.backend = backend
         self.batch_size = batch_size
         self.use_mock = use_mock
+        self.load_in_4bit = load_in_4bit
 
         # Configuration manager & paths
         self.cfg_mgr = ConfigManager()
@@ -427,6 +432,25 @@ class MathEvaluator:
         eval_path = self.output_dir / eval_filename
         canonical_eval_path = self.output_dir / "eval_results.json"
 
+        slug = run_slug(self.checkpoint, self.adapter_path)
+        local_stage_dir = self.cfg_mgr.project_root / "outputs" / self.stage / slug
+        drive_root = Path("/content/drive/MyDrive/math-reasoning-llm")
+        drive_stage_dir = drive_root / "outputs" / self.stage / slug if drive_root.exists() else None
+
+        # Pre-sync existing generations from counterpart directory (Drive <-> Local) for resumption
+        if not self.use_mock and not generations_path.exists():
+            for candidate_dir in (drive_stage_dir, local_stage_dir):
+                if candidate_dir and candidate_dir.exists() and candidate_dir.resolve() != self.output_dir.resolve():
+                    src_gen = candidate_dir / gen_filename
+                    if src_gen.exists():
+                        self.output_dir.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src_gen, generations_path)
+                        src_meta = run_meta_path(src_gen)
+                        if src_meta.exists():
+                            shutil.copy2(src_meta, run_meta_path(generations_path))
+                        logger.info(f"Pre-synced existing generations from {src_gen} to {generations_path}")
+                        break
+
         # 4. Run generation or mock generation
         if self.use_mock:
             logger.info("Executing evaluation with deterministic mock generation.")
@@ -463,12 +487,17 @@ class MathEvaluator:
                     "prompt_format": resolved_format,
                     "split": self.split,
                 },
+                load_in_4bit=self.load_in_4bit,
             )
 
         # 5. Re-score with the current parser, then compute the full metric suite
         records, rescored_changes = rescore_records(records)
         if rescored_changes:
             logger.info(f"Current parser changed {rescored_changes} stored answers in {generations_path.name}.")
+            if generations_path.exists():
+                with open(generations_path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         max_tokens_budget = self.gen_cfg.get("presets", {}).get(self.preset, {}).get("max_new_tokens", 512)
         metrics = compute_all_metrics(records, max_new_tokens=max_tokens_budget)
 
@@ -524,5 +553,23 @@ class MathEvaluator:
             },
             description=run_desc,
         )
+
+        # 9. Mirror evaluation artifacts between Google Drive and local repository workspace
+        if not self.use_mock:
+            meta_file = run_meta_path(generations_path)
+            run_info_file = self.output_dir / "run_info.json"
+            for target_dir in (local_stage_dir, drive_stage_dir):
+                if target_dir is None:
+                    continue
+                try:
+                    if target_dir.resolve() == self.output_dir.resolve():
+                        continue
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    for artifact in (eval_path, canonical_eval_path, run_info_file, generations_path, meta_file):
+                        if artifact.exists():
+                            shutil.copy2(artifact, target_dir / artifact.name)
+                    logger.info(f"Mirrored evaluation artifacts to: {target_dir}")
+                except Exception as exc:
+                    logger.warning(f"Could not mirror evaluation artifacts to {target_dir}: {exc}")
 
         return results

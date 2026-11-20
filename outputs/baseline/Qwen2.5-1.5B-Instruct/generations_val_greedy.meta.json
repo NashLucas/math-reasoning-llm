@@ -1,0 +1,22 @@
+{
+  "run_key": "58336291f79a4272",
+  "run_config": {
+    "checkpoint": "Qwen/Qwen2.5-1.5B-Instruct",
+    "adapter_path": null,
+    "prompt_format": "chat",
+    "split": "val",
+    "backend": "vllm",
+    "preset": "greedy",
+    "max_new_tokens": 512,
+    "stop_sequences": [
+      "Question:",
+      "\n\n\n"
+    ],
+    "seed": 42,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "do_sample": false,
+    "num_return_sequences": 1
+  }
+}

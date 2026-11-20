@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -85,6 +86,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=None, help="Optional prompt limit for dry runs.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for generation and screening.")
     parser.add_argument("--max_new_tokens", type=int, default=512, help="Response token budget.")
+    parser.add_argument("--load_in_4bit", action="store_true", default=False, help="Load models in 4-bit NF4 quantization.")
+    parser.add_argument(
+        "--strict_guard",
+        action="store_true",
+        default=False,
+        help="Disable heuristic fallback when Llama Guard 3 8B is gated/inaccessible on Hugging Face.",
+    )
     parser.add_argument("--use_mock", action="store_true", default=False, help="Mock generation and mock classifier.")
     return parser.parse_args()
 
@@ -113,8 +121,22 @@ def generate_responses(
     max_new_tokens: int,
     stop_sequences: List[str],
     hf_cache_dir: Optional[str],
+    load_in_4bit: bool = False,
+    cache_path: Optional[Path] = None,
 ) -> List[str]:
-    """Greedy-generate one response per safety prompt, then free the model."""
+    """Greedy-generate one response per safety prompt (resuming from cache_path if present), then free the model."""
+    cached_by_id: Dict[str, str] = {}
+    if cache_path and cache_path.exists():
+        with open(cache_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    item = json.loads(line)
+                    if "safety_id" in item and "response" in item:
+                        cached_by_id[item["safety_id"]] = item["response"]
+        if all(r["safety_id"] in cached_by_id for r in records):
+            logger.info(f"Loaded all {len(records)} cached safety responses from {cache_path}")
+            return [cached_by_id[r["safety_id"]] for r in records]
+
     import gc
 
     import torch
@@ -122,8 +144,12 @@ def generate_responses(
     from src.generation import generate_batch_hf
     from src.model import load_model_and_tokenizer
 
+    load_kwargs: Dict[str, Any] = {}
+    if load_in_4bit:
+        load_kwargs["load_in_4bit"] = True
+
     model, tokenizer = load_model_and_tokenizer(
-        model_name, adapter_path=adapter_path, hf_cache_dir=hf_cache_dir
+        model_name, adapter_path=adapter_path, hf_cache_dir=hf_cache_dir, **load_kwargs
     )
 
     use_chat = prompt_format == "chat" or (
@@ -136,9 +162,9 @@ def generate_responses(
             return apply_chat_template(format_chat_messages(prompt), tokenizer)
         return format_zero_shot_prompt(prompt)
 
-    responses: List[str] = []
-    for start in range(0, len(records), batch_size):
-        chunk = records[start : start + batch_size]
+    pending = [r for r in records if r["safety_id"] not in cached_by_id]
+    for start in range(0, len(pending), batch_size):
+        chunk = pending[start : start + batch_size]
         outputs = generate_batch_hf(
             model,
             tokenizer,
@@ -146,14 +172,20 @@ def generate_responses(
             max_new_tokens=max_new_tokens,
             stop_sequences=None if use_chat else stop_sequences,
         )
-        responses.extend(out[0]["completion"] for out in outputs)
-        logger.info(f"Generated {len(responses)}/{len(records)} responses")
+        for rec, out in zip(chunk, outputs):
+            resp_text = out[0]["completion"]
+            cached_by_id[rec["safety_id"]] = resp_text
+            if cache_path is not None:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(cache_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"safety_id": rec["safety_id"], "response": resp_text}, ensure_ascii=False) + "\n")
+        logger.info(f"Generated {len(cached_by_id)}/{len(records)} responses")
 
     del model
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    return responses
+    return [cached_by_id[r["safety_id"]] for r in records]
 
 
 def summarize_group(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -187,8 +219,12 @@ def main() -> int:
 
     data_path = Path(args.safety_data)
     if not data_path.exists():
-        logger.error(f"Safety prompt set not found: {data_path}. Run scripts/prepare_safety_data.py first.")
-        return 1
+        local_safety = PROJECT_ROOT / "data" / "safety" / "safety_prompts.jsonl"
+        if local_safety.exists():
+            data_path = local_safety
+        else:
+            logger.error(f"Safety prompt set not found: {data_path}. Run scripts/prepare_safety_data.py first.")
+            return 1
     records = load_safety_prompt_set(data_path)
     if args.limit:
         # Keep both labels represented in dry runs
@@ -222,6 +258,8 @@ def main() -> int:
             args.max_new_tokens,
             stop_sequences,
             hf_cache_dir,
+            load_in_4bit=args.load_in_4bit,
+            cache_path=out_dir / "safety_generations.jsonl",
         )
 
     # Pass 2: Llama Guard screening
@@ -230,10 +268,17 @@ def main() -> int:
         use_mock=args.use_mock,
         batch_size=args.batch_size,
         hf_cache_dir=hf_cache_dir,
+        load_in_4bit=args.load_in_4bit,
+        allow_heuristic_fallback=not args.strict_guard,
     )
     prompt_assessments: List[SafetyAssessment] = auditor.assess_prompt_batch([r["prompt"] for r in records])
     response_assessments: List[SafetyAssessment] = auditor.assess_response_batch(
         [(r["prompt"], resp) for r, resp in zip(records, responses)]
+    )
+    guard_mode = (
+        "mock"
+        if args.use_mock
+        else ("heuristic_fallback_gated_model" if auditor.fallback_used else "llama_guard")
     )
     auditor.unload()
 
@@ -250,7 +295,8 @@ def main() -> int:
             "response_assessment": ra.to_dict(),
         })
 
-    with open(out_dir / "safety_assessments.jsonl", "w", encoding="utf-8") as f:
+    assessments_path = out_dir / "safety_assessments.jsonl"
+    with open(assessments_path, "w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -258,6 +304,7 @@ def main() -> int:
         "model": model_name,
         "adapter_path": args.adapter_path,
         "guard_model": guard_name,
+        "guard_mode": guard_mode,
         "safety_data": str(data_path),
         "num_prompts": len(rows),
         "mock": args.use_mock,
@@ -265,7 +312,8 @@ def main() -> int:
         "benign": summarize_group([r for r in rows if r["label"] == "benign"]),
         "all_responses": compute_safety_metrics([r["response_assessment"] for r in rows]),
     }
-    with open(out_dir / "safety_results.json", "w", encoding="utf-8") as f:
+    results_path = out_dir / "safety_results.json"
+    with open(results_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     save_run_info(
@@ -274,6 +322,26 @@ def main() -> int:
         config={k: v for k, v in results.items() if k not in ("harmful", "benign", "all_responses")},
         description=f"safety_eval_{slug}",
     )
+
+    # Mirror safety results between Drive and local repository workspace when not in mock mode
+    if not args.use_mock and args.output_dir is None:
+        local_safety_dir = PROJECT_ROOT / "outputs" / args.stage / "safety" / slug
+        drive_root = Path("/content/drive/MyDrive/math-reasoning-llm")
+        drive_safety_dir = drive_root / "outputs" / args.stage / "safety" / slug if drive_root.exists() else None
+        run_info_file = out_dir / "run_info.json"
+        for target_dir in (local_safety_dir, drive_safety_dir):
+            if target_dir is None:
+                continue
+            try:
+                if target_dir.resolve() == out_dir.resolve():
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                for artifact in (results_path, assessments_path, run_info_file):
+                    if artifact.exists():
+                        shutil.copy2(artifact, target_dir / artifact.name)
+                logger.info(f"Mirrored safety evaluation artifacts to: {target_dir}")
+            except Exception as exc:
+                logger.warning(f"Could not mirror safety artifacts to {target_dir}: {exc}")
 
     h, b = results["harmful"], results["benign"]
     print("\n" + "=" * 72)

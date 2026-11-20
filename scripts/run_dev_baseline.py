@@ -70,10 +70,22 @@ def parse_args() -> argparse.Namespace:
         help="Inference engine backend.",
     )
     parser.add_argument(
+        "--presets",
+        type=str,
+        default="greedy,self_consistency",
+        help="Comma-separated decoding presets to evaluate (greedy, self_consistency).",
+    )
+    parser.add_argument(
         "--batch_size",
         type=int,
         default=4,
         help="Batch size for inference.",
+    )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load model in 4-bit NF4 quantization.",
     )
     parser.add_argument(
         "--use_mock",
@@ -91,42 +103,29 @@ def main() -> int:
     model_name = args.model_name_or_path or cfg_mgr.base_config.get("models", {}).get(
         "dev_model", "Qwen/Qwen2.5-1.5B-Instruct"
     )
+    presets = [p.strip() for p in args.presets.split(",") if p.strip()]
 
     stage = "baseline"
     logger.info("=" * 64)
     logger.info(f"Starting Day 13 Development Model Baseline: {model_name}")
-    logger.info(f"Split: {args.split} (Limit: {args.limit}) | Backend: {args.backend}")
+    logger.info(f"Split: {args.split} (Limit: {args.limit}) | Presets: {presets} | Backend: {args.backend}")
     logger.info("=" * 64)
 
-    # 1. Run Greedy Decoding Evaluation
-    logger.info("\n--- Phase 1/2: Greedy Decoding Evaluation ---")
-    greedy_evaluator = MathEvaluator(
-        stage=stage,
-        checkpoint=model_name,
-        preset="greedy",
-        split=args.split,
-        limit=args.limit,
-        backend=args.backend,
-        batch_size=args.batch_size,
-        use_mock=args.use_mock,
-    )
-    greedy_results = greedy_evaluator.evaluate()
-    print_results_summary(greedy_results)
-
-    # 2. Run Self-Consistency Decoding Evaluation
-    logger.info("\n--- Phase 2/2: Self-Consistency Decoding Evaluation ---")
-    sc_evaluator = MathEvaluator(
-        stage=stage,
-        checkpoint=model_name,
-        preset="self_consistency",
-        split=args.split,
-        limit=args.limit,
-        backend=args.backend,
-        batch_size=args.batch_size,
-        use_mock=args.use_mock,
-    )
-    sc_results = sc_evaluator.evaluate()
-    print_results_summary(sc_results)
+    for idx, preset in enumerate(presets, start=1):
+        logger.info(f"\n--- Phase {idx}/{len(presets)}: {preset} Decoding Evaluation ---")
+        evaluator = MathEvaluator(
+            stage=stage,
+            checkpoint=model_name,
+            preset=preset,
+            split=args.split,
+            limit=args.limit,
+            backend=args.backend,
+            batch_size=args.batch_size,
+            use_mock=args.use_mock,
+            load_in_4bit=args.load_in_4bit,
+        )
+        results = evaluator.evaluate()
+        print_results_summary(results)
 
     logger.info("=" * 64)
     logger.info("Development baseline evaluations successfully completed!")

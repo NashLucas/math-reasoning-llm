@@ -32,7 +32,8 @@ class ReasoningPromptType(str, Enum):
 CANONICAL_ANSWER_INSTRUCTION = (
     "At the end of your response, provide the final numeric answer on a new line "
     "prefixed with '#### ', for example:\n#### 42\n"
-    "Write only the plain number after '#### ' (no units, currency symbols, or trailing text)."
+    "Write only the plain number after '#### ' (no units, currency symbols, or trailing text). "
+    "Do NOT use \\boxed{} or markdown bold instead of '#### ', and stop immediately after that line."
 )
 
 CANONICAL_LINE_INSTRUCTION = (
@@ -66,7 +67,9 @@ PROMPT_CONFIGS: Dict[ReasoningPromptType, ReasoningPromptConfig] = {
         user_template=(
             "Question: {question}\n\n"
             "Please solve this math problem step by step, showing all work clearly.\n"
-            f"{CANONICAL_LINE_INSTRUCTION}"
+            f"{CANONICAL_LINE_INSTRUCTION}\n"
+            "Format the final line strictly as:\n#### 42\n"
+            "(replacing 42 with your numeric answer). Do NOT use \\boxed{{}}, units, or any text after that line."
         ),
         plain_text_template=(
             "Question: {question}\n"
@@ -94,7 +97,9 @@ PROMPT_CONFIGS: Dict[ReasoningPromptType, ReasoningPromptConfig] = {
             "1. Solve: Find the solution step by step.\n"
             "2. Verify: Check your calculations and reasoning to confirm the answer is correct.\n\n"
             "Do not write '####' until after Stage 2 verification is complete. "
-            f"{CANONICAL_LINE_INSTRUCTION}"
+            f"{CANONICAL_LINE_INSTRUCTION}\n"
+            "Format the final line strictly as:\n#### 42\n"
+            "(replacing 42 with your numeric answer). Do NOT use \\boxed{{}}, units, or any text after that line."
         ),
         plain_text_template=(
             "Question: {question}\n"
@@ -118,7 +123,9 @@ PROMPT_CONFIGS: Dict[ReasoningPromptType, ReasoningPromptConfig] = {
             "Question: {question}\n\n"
             "Please solve this math problem using an alternative or complementary method (e.g., algebraic modeling, "
             "proportional reasoning, or working backwards instead of standard arithmetic). Explain each step clearly.\n\n"
-            f"{CANONICAL_LINE_INSTRUCTION}"
+            f"{CANONICAL_LINE_INSTRUCTION}\n"
+            "Format the final line strictly as:\n#### 42\n"
+            "(replacing 42 with your numeric answer). Do NOT use \\boxed{{}}, units, or any text after that line."
         ),
         plain_text_template=(
             "Question: {question}\n"

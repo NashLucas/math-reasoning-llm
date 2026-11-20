@@ -49,7 +49,16 @@ env/
 
 # Project artifact directories (kept in Drive during Colab runs)
 checkpoints/
-outputs/
+outputs/*
+!outputs/baseline/
+outputs/baseline/*
+!outputs/baseline/baseline_summary.json
+!outputs/baseline/baseline_comparison.md
+!outputs/baseline/Qwen2.5-1.5B-Instruct/
+!outputs/baseline/deepseek-math-7b-base/
+!outputs/baseline/deepseek-math-7b-instruct/
+!outputs/baseline/deepseek-math-7b-rl/
+!outputs/baseline/safety/
 logs/
 reports/eval_*/
 
@@ -57,6 +66,10 @@ reports/eval_*/
 data/raw/
 data/processed/
 data/synthetic/*
+!data/synthetic/generated/
+data/synthetic/generated/*
+!data/synthetic/generated/problem_pass_rates.json
+!data/synthetic/generated/problem_pass_rates.parquet
 !data/synthetic/curated/
 data/synthetic/curated/*
 !data/synthetic/curated/traces_curated_sft.jsonl
@@ -66,7 +79,9 @@ data/synthetic/curated/*
 data/targeted/*
 !data/targeted/targeted_examples.jsonl
 !data/targeted/manifest.json
-data/safety/
+data/safety/*
+!data/safety/safety_prompts.jsonl
+!data/safety/manifest.json
 
 # IDE / Editor folders
 .vscode/

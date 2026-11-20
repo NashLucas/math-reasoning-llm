@@ -1,6 +1,6 @@
 # SFT Reasoning Dataset Curation Report (Phase 3 Day 23)
 
-- **Date:** 2026-11-03 01:11:32 UTC
+- **Date:** 2026-11-16 08:15:28 UTC
 - **Curated Dataset Output:** `C:\Users\DELL\Desktop\math-reasoning-llm\data\synthetic\curated\traces_curated_sft.jsonl`
 - **Total Curated Traces:** 3100
 - **Unique Problems Covered:** 3000 / 3000 (100.0%)

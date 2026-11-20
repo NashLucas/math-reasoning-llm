@@ -78,8 +78,16 @@ def main() -> int:
         if not args.import_only:
             from vllm import LLM, SamplingParams
 
+            from src.model import is_bf16_supported_cuda
+
+            vllm_dtype = "auto" if is_bf16_supported_cuda() else "half"
             start = time.time()
-            llm = LLM(model=model_name, dtype="auto", gpu_memory_utilization=args.gpu_memory_utilization, max_model_len=1024)
+            llm = LLM(
+                model=model_name,
+                dtype=vllm_dtype,
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                max_model_len=1024,
+            )
             out = llm.generate(["Question: What is 12 + 30?\nAnswer:"], SamplingParams(temperature=0.0, max_tokens=32))
             result["generation_ok"] = True
             result["generation_model"] = model_name

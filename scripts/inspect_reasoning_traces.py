@@ -379,17 +379,20 @@ def main() -> None:
     cfg_mgr = ConfigManager()
     profile_data_dir = cfg_mgr.get_profile_dir("data_dir")
 
+    def _resolve_preferred(raw_str: str, drive_subdir: str) -> Path:
+        raw_p = Path(raw_str)
+        if raw_p.is_absolute():
+            return raw_p
+        local_cand = PROJECT_ROOT / raw_p
+        drive_cand = profile_data_dir / drive_subdir / raw_p.name
+        alt_drive = profile_data_dir / raw_p
+        existing = [p for p in (drive_cand, local_cand, alt_drive) if p.exists()]
+        if existing:
+            return max(existing, key=lambda p: p.stat().st_size)
+        return local_cand
+
     # 1. Load curated dataset
-    c_path = Path(args.curated_file)
-    if not c_path.is_absolute():
-        if (PROJECT_ROOT / c_path).exists():
-            c_path = PROJECT_ROOT / c_path
-        elif (profile_data_dir / "synthetic" / "curated" / c_path.name).exists():
-            c_path = profile_data_dir / "synthetic" / "curated" / c_path.name
-        elif (profile_data_dir / c_path).exists():
-            c_path = profile_data_dir / c_path
-        else:
-            c_path = PROJECT_ROOT / c_path
+    c_path = _resolve_preferred(args.curated_file, "synthetic/curated")
 
     if not c_path.exists():
         logger.error(f"Curated file not found: {c_path}")
@@ -400,16 +403,7 @@ def main() -> None:
     logger.info(f"Loaded {len(curated_traces)} curated traces from {c_path}")
 
     # 2. Load all scored traces
-    s_path = Path(args.scored_file)
-    if not s_path.is_absolute():
-        if (PROJECT_ROOT / s_path).exists():
-            s_path = PROJECT_ROOT / s_path
-        elif (profile_data_dir / "synthetic" / "generated" / s_path.name).exists():
-            s_path = profile_data_dir / "synthetic" / "generated" / s_path.name
-        elif (profile_data_dir / s_path).exists():
-            s_path = profile_data_dir / s_path
-        else:
-            s_path = PROJECT_ROOT / s_path
+    s_path = _resolve_preferred(args.scored_file, "synthetic/generated")
 
     all_scored: List[Dict[str, Any]] = []
     if s_path.exists():
@@ -420,16 +414,7 @@ def main() -> None:
         all_scored = list(curated_traces)
 
     # 3. Load pass rates if available
-    pr_path = Path(args.pass_rates_file)
-    if not pr_path.is_absolute():
-        if (PROJECT_ROOT / pr_path).exists():
-            pr_path = PROJECT_ROOT / pr_path
-        elif (profile_data_dir / "synthetic" / "generated" / pr_path.name).exists():
-            pr_path = profile_data_dir / "synthetic" / "generated" / pr_path.name
-        elif (profile_data_dir / pr_path).exists():
-            pr_path = profile_data_dir / pr_path
-        else:
-            pr_path = PROJECT_ROOT / pr_path
+    pr_path = _resolve_preferred(args.pass_rates_file, "synthetic/generated")
 
     yield_summary: Dict[str, Any] = {
         "curated_traces": len(curated_traces),
@@ -532,6 +517,24 @@ def main() -> None:
     }
     samples_path.write_text(json.dumps(samples_payload, indent=2), encoding="utf-8")
     logger.info(f"Saved inspection samples (50 kept, 50 rejected) to: {samples_path}")
+
+    try:
+        import shutil
+
+        drive_reports = profile_data_dir.parent / "reports"
+        if (
+            profile_data_dir.parent.resolve() != PROJECT_ROOT.resolve()
+            and reports_dir.resolve() == (PROJECT_ROOT / "reports").resolve()
+            and drive_reports.resolve() != reports_dir.resolve()
+            and profile_data_dir.parent.exists()
+        ):
+            drive_reports.mkdir(parents=True, exist_ok=True)
+            for rp in (md_report_path, json_report_path, samples_path):
+                shutil.copy2(rp, drive_reports / rp.name)
+            logger.info(f"Mirrored Day 24 inspection reports to Drive: {drive_reports}")
+    except Exception as exc:
+        logger.debug(f"Could not mirror Day 24 reports to Drive: {exc}")
+
     logger.info("Day 24 Inspection pipeline completed successfully!")
 
 

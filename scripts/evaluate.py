@@ -119,6 +119,12 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Use deterministic mock generation for fast testing without GPU.",
     )
+    parser.add_argument(
+        "--load_in_4bit",
+        action="store_true",
+        default=False,
+        help="Load model in 4-bit NF4 quantization (recommended for 7B models on 15GB T4 GPUs).",
+    )
     return parser.parse_args()
 
 
@@ -171,6 +177,7 @@ def main() -> int:
             batch_size=args.batch_size,
             output_dir=args.output_dir,
             use_mock=args.use_mock,
+            load_in_4bit=args.load_in_4bit,
         )
 
         results = evaluator.evaluate()

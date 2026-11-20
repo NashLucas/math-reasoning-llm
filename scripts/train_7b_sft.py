@@ -35,6 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import ConfigManager, get_default_profile  # noqa: E402
+from src.data.sft_dataset import resolve_sft_dataset_file  # noqa: E402
 from src.training.checkpointing import (  # noqa: E402
     find_latest_checkpoint,
     get_checkpoints,
@@ -169,26 +170,7 @@ def run_day29_7b_training(
     rep_path.mkdir(parents=True, exist_ok=True)
 
     # Resolve dataset paths
-    c_path = Path(curated_file) if curated_file else (PROJECT_ROOT / "data" / "synthetic" / "curated" / "traces_curated_sft.jsonl")
-    if not c_path.is_absolute():
-        drive_curated = profile_data_dir / "synthetic" / "curated" / c_path.name
-        local_curated = PROJECT_ROOT / c_path
-        if drive_curated.exists() and local_curated.exists():
-            c_path = drive_curated if drive_curated.stat().st_size >= local_curated.stat().st_size else local_curated
-        elif drive_curated.exists():
-            c_path = drive_curated
-        elif local_curated.exists():
-            c_path = local_curated
-        elif (profile_data_dir / c_path).exists():
-            c_path = profile_data_dir / c_path
-        else:
-            c_path = local_curated
-
-    if not c_path.exists():
-        fallback_sample = PROJECT_ROOT / "data" / "sample" / "train_sample.jsonl"
-        if fallback_sample.exists():
-            logger.warning(f"Curated dataset not found at {c_path}. Falling back to sample dataset: {fallback_sample}")
-            c_path = fallback_sample
+    c_path = resolve_sft_dataset_file(curated_file, profile=active_profile, allow_sample_fallback=True)
 
     v_path = Path(val_file) if val_file else (PROJECT_ROOT / "data" / "splits" / "val.parquet")
     if not v_path.is_absolute():
@@ -281,6 +263,7 @@ def run_day29_7b_training(
         use_mock=should_use_mock,
         load_in_4bit=load_4bit,
         load_in_8bit=load_in_8bit,
+        profile=active_profile,
     )
 
     # 3. Collect Results and Metrics

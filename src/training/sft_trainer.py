@@ -17,6 +17,7 @@ import yaml
 
 from src.data.sft_dataset import (
     load_sft_dataset,
+    resolve_sft_dataset_file,
     tokenize_sft_example,
 )
 from src.run_info import collect_run_info, make_json_serializable, save_run_info
@@ -401,7 +402,6 @@ def wrap_dataset_for_trainer(dataset: Any) -> Any:
 
         # 2. Fall back to torch.utils.data.Dataset
         try:
-            import torch
             from torch.utils.data import Dataset as TorchDataset
 
             class TorchListDataset(TorchDataset):
@@ -489,11 +489,11 @@ def build_sft_trainer(
             converted_count = 0
             for name, param in model.named_parameters():
                 if param.requires_grad and param.dtype == torch.bfloat16:
-                    param.data = param.data.to(torch.float16)
+                    param.data = param.data.to(torch.float32)
                     converted_count += 1
             if converted_count > 0:
                 logger.info(
-                    f"Converted {converted_count} trainable parameters from bfloat16 to torch.float16 "
+                    f"Converted {converted_count} trainable parameters from bfloat16 to torch.float32 "
                     "for compatibility with PyTorch fp16 GradScaler."
                 )
 
@@ -563,6 +563,7 @@ def run_sft_training(
     load_in_8bit: bool = False,
     fp16: Optional[bool] = None,
     bf16: Optional[bool] = None,
+    profile: Optional[str] = None,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Execute the complete SFT training pipeline with LoRA and automatic checkpoint resumption.
 
@@ -645,9 +646,7 @@ def run_sft_training(
     eos_str = getattr(tokenizer, "eos_token", "<|eos|>") or "<|eos|>"
 
     # 2. Load and Tokenize Curated Dataset
-    c_path = Path(curated_data_path)
-    if not c_path.is_absolute():
-        c_path = PROJECT_ROOT / c_path
+    c_path = resolve_sft_dataset_file(curated_data_path, profile=profile, allow_sample_fallback=True)
 
     logger.info(f"Loading SFT prompt-completion examples from: {c_path}")
     sft_examples = load_sft_dataset(c_path, eos_token=eos_str, limit=sample_limit)

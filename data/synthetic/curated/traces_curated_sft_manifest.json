@@ -5,9 +5,13 @@
   "unique_problems": 3000,
   "target_problems": 3000,
   "problem_coverage_percent": 100.0,
+  "synthetic_traces": 200,
+  "real_synthetic_traces": 0,
+  "mock_synthetic_traces": 200,
+  "gold_fallback_traces": 2900,
   "by_prompt_type": {
-    "alternative_method": 100,
-    "chain_of_thought": 3000
+    "chain_of_thought": 3000,
+    "alternative_method": 100
   },
   "traces_per_problem_dist": {
     "1_traces": 2900,
@@ -21,6 +25,6 @@
     "p95": 101
   },
   "contamination_check_passed": true,
-  "frozen_timestamp_utc": "2026-11-03 01:15:10 UTC",
-  "gate_met": true
+  "frozen_timestamp_utc": "2026-11-16 08:20:01 UTC",
+  "gate_met": false
 }

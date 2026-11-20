@@ -17,19 +17,13 @@ Verifies:
 
 from __future__ import annotations
 
-import json
 import unittest
 from pathlib import Path
 from typing import Any, Dict, List
 
 from src.rewards import (
     CompositeGRPOReward,
-    compute_group_relative_advantages,
     load_reward_config,
-    score_correctness,
-    score_format,
-    score_length_and_repetition,
-    score_reasoning_structure,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
